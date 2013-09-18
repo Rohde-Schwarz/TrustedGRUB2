@@ -1,6 +1,6 @@
 /* Begin TCG Extension */
 
-/* tpm_kern.c - tpm functionality required for kernel */
+/* tpm_kern.c - tpm management */
 /*
  *  GRUB  --  GRand Unified Bootloader
  *  Copyright (C) 2002,2003,2004,2005,2007,2008,2009  Free Software Foundation, Inc.
@@ -31,6 +31,7 @@
 #include <grub/machine/tpm_kern.h>
 #include <grub/machine/memory.h> */
 
+/* FIXME */
 /* only for better eclipse integration: */
 #include <grub/i386/pc/tpm_kern.h>
 #include <grub/i386/pc/memory.h>
@@ -44,7 +45,8 @@ print_sha1( grub_uint8_t *inDigest ) {
 		grub_printf( "%02x", inDigest[j] );
 	}
 }
-
+/* ++++++++++++++++++++++++++++++++++++++++ */
+/* code adapted from bitvisor http://www.bitvisor.org */
 static void
 conv32to16( grub_uint32_t src, grub_uint16_t *lowDest, grub_uint16_t *highDest ) {
 	*lowDest = src;
@@ -86,6 +88,9 @@ swap32( grub_uint32_t value ) {
 	conv16to32( swap16( high ), swap16( low ), &value );
 	return value;
 }
+/* end functions from bitvisor */
+/* ++++++++++++++++++++++++++++++++++++++++ */
+
 
 /* Invokes assembler function asm_tcg_statusCheck()
 
@@ -208,33 +213,6 @@ tcg_passThroughToTPM( struct tcg_passThroughToTPM_InputParamBlock *input,
 	return 1;
 }
 
-static unsigned int grubTPM_AvailabilityAlreadyChecked = 0;
-static unsigned int grubTPM_isAvailable = 0;
-
-grub_uint32_t
-grub_TPM_isAvailable( void ) {
-
-	/* Checking for availability takes a while. so its useful to check this only once */
-	if( grubTPM_AvailabilityAlreadyChecked ) {
-		return grubTPM_isAvailable;
-	}
-
-	grub_uint32_t returnCode, featureFlags, eventLog, edi, statusCheckReturn;
-	grub_uint8_t major, minor;
-
-	/* FIXME: do something with returnCode?! */
-	statusCheckReturn = tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
-
-	grubTPM_AvailabilityAlreadyChecked = 1;
-
-	if ( statusCheckReturn == 1 ) {
-		/* tpm available */
-		grubTPM_isAvailable = 1;
-	}
-
-	return grubTPM_isAvailable;
-}
-
 static grub_err_t
 grub_TPM_measure( grub_uint8_t *inDigest, unsigned long index ) {
 
@@ -312,6 +290,33 @@ grub_TPM_measure( grub_uint8_t *inDigest, unsigned long index ) {
 #endif
 
 	return GRUB_ERR_NONE;
+}
+
+static unsigned int grubTPM_AvailabilityAlreadyChecked = 0;
+static unsigned int grubTPM_isAvailable = 0;
+
+grub_uint32_t
+grub_TPM_isAvailable( void ) {
+
+	/* Checking for availability takes a while. so its useful to check this only once */
+	if( grubTPM_AvailabilityAlreadyChecked ) {
+		return grubTPM_isAvailable;
+	}
+
+	grub_uint32_t returnCode, featureFlags, eventLog, edi, statusCheckReturn;
+	grub_uint8_t major, minor;
+
+	/* FIXME: do something with returnCode?! */
+	statusCheckReturn = tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
+
+	grubTPM_AvailabilityAlreadyChecked = 1;
+
+	if ( statusCheckReturn == 1 ) {
+		/* tpm available */
+		grubTPM_isAvailable = 1;
+	}
+
+	return grubTPM_isAvailable;
 }
 
 grub_err_t
