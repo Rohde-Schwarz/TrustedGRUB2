@@ -21,6 +21,10 @@
 
 #include <grub/offsets.h>
 
+/* BEGIN TCG_Extension */
+#define ENABLE_TGRUB2
+/* END TCG_Extension */
+
 /* The signature for bootloader.  */
 #define GRUB_BOOT_MACHINE_SIGNATURE	0xaa55
 

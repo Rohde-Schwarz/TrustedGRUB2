@@ -24,8 +24,6 @@
  *  defines for the code go here
  */
 
- #define ENABLE_TGRUB2
-
  #ifdef ENABLE_TGRUB2
  	/* Changes particularly adapted from trustedgrub and GRUB-IMA */
  #endif /* ENABLE_TGRUB2 */
