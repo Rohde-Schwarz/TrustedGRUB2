@@ -5,6 +5,8 @@
 #ifdef TCG_DEBUG
 	.code16
 
+/* BEGIN: adapted from GRUB-IMA: */
+
 /* DEBUG: Display debug message */
 debugmsg:
 	push    %ax
@@ -39,6 +41,7 @@ error_msg:                 .string "failed\r\n"
 #define MSG(x)
 #endif /* TCG_DEBUG */
 
+/* END adapted from GRUB-IMA */
 
 	.code32
 
