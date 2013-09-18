@@ -118,9 +118,9 @@ Perform TCG measurement operation with the file FILE and with PCR(PCRNUM).
 
 These commands are modified to measure before loading. PCR 14 is extended.
 
-== 5. General Information ==
+== 4. General Information ==
 
-=== 5.1 General view on how TrustedGRUB2 works ===
+=== 4.1 General view on how TrustedGRUB2 works ===
 
 The goal of TrustedGRUB2 is to install a chain of trust, i.e., every component measures the integrity of the succeeding component. 
 Concretely, this looks like the following ("<-" means "is checked by"):
@@ -133,7 +133,7 @@ Concretely, this looks like the following ("<-" means "is checked by"):
 
 This chain of trust can be extended by using the newly added "measure" command to measure the integrity of arbitrary files.
 
-=== 5.3 Modifications in boot.S ===
+=== 4.2 Modifications in boot.S ===
 
 TrustedGRUB2 MBR bootcode has the task to check the integrity of TrustedGRUB2 kernel. Because it only loads
 the first sector of the TrustedGRUB2 kernel, it is only able to check this small piece of code.                                                                      
@@ -152,14 +152,14 @@ close to this limit, leaving very few space for the TCG extensions. Because
 of this, it was necessary (in the current version of TrustedGRUB2) to eliminate the CHS-
 code. This results in the problem that we support only LBA-discs now.
 
-== 5.4 Modifications in diskboot.S ===
+=== 4.3 Modifications in diskboot.S ===
 
 boot.S contains the code for loading the first sector of TrustedGRUB2 kernel. Its only task
 is the load of TrustedGRUB2 kernel. Therefore, the TCG extension now has to measure the rest of TrustedGRUB2 kernel
 The changes here are widely the same as in TrustedGRUB2 bootcode, with the differences that 
 the entry point for the code which has to be checked is a address 0x8200 and that the result is written into PCR 9.
 
-=== 5.6 Other modifications ===
+=== 4.4 Other modifications ===
 
 All modifications have been commented with
 
@@ -169,13 +169,33 @@ All modifications have been commented with
 
 "grub-core/xxx.c contains xxx
 
-=== 5.7 File list ===
+=== 4.5 File list ===
 
-The following list presents the files that have been modified to add TCG
+The following list presents the files that have been added / modified to add TCG
 support to GRUB2.
 
-  - grub-core/
+  - README-TGRUB2
+  - grub-core/Makefile.am
+  - grub-core/Makefile.core.def
+  - grub-core/boot/i386/pc/boot.S
+  - grub-core/boot/i386/pc/diskboot.S
+  - grub-core/kern/dl.c
+  - grub-core/kern/i386/pc/startup.S
+  - grub-core/kern/i386/pc/tpm/tpm.S
+  - grub-core/kern/i386/pc/tpm/tpm_kern.c
+  - grub-core/kern/sha1.c
+  - grub-core/loader/i386/linux.c
+  - grub-core/loader/i386/pc/chainloader.c
+  - grub-core/loader/i386/pc/linux.c
+  - grub-core/loader/i386/pc/ntldr.c
+  - grub-core/normal/main.c
+  - grub-core/script/execute.c
+  - grub-core/tpm/i386/pc/tpm.c
+  - include/grub/err.h
+  - include/grub/i386/pc/boot.h
+  - include/grub/i386/pc/tpm_kern.h
+  - include/grub/sha1.h
 
-== 6. Thanks ==
+== 5. Thanks ==
 
-TrustedGrub and GRUB-IMA have done a lot of preparatory work in the field and were used for code examples. Some of the code is adapted from them.
+TrustedGrub1 and GRUB-IMA have done a lot of preparatory work in the field and were used for code examples. Some of the code is adapted from them.
