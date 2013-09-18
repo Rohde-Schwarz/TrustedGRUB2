@@ -103,36 +103,7 @@ grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **
   return GRUB_ERR_NONE;
 }
 
-static grub_err_t
-grub_cmd_tpmtest( grub_command_t cmd __attribute__ ((unused)), int argc __attribute__ ((unused)), char **args __attribute__ ((unused))) {
-#if 0
-	/*
-	char a0[] = "1";
-	char *argss[] = { a0, NULL };
-
-	grub_command_t cmd_pcr = grub_command_find( "readpcr" );
-	if( cmd_pcr ) {
-		if( !(cmd_pcr->func) ( cmd, 1, argss ) ) {
-		}
-	}*/
-
-	GRUB_PROPERLY_ALIGNED_ARRAY( fingerprint_context, GRUB_MD_SHA1->contextsize );
-	grub_memset( fingerprint_context, 0, sizeof( fingerprint_context ) );
-	GRUB_MD_SHA1->init( fingerprint_context );
-	GRUB_MD_SHA1->write( fingerprint_context, "\x99", 1 );
-	GRUB_MD_SHA1->final( fingerprint_context );
-
-	grub_uint8_t hash[SHA1_DIGEST_SIZE];
-
-	grub_memcpy( hash, GRUB_MD_SHA1->read( fingerprint_context ), 20 );
-
-	/* print_sha1( hash ); */
-#endif
-
-  return GRUB_ERR_NONE;
-}
-
-static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure, cmd_tpmtest;
+static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure;
 
 GRUB_MOD_INIT(tpm)
 {
@@ -141,13 +112,10 @@ GRUB_MOD_INIT(tpm)
   		    "TPM(Trusted Platform Module) at index, pcrindex." ) );
 
 	cmd_tcglog = grub_register_command( "tcglog", grub_cmd_tcglog, N_( "logindex" ),
-		N_( "Displays TCG event log entry at position, logindex." ) );
+		N_( "Displays TCG event log entry at position, logindex. Type in 0 for all entries." ) );
 
 	cmd_measure = grub_register_command( "measure", grub_cmd_measure, N_( "FILE pcrindex" ),
 	  	N_( "Perform TCG measurement operation with the file FILE and with PCR(pcrindex)." ) );
-
-	cmd_tpmtest = grub_register_command( "tpmtest", grub_cmd_tpmtest, NULL,
-		N_( "blabla" ) );
 }
 
 GRUB_MOD_FINI(tpm)
@@ -155,7 +123,6 @@ GRUB_MOD_FINI(tpm)
 	grub_unregister_command( cmd_readpcr );
 	grub_unregister_command( cmd_tcglog );
 	grub_unregister_command( cmd_measure );
-	grub_unregister_command( cmd_tpmtest );
 }
 
 /* End TCG extension */

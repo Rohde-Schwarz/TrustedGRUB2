@@ -58,6 +58,22 @@ _start:
 	/* this sets up for the first run through "bootloop" */
 	movw	$LOCAL(firstlist), %di
 
+/* BEGIN TCG EXTENSION */
+	push %edx
+
+	/* 8(%di) = number of sectors to read */
+	movw	8(%di), %ebp
+
+	/* Multiply number of sectors to read with 512 bytes */
+	movw	$0x200, %eax
+	mull	%ebp	/* ebp * eax = result in EDX:EAX */	/* TODO: Can the high part in edx savely be dropped? */
+
+	/* write result to number_of_bytes_to_measure var */
+	movw	%eax, number_of_bytes_to_measure
+
+	pop %edx
+/* END TCG EXTENSION */
+
 	/* save the sector number of the second sector in %ebp */
 	movl	(%di), %ebp
 
@@ -298,6 +314,87 @@ LOCAL(bootit):
 	/* print a newline */
 	MSG(notification_done)
 	popw	%dx	/* this makes sure %dl is our "boot" drive */
+
+
+	/* BEGIN TCG Extension */
+#ifdef ENABLE_TGRUB2
+	pusha
+
+	/* hash and measure 512 bytes at the beginning of kernel_address */
+
+	/* Check for TPM availability */
+	/* TODO: Propably not necessary */
+/*
+ * BIOS call "INT 1Ah, (AH)=BBh,(AL)=00h" TCG_StatusCheck
+ *	Call with	%ah = 0xBB
+ *				%al = 0x00
+ *
+ *	Return:	%eax = TCG_STATUS == 0 if the system supports the TCG BIOS calls.
+ *			%ebx = 'TCPA'
+ *
+ * Ref:
+ *  TCG PC Client Specific Implementation Specification for Conventional BIOS v1.21,
+ *  Section 13.7 (page 115)
+ */
+tcg_statuscheck:
+	movw    $0xBB00, %ax		/* TCG_StatusCheck */
+	int     $0x1A
+	test	%eax, %eax
+	jnz	tcg_end			/* if eax != 0 */
+
+/*
+ * BIOS call "INT 1Ah, (AH)=BBh, (AL)=07h" TCG_CompactHashLogExtendEvent
+ *
+ * Performs hashing of the event or the event data, extends the event to a PCR, and then
+ * places the resulting TCG_PCClientPCREventStruc into the event log
+ *
+ * Call with	%ah = 0xBB
+ *				%al = 0x07
+ *				%es:%di = segment:offset of the pointer to the start of the data buffer to be hashed
+ *				%esi = The informative value to be placed into the event field
+ *				%ebx = 'TCPA'
+ *				%ecx = The length, in bytes, of the buffer referenced by ES:DI
+ *				%edx = The PCR number (PCRIndex) to which the hashed result is to be extended
+ *
+ * Return:		%eax = TCG_STATUS
+ *				%edx = Event number of the event that was logged
+ *
+ * Ref:
+ *  TCG PC Client Specific Implementation Specification for Conventional BIOS v1.21,
+ *  Section 13.14 (page 126)
+ */
+tcg_compacthashlogextendevent:
+
+	movw    $0xBB07, %ax			/* TCG_CompactHashLogExtendEvent */
+
+	movw	$0x0, %bx
+	movw	%bx, %es
+
+	/* Rest of kernel starts at this address */
+	movw	$(GRUB_BOOT_MACHINE_KERNEL_ADDR + 0x200), %di
+
+	movl    $0x41504354, %ebx	/* EBX = "TCPA" */
+
+	/* %ecx = The length, in bytes, of the buffer to measure  */
+	movl	$number_of_bytes_to_measure, %esi
+	movl	(%esi), %ecx
+
+	/* FIXME: is it correct to set esi to zero? */
+	xorl	%esi, %esi
+
+	movl	$0x9, %edx			/* PCR 9 */
+
+	int     $0x1A
+	test	%eax, %eax
+	jz		tcg_end				/* if eax != 0 */
+	MSG(tcg_error_string)
+
+tcg_end:
+	popa
+
+#endif /* ENABLE_TGRUB2 */
+/* END TCG Extension */
+
 	ljmp	$0, $(GRUB_BOOT_MACHINE_KERNEL_ADDR + 0x200)
 
 
@@ -328,6 +425,11 @@ notification_done:	.asciz "\r\n"
 geometry_error_string:	.asciz "Geom"
 read_error_string:	.asciz "Read"
 general_error_string:	.asciz " Error"
+
+#ifdef ENABLE_TGRUB2
+tcg_error_string:	.string "TCGERR "
+number_of_bytes_to_measure: .long 0
+#endif /* ENABLE_TGRUB2 */
 
 /*
  * message: write the string pointed to by %si
