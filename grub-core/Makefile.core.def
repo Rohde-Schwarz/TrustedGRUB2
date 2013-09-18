@@ -1840,3 +1840,8 @@ module = {
   enable = i386;
 };
 
+module = {
+  name = tpm;
+  i386_pc = tpm/i386/pc/tpm.c;
+  enable = i386_pc;
+};
