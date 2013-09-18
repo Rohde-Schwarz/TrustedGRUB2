@@ -34,6 +34,8 @@
 #include <grub/cpu/relocator.h>
 #include <grub/machine/chainloader.h>
 
+#include <grub/machine/tpm_kern.h>
+
 GRUB_MOD_LICENSE ("GPLv3+");
 
 static grub_dl_t my_mod;
@@ -135,6 +137,11 @@ grub_cmd_ntldr (grub_command_t cmd __attribute__ ((unused)),
     goto fail;
  
   grub_loader_set (grub_ntldr_boot, grub_ntldr_unload, 1);
+
+  /* Begin TCG Extension */
+  grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
+  /* End TCG Extension */
+
   return GRUB_ERR_NONE;
 
  fail:
