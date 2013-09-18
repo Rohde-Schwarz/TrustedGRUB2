@@ -5,30 +5,25 @@
    error: undefined reference. call the gcryptlib sha1 functions from kernel?
    before any module ist loaded */
 
-/* TODO: At the moment only for testing. if used for release ask author */
-
-/*  This file contains functions and utilities for the Trusted GRUB project
-    at http://www.prosec.rub.de. The SHA1-implementation has been written by
-    Marko Wolf <mwolf@crypto.rub.de> and tested according to FIPS-180.
+/*  This SHA1-implementation has been written by Marko Wolf <mwolf@crypto.rub.de> and tested according to FIPS-180.
 	The SHA1-macros are from "Christophe Devine" <devine@cr0.net>.
-    For reusage of the SHA1-implementation, please contact the original authors.
-
-	Furthermore, this file contains the GRUB implementation of "calculate_sha1".
-	For details, read the README-file or contact the author Marcel Selhorst
-	<m.selhorst@sirrix.com>
 
 	Parameters:
     int sha1_init(sha1_context *ctx )
 	int sha1_update(sha1_context *ctx, t_U8 *chunk_data, t_U32 chunk_length)
 	int sha1_finish(sha1_context *ctx, t_U32 *sha1_hash)
-	int calculate_sha1(char* filename, t_U32 *sha1_result, int print_results)
+*/
+
+/* Added by TrustedGRUB2 author:
+	sha1_hash_file( grub_file_t file, void *result )
+	sha1_hash_string( char *string, void *result )
 */
 
 #include <grub/sha1.h>
 #include <grub/types.h>
 #include <grub/mm.h>
 
-// concatenates 4 � 8-bit words (= 1 byte) to one 32-bit word
+// concatenates 4 * 8-bit words (= 1 byte) to one 32-bit word
 #define CONCAT_4_BYTES( w32, w8, w8_i)            \
 {                                                 \
     (w32) = ( (t_U32) (w8)[(w8_i)    ] << 24 ) |  \
@@ -37,7 +32,7 @@
             ( (t_U32) (w8)[(w8_i) + 3]       );   \
 }
 
-// splits a 32-bit word into 4 � 8-bit words (= 1 byte)
+// splits a 32-bit word into 4 * 8-bit words (= 1 byte)
 #define SPLIT_INTO_4_BYTES( w32, w8, w8_i)        \
 {                                                 \
     (w8)[(w8_i)    ] = (t_U8) ( (w32) >> 24 );    \
@@ -55,7 +50,7 @@ static t_U8 sha1_padding[64] =
  (t_U8)    0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0, (t_U8) 0
 };
 
-int sha1_init(sha1_context *ctx )
+static int sha1_init(sha1_context *ctx )
 {
 
   // parameter check
@@ -86,7 +81,7 @@ static void sha1_process(sha1_context *ctx, t_U8 *byte_64_block )
   t_U32 temp, W[16];
   t_U32 A, B, C, D, E;
 
-  // concatenate 64 bytes to 16 � 32-bit words
+  // concatenate 64 bytes to 16 * 32-bit words
   CONCAT_4_BYTES( W[0],  byte_64_block,  0 );
   CONCAT_4_BYTES( W[1],  byte_64_block,  4 );
   CONCAT_4_BYTES( W[2],  byte_64_block,  8 );
@@ -107,7 +102,7 @@ static void sha1_process(sha1_context *ctx, t_U8 *byte_64_block )
 // rotate left by n bits
 #define ROTATE_N_LEFT(x,n) ((x << n) | ((x & 0xFFFFFFFF) >> (32 - n)))
 
-// extends 16 � 32-bit words to 80 � 32-bit words
+// extends 16 * 32-bit words to 80 * 32-bit words
 #define EXTENDED_W(t)                                 \
 (                                                     \
   temp = W[(t -  3) & 0x0F] ^ W[(t - 8) & 0x0F] ^     \
@@ -249,7 +244,7 @@ static void sha1_process(sha1_context *ctx, t_U8 *byte_64_block )
   ctx->vector[4] += E;
 }
 
-int sha1_update(sha1_context *ctx, t_U8 *chunk_data, t_U32 chunk_length)
+static int sha1_update(sha1_context *ctx, t_U8 *chunk_data, t_U32 chunk_length)
 {
 
   // declarations
@@ -327,7 +322,7 @@ int sha1_update(sha1_context *ctx, t_U8 *chunk_data, t_U32 chunk_length)
   return 0;
 }
 
-int sha1_finish(sha1_context *ctx, t_U32 *sha1_hash)
+static int sha1_finish(sha1_context *ctx, t_U32 *sha1_hash)
 {
 
   // declarations
@@ -343,13 +338,13 @@ int sha1_finish(sha1_context *ctx, t_U32 *sha1_hash)
     return -1;
   }
 
-  // build msglen array[8 � 8-bit] from total[2 � 32-bit] = n � 64 byte
+  // build msglen array[8 * 8-bit] from total[2 * 32-bit] = n * 64 byte
   high = ( ctx->total_bytes_Lo >> 29 ) | ( ctx->total_bytes_Hi <<  3 );
   low  = ( ctx->total_bytes_Lo <<  3 );
   SPLIT_INTO_4_BYTES( high, msglen, 0 );
   SPLIT_INTO_4_BYTES( low,  msglen, 4 ); 
 
-  // total = n � 64 bytes + last
+  // total = n * 64 bytes + last
   last = ctx->total_bytes_Lo & 0x3F;
 
   // number of padding zeros 
@@ -372,13 +367,13 @@ int sha1_finish(sha1_context *ctx, t_U32 *sha1_hash)
   return 0;
 }
 
-grub_err_t
+grub_uint32_t
 sha1_hash_file( grub_file_t file, void *result ) {
   sha1_context context;
   grub_uint8_t readbuf[4096];
 
   if( sha1_init( &context ) != 0 ) {
-	  return grub_error (GRUB_ERR_IO, "SHA1 calc failed");
+	  return 0;
   }
 
   while( 1 ) {
@@ -391,33 +386,32 @@ sha1_hash_file( grub_file_t file, void *result ) {
     	  break;
       }
       if( sha1_update( &context, readbuf, r ) != 0 ) {
-    	  return grub_error (GRUB_ERR_IO, "SHA1 calc failed");
+    	  return 0;
       }
   }
   if( sha1_finish( &context, result ) != 0 ) {
-	  return grub_error (GRUB_ERR_IO, "SHA1 calc failed");
+	  return 0;
   }
 
-  return GRUB_ERR_NONE;
+  return 1;
 }
 
-grub_err_t
+grub_uint32_t
 sha1_hash_string( char *string, void *result ) {
 	sha1_context context;
 
 	if( sha1_init( &context ) != 0 ) {
-		return grub_error (GRUB_ERR_IO, "SHA1 calc failed");
+		return 0;
 	}
 
 	if( sha1_update( &context, (t_U8*)string, grub_strlen( string ) ) != 0 ) {
-		return grub_error (GRUB_ERR_IO, "SHA1 calc failed");
+		return 0;
 	}
 
 	if( sha1_finish( &context, result ) != 0 ) {
-		return grub_error (GRUB_ERR_IO, "SHA1 calc failed");
+		return 0;
 	}
 
-	return GRUB_ERR_NONE;
+	return 1;
 }
-
 /* End TCG Extension */

@@ -24,9 +24,9 @@
  *  defines for the code go here
  */
 
- #ifdef ENABLE_TGRUB2
- 	/* Changes particularly adapted from trustedgrub and GRUB-IMA */
- #endif /* ENABLE_TGRUB2 */
+/* BEGIN TCG_Extension */
+	/* Changes particularly adapted from trustedgrub and GRUB-IMA */
+/* END TCG_Extension */
 
 	/* Print message string */
 #define MSG(x)	movw $x, %si; call LOCAL(message)
@@ -160,6 +160,7 @@ real_start:
 	/* set %si to the disk address packet */
 	movw	$disk_address_packet, %si
 
+/* BEGIN TCG_Extension */
 #ifndef ENABLE_TGRUB2
 	/* check if LBA is supported */
 	movb	$0x41, %ah
@@ -181,6 +182,7 @@ real_start:
 	andw	$1, %cx
 	jz	LOCAL(chs_mode)
 #endif /* ! ENABLE_TGRUB2 */
+/* END TCG Extension */
 
 lba_mode:
 	xorw	%ax, %ax
@@ -224,11 +226,12 @@ lba_mode:
 	jmp	LOCAL(copy_buffer)
 
 LOCAL(chs_mode):
+/* BEGIN TCG_Extension */
 #ifdef ENABLE_TGRUB2
 	MSG(chs_no_support_string)
 	jmp     LOCAL(general_error)
 #else /* ! ENABLE_TGRUB2 */
-
+/* END TCG Extension */
 	/*
 	 *  Determine the hard disk geometry from the BIOS!
 	 *  We do this first, so that LS-120 IDE floppies work correctly.
@@ -340,6 +343,7 @@ setup_sectors:
 
 	movw	%es, %bx
 #endif /* ! ENABLE_TGRUB2 */
+/* End TCG Extension */
 LOCAL(copy_buffer):
 
 	/*
@@ -368,7 +372,7 @@ LOCAL(copy_buffer):
 #ifdef ENABLE_TGRUB2
 	pusha
 
-	/* hash and measure 512 bytes at the beginning of kernel_address */
+	/* hash and measure 512 bytes at the beginning of kernel_address (diskboot.img) */
 
 	/* Check for TPM availability */
 	/* TODO: Propably not necessary */
@@ -461,16 +465,18 @@ LOCAL(general_error):
 LOCAL(stop):
 	jmp	LOCAL(stop)
 
-notification_string:	.asciz "GRUB "
+notification_string:	.asciz "TrustedGRUB2 "
 geometry_error_string:	.asciz "Geom"
 hd_probe_error_string:	.asciz "Hard Disk"
 read_error_string:	.asciz "Read"
 general_error_string:	.asciz " Error\r\n"
 
+/* BEGIN TCG_Extension */
 #ifdef ENABLE_TGRUB2
 chs_no_support_string:	.string "CHSNA"
 tcg_error_string:	.string "TCGERR "
 #endif /* ENABLE_TGRUB2 */
+/* END TCG Extension */
 
 /*
  * message: write the string pointed to by %si
@@ -512,6 +518,7 @@ nt_magic:
 	. = _start + GRUB_BOOT_MACHINE_PART_START
 part_start:
 
+/* BEGIN TCG_Extension */
 #ifndef ENABLE_TGRUB2
 probe_values:
 	.byte	36, 18, 15, 9, 0
@@ -563,6 +570,7 @@ fd_probe_error_string:	.asciz "Floppy"
 
 	jmp	LOCAL(final_init)
 #endif /* ! ENABLE_TGRUB2 */
+/* END TCG Extension */
 
 	. = _start + GRUB_BOOT_MACHINE_PART_END
 

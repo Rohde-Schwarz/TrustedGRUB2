@@ -242,6 +242,7 @@ grub_chainloader_cmd (const char *filename, grub_chainloader_flags_t flags)
   grub_loader_set (grub_chainloader_boot, grub_chainloader_unload, 1);
 
   /* Begin TCG Extension */
+  /* TODO: Do something if measurement fails? */
   grub_TPM_measureFile( (char*)filename, TPM_LOADED_FILES_PCR );
   /* End TCG Extension */
 

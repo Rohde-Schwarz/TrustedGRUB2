@@ -71,9 +71,6 @@ typedef enum
     GRUB_ERR_NET_NO_DOMAIN,
     GRUB_ERR_EOF,
     GRUB_ERR_BAD_SIGNATURE,
-    /* Begin TCG Extension */
-    GRUB_ERR_TPM
-    /* End TCG Extension */
   }
 grub_err_t;
 
