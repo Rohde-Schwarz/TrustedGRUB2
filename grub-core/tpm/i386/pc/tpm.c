@@ -24,16 +24,18 @@
 #include <grub/mm.h>
 #include <grub/dl.h>
 
-/* This is the correct include
-#include <grub/machine/tpm_kern.h> */
-
-/* only for better eclipse integration: */
-#include <grub/i386/pc/tpm_kern.h>
+#include <grub/machine/tpm_kern.h>
+#include <grub/machine/boot.h>
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
 static grub_err_t
 grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
+
+	if( !grub_TPM_isAvailable() ) {
+		grub_printf( "TPM not available\n" );
+		return GRUB_ERR_NONE;
+	}
 
 	if ( argc == 0 ) {
 		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "index expected" ) );
@@ -48,10 +50,12 @@ grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 	if( grub_errno != GRUB_ERR_NONE ) {
 		grub_print_error();
 		grub_errno = GRUB_ERR_NONE;
-		return 0;
+		return grub_errno;
 	}
 
-	grub_TPM_readpcr( index );
+	if( grub_TPM_readpcr( index ) == 0 ) {
+		grub_printf( "PCR read failed\n" );
+	}
 
 	return GRUB_ERR_NONE;
 }
@@ -59,6 +63,11 @@ grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 static grub_err_t
 grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
+	if( !grub_TPM_isAvailable() ) {
+		grub_printf( "TPM not available\n" );
+		return GRUB_ERR_NONE;
+	}
+
 	if ( argc == 0 ) {
 		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "index expected" ) );
 	}
@@ -72,16 +81,23 @@ grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 	if( grub_errno != GRUB_ERR_NONE ) {
 		grub_print_error();
 		grub_errno = GRUB_ERR_NONE;
-		return 0;
+		return grub_errno;
 	}
 
-	grub_TPM_read_tcglog( index );
+	if( grub_TPM_read_tcglog( index ) == 0 ) {
+		grub_printf( "Read tcglog failed\n" );
+	}
 
 	return GRUB_ERR_NONE;
 }
 
 static grub_err_t
 grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
+
+	if( !grub_TPM_isAvailable() ) {
+		grub_printf( "TPM not available\n" );
+		return GRUB_ERR_NONE;
+	}
 
 	if ( argc != 2 ) {
 		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Wrong number of arguments" ) );
@@ -93,12 +109,10 @@ grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 	if( grub_errno != GRUB_ERR_NONE ) {
 		grub_print_error();
 		grub_errno = GRUB_ERR_NONE;
-		return 0;
+		return grub_errno;
 	}
 
-	if( grub_TPM_measureFile( args[0], index ) == GRUB_ERR_TPM) {
-		return grub_error( GRUB_ERR_TPM, N_( "TPM not available" ) );
-	}
+	grub_TPM_measureFile( args[0], index );
 
   return GRUB_ERR_NONE;
 }
@@ -109,13 +123,13 @@ GRUB_MOD_INIT(tpm)
 {
 	cmd_readpcr = grub_register_command( "readpcr", grub_cmd_readpcr, N_( "pcrindex" ),
   		N_( "Display current value of the PCR (Platform Configuration Register) within "
-  		    "TPM(Trusted Platform Module) at index, pcrindex." ) );
+  		    "TPM (Trusted Platform Module) at index, pcrindex." ) );
 
 	cmd_tcglog = grub_register_command( "tcglog", grub_cmd_tcglog, N_( "logindex" ),
 		N_( "Displays TCG event log entry at position, logindex. Type in 0 for all entries." ) );
 
 	cmd_measure = grub_register_command( "measure", grub_cmd_measure, N_( "FILE pcrindex" ),
-	  	N_( "Perform TCG measurement operation with the file FILE and with PCR(pcrindex)." ) );
+	  	N_( "Perform TCG measurement operation with the file FILE and with PCR( pcrindex )." ) );
 }
 
 GRUB_MOD_FINI(tpm)

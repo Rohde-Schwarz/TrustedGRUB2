@@ -9,7 +9,7 @@
 
 #include <grub/file.h>
 
-// Typedefs needed for the SHA1-implementation
+/* Typedefs needed for the SHA1-implementation */
 typedef unsigned int      t_U32;
 typedef unsigned short     t_U16;
 typedef unsigned char      t_U8;
@@ -18,7 +18,7 @@ typedef signed short       t_S16;
 typedef signed char        t_S8;
 typedef char*              t_string;
 
-// Struct for SHA1-Context
+/* Struct for SHA1-Context */
 typedef struct
 {
   t_U32 total_bytes_Hi; /* high word of 64-bit value for bytes count */
@@ -27,15 +27,11 @@ typedef struct
   t_U8  buffer[64];     /* 64 byte buffer                            */
 } sha1_context;
 
-/* TODO: Make them static? */
-/* Prototypes: */
-int sha1_init( sha1_context *ctx );
-int sha1_update( sha1_context *ctx, t_U8 *chunk_data, t_U32 chunk_length );
-int sha1_finish( sha1_context *ctx, t_U32 *sha1_hash );
+/* Creates SHA1-Hash of a file and stores digest in result */
+grub_uint32_t sha1_hash_file( grub_file_t file, void *result );
 
-grub_err_t sha1_hash_file( grub_file_t file, void *result );
-grub_err_t sha1_hash_string( char *string, void *result );
+/* Creates SHA1-Hash of a string and stores digest in result */
+grub_uint32_t sha1_hash_string( char *string, void *result );
 
 #endif /* ! GRUB_SHA1_H */
-
 /* End TCG Extension */

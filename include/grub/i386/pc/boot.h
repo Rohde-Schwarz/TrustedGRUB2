@@ -21,9 +21,9 @@
 
 #include <grub/offsets.h>
 
-/* BEGIN TCG_Extension */
-#define ENABLE_TGRUB2
-/* END TCG_Extension */
+/* Begin TCG Extension */
+#define ENABLE_TGRUB2 /* Comment this line to recover CHS-support */
+/* End TCG Extension */
 
 /* The signature for bootloader.  */
 #define GRUB_BOOT_MACHINE_SIGNATURE	0xaa55

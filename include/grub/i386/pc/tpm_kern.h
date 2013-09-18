@@ -3,11 +3,8 @@
 #define GRUB_CPU_TPM_KERN_H
 
 #include <grub/err.h>
-/*
-#ifndef TGRUB_DEBUG
-#define TGRUB_DEBUG
-#endif
-*/
+
+/* #define TGRUB_DEBUG */
 
 #define SHA1_DIGEST_SIZE 20
 #define TCPA 0x41504354
@@ -37,13 +34,6 @@
 #define TPM_TAG_RQU_COMMAND 193
 #define TPM_ORD_Extend 0x14
 #define TPM_ORD_PcrRead 0x15
-
-/*
-struct tcgbios_args {
-	u32 out_eax, out_ebx, out_ecx, out_edx, out_esi, out_edi, out_ds;
-	u32 in_ebx, in_ecx, in_edx, in_esi, in_edi, in_es, in_ds;
-} __attribute__ ((packed));
-*/
 
 struct tcg_statusCheck_args {
 	grub_uint32_t out_eax, out_ebx, out_ecx, out_edx, out_esi, out_edi;
@@ -89,25 +79,20 @@ typedef struct tdTCG_PCClientPCREventStruc {
 grub_uint32_t EXPORT_FUNC(grub_TPM_isAvailable) ( void );
 
 /* 	Measure string */
-grub_err_t EXPORT_FUNC(grub_TPM_measureString) ( char *string );
+grub_uint32_t EXPORT_FUNC(grub_TPM_measureString) ( char *string );
 /* 	Measure files */
-grub_err_t EXPORT_FUNC(grub_TPM_measureFile) ( char *filename, unsigned long index );
-
-/* extends pcr with sha1 from inDigest */
-/* grub_err_t EXPORT_FUNC(grub_TPM_measure) ( grub_uint8_t *inDigest, unsigned long index ); */
+grub_uint32_t EXPORT_FUNC(grub_TPM_measureFile) ( char *filename, unsigned long index );
 
 /* read pcr specified by index */
 /*TODO: print in cmd function. here: return result in second parameter  */
-grub_err_t EXPORT_FUNC(grub_TPM_readpcr) ( unsigned long index );
+grub_uint32_t EXPORT_FUNC(grub_TPM_readpcr) ( unsigned long index );
 
 /* read tcg log entry specified by index */
-grub_err_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
+grub_uint32_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
 
 /* Assembler exports: */
 grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (struct tcg_statusCheck_args *args);
 grub_uint32_t EXPORT_FUNC(asm_tcg_passThroughToTPM) (struct tcg_passThroughToTPM_args *args);
-
-
 
 #endif
 /* End TCG Extension */

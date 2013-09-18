@@ -28,15 +28,8 @@ debugmsg_ret:
 
 #define MSG(x)  push %si; movw $(x), %si; call debugmsg; pop %si
 
-status_check_msg:       .string "DEBUG: TCG_StatusCheck "
-tcg_passthru_msg:       .string "DEBUG: TCG_PassThru "
-logevent_msg:           .string "DEBUG: TCG_LogEvent "
-hashlogevent_msg:       .string "DEBUG: TCG_HashLogExtendEvent "
-compacthashlogevent_msg: .string "DEBUG: TCG_CompactHashLogExtendEvent "
-hashall_msg:            .string "DEBUG: TCG_HashAll 0816 "
 ok_msg:                 .string "ok\r\n"
 error_msg:                 .string "failed\r\n"
-        /* DEBUG: End of debug messages */
 #else  /* TCG_DEBUG */
 #define MSG(x)
 #endif /* TCG_DEBUG */
@@ -291,5 +284,4 @@ tcg_passThroughToTPM_end:
 	pop     %ebx
 	pop     %ebp
 	ret
-
 /* End TCG extension */
