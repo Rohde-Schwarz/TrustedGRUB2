@@ -198,6 +198,10 @@ FUNCTION(grub_pxe_call)
 
 #include "../int.S"
 
+/* Begin TCG extension */
+#include "tpm.S"
+/* End TCG extension */
+
 VARIABLE(grub_realidt)
 	.long 0
 
