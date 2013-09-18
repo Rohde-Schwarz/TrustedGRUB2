@@ -34,7 +34,7 @@
 #include <grub/script_sh.h>
 
 /* BEGIN TCG EXTENSION */
-#include <grub/machine/tpm.h>
+#include <grub/machine/tpm_kern.h>
 
 #define TGRUB_VERSION "1.00"
 /* END TCG EXTENSION */
@@ -244,7 +244,7 @@ grub_normal_init_page (struct grub_term_output *term)
 
 	grub_term_cls (term);
 
-	msg_formatted = grub_xasprintf (msg, PACKAGE_VERSION);
+	msg_formatted = grub_xasprintf (msg, TGRUB_VERSION);
 
 	if( grub_TPM_isAvailable() ) {
 	 tpm_msg = grub_xasprintf( "[ TPM detected! ]" );

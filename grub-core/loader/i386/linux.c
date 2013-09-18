@@ -35,6 +35,10 @@
 #include <grub/i18n.h>
 #include <grub/lib/cmdline.h>
 
+/* Begin TCG Extension */
+#include <grub/machine/tpm_kern.h>
+/* End TCG Extension */
+
 GRUB_MOD_LICENSE ("GPLv3+");
 
 #ifdef GRUB_MACHINE_PCBIOS
@@ -1032,19 +1036,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
     }
   /* Begin TCG Extension */
   else {	/* file successfully loaded */
-	  grub_command_t cmd_measure = grub_command_find( "measure" );
-
-  	  if( cmd_measure ) {
-  		  char pcrNum[] = "14";
-  		  char *argss[] = { argv[0], pcrNum, NULL };
-
-  		  /* measure file */
-  		  if( (cmd_measure->func) ( cmd, 2, argss ) ) {
-  			  grub_error( GRUB_ERR_TPM, N_( "Measurement failed" ) );
-  		  }
-  	  } else {
-  		  grub_error( GRUB_ERR_TPM, N_( "Measurement failed" ) );
-  	  }
+	  grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
   }
   /* End TCG Extension */
 
@@ -1169,21 +1161,9 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
 
   /* Begin TCG Extension */
   if( grub_errno == GRUB_ERR_NONE ) {
-	  grub_command_t cmd_measure = grub_command_find( "measure" );
-  	  if( cmd_measure ) {
-  		  char pcrNum[] = "14";
-
-  		  for( i = 0; i < nfiles; i++ ) {
-  			  char *argss[] = { argv[i], pcrNum, NULL };
-
-  			  /* measure file */
-  			  if( (cmd_measure->func) ( cmd, 2, argss ) ) {
-  				  grub_error( GRUB_ERR_TPM, N_( "Measurement failed" ) );
-  			  }
-  		  }
-  	  } else {
-  		  grub_error( GRUB_ERR_TPM, N_( "Measurement failed" ) );
-  	  }
+	  for( i = 0; i < nfiles; i++ ) {
+		  grub_TPM_measureFile( argv[i], TPM_LOADED_FILES_PCR );
+	  }
   }
   /* End TCG Extension */
 

@@ -1,12 +1,21 @@
 /* Begin TCG extension */
-#ifndef GRUB_CPU_TPM_H
-#define GRUB_CPU_TPM_H
+#ifndef GRUB_CPU_TPM_KERN_H
+#define GRUB_CPU_TPM_KERN_H
 
-#include <grub/types.h>
-#include <grub/symbol.h>
+#include <grub/err.h>
+/*
+#ifndef TGRUB_DEBUG
+#define TGRUB_DEBUG
+#endif
+*/
 
 #define SHA1_DIGEST_SIZE 20
 #define TCPA 0x41504354
+
+/* Measure into following PCRs */
+#define TPM_GRUB_LOADED_MODULES_PCR 11
+#define TPM_COMMAND_MEASUREMENT_PCR 12
+#define TPM_LOADED_FILES_PCR 14
 
 /* int1A return codes */
 #define TCG_PC_OK		0x0000
@@ -20,19 +29,14 @@
 #define TPM_SUCCESS TPM_BASE
 #define TPM_BADINDEX (TPM_BASE + 0x2)
 
-#define INPUT_PARAM_BLK_ADDR 0x10000
+/* TODO: 0x10000 does not work for some reason */
+/* is  0x20000 and 0x30000 a good choise? */
+#define INPUT_PARAM_BLK_ADDR 0x30000
 #define OUTPUT_PARAM_BLK_ADDR 0x20000
 
 #define TPM_TAG_RQU_COMMAND 193
 #define TPM_ORD_Extend 0x14
 #define TPM_ORD_PcrRead 0x15
-
-/*
-  	typedef unsigned char grub_uint8_t;
-	typedef unsigned short grub_uint16_t;
-	typedef unsigned grub_uint32_t;
-
- */
 
 /*
 struct tcgbios_args {
@@ -81,15 +85,29 @@ typedef struct tdTCG_PCClientPCREventStruc {
   	Returns 1 if available
 	Returns 0 if not
  */
-grub_uint32_t grub_TPM_isAvailable( void );
+/* grub_uint32_t grub_TPM_isAvailable( void ); */
+grub_uint32_t EXPORT_FUNC(grub_TPM_isAvailable) ( void );
 
-/* 	Measure string into PCR 12 */
-grub_err_t grub_TPM_measureString( char *string );
+/* 	Measure string */
+grub_err_t EXPORT_FUNC(grub_TPM_measureString) ( char *string );
+/* 	Measure files */
+grub_err_t EXPORT_FUNC(grub_TPM_measureFile) ( char *filename, unsigned long index );
+
+/* extends pcr with sha1 from inDigest */
+/* grub_err_t EXPORT_FUNC(grub_TPM_measure) ( grub_uint8_t *inDigest, unsigned long index ); */
+
+/* read pcr specified by index */
+/*TODO: print in cmd function. here: return result in second parameter  */
+grub_err_t EXPORT_FUNC(grub_TPM_readpcr) ( unsigned long index );
+
+/* read tcg log entry specified by index */
+grub_err_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
 
 /* Assembler exports: */
 grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (struct tcg_statusCheck_args *args);
 grub_uint32_t EXPORT_FUNC(asm_tcg_passThroughToTPM) (struct tcg_passThroughToTPM_args *args);
 
 
-#endif /* GRUB_CPU_TPM_H */
-/* End TCG extension */
+
+#endif
+/* End TCG Extension */
