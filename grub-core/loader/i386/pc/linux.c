@@ -346,6 +346,23 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       loaded = 0;
       grub_relocator_unload (relocator);
     }
+  /* Begin TCG Extension */
+  else {	/* file successfully loaded */
+	  grub_command_t cmd_measure = grub_command_find( "measure" );
+
+  	  if( cmd_measure ) {
+  		  char pcrNum[] = "14";
+  		  char *argss[] = { argv[0], pcrNum, NULL };
+
+  		  /* measure file */
+  		  if( (cmd_measure->func) ( cmd, 2, argss ) ) {
+  			  grub_error( GRUB_ERR_TPM, N_( "Measurement failed" ) );
+  		  }
+  	  } else {
+  		  grub_error( GRUB_ERR_TPM, N_( "Measurement failed" ) );
+  	  }
+  }
+  /* End TCG Extension */
 
   return grub_errno;
 }
@@ -460,6 +477,26 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
   for (i = 0; i < nfiles; i++)
     grub_file_close (files[i]);
   grub_free (files);
+
+  /* Begin TCG Extension */
+  if( grub_errno == GRUB_ERR_NONE ) {
+	  grub_command_t cmd_measure = grub_command_find( "measure" );
+  	  if( cmd_measure ) {
+  		  char pcrNum[] = "14";
+
+  		  for ( i = 0; i < nfiles; i++ ) {
+  			  char *argss[] = { argv[i], pcrNum, NULL };
+
+  			  /* measure file */
+  			  if( (cmd_measure->func) ( cmd, 2, argss ) ) {
+  				  grub_error( GRUB_ERR_TPM, N_( "Measurement failed" ) );
+  			  }
+  		  }
+  	  } else {
+  		  grub_error( GRUB_ERR_TPM, N_( "Measurement failed" ) );
+  	  }
+  }
+  /* End TCT Extension */
 
   return grub_errno;
 }
