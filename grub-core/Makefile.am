@@ -93,13 +93,14 @@ KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/mm_private.h
 KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/net.h
 KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/libgcc.h
 KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/memory.h
+KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/sha1.h
 
 if COND_i386_pc
 KERNEL_HEADER_FILES += $(top_builddir)/include/grub/machine/kernel.h
 KERNEL_HEADER_FILES += $(top_builddir)/include/grub/machine/pxe.h
 KERNEL_HEADER_FILES += $(top_builddir)/include/grub/machine/int.h
 KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/i386/pit.h
-KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/i386/pc/tpm.h
+KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/i386/pc/tpm_kern.h
 endif
 
 if COND_i386_efi
