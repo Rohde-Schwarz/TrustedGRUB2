@@ -1,0 +1,249 @@
+== 1. TrustedGRUB2 Download ==
+
+[http://xxx.net/projects/trustedgrub2]
+      
+== 2. TrustedGRUB2 ==
+
+=== 2.1 Introduction ===
+
+This file describes the extensions necessary to transform a standard GRUB2 into
+a version that offers TCG support for granting the integrity of the boot      
+process.                                                                      
+This is done by measuring all critical components during the boot process,    
+i.e., GRUB2 kernel, GRUB2 modules, the OS kernel or OS modules and so on, together with their        
+parameters. Please note that the MBR bootcode has not to be checked here (it wouldn't   
+even be possible), because it has already been measured by the TCG extension  
+itself.                                                                       
+Since the TCG extensions are passive, it has no direct ability to check if    
+the integrity of bootloader (and the OS kernel/modules and so on) actually is correct, this can only 
+be done indirectly by using the seal/unseal functions of the TCG chip (for    
+details on this topic, you should have a look at the TCG specifications or    
+on other documents describing TCG abilities).                                 
+
+=== 2.2 Authors ===
+
+The TrustedGRUB2 extensions have been performed by
+
+Daniel Neus <d.neus@sirrix.com>, Sirrix AG security technologies, Bochum, Germany
+
+=== 2.3 Features ===
+
+ * Based on GRUB2 Release 2.0.0
+ * TPM Support with TPM detection
+ * Measurement of GRUB2 kernel
+ * Measurement of all loaded GRUB2 modules
+ * Measurement of all commands and their parameters entered in shell and scripts
+ * New SHA1-implementation in GRUB2 kernel (necessary for doing the GRUB2 modules measurement as the crypto module isn't loaded at this stage)
+ * New commands:
+ ** readpcr PCRNUM
+ ** tcglog LOGINDEX
+ ** measure FILE PCRNUM
+ * Loader measurements:
+ ** linux / linux16
+ ** initrd / initrd16
+ ** chainloader
+ ** ntdlr
+
+=== 2.4 Measurements (in short) ===
+
+ * PCR 8 first sector of GRUB2 kernel
+ * PCR 9 rest of kernel
+ * PCR 11 contains all grub2-modules loaded
+ * PCR 12 contains all commandline arguments from scripts (e.g. grub.cfg) and those entered in the shell
+ * PCR 14 contains all files which are actually loaded (e.g. Linux kernel, initrd, etc.)
+
+Kernel measurements are only implemented for diskboot so far (e.g. no cdboot or pxeboot measurement)
+
+=== 2.5 Requirements ===
+
+In order to use the TCG-enhanced TrustedGRUB2, you need a computer which has TCG enhancements according to TCG specs. v1.2, since SHA1-calculations are extended into PC-Registers of the TPM.
+
+=== 2.6 Known Bugs ===
+
+ * On some HP notebooks, TrustedGRUB2 is not able to do the kernel measurements due to a missing / faulty implemented "TCG_CompactHashLogExtendEvent" inside the BIOS. This means PCR 8,9 contain bogus values
+
+If you find any bugs, please contact the author Daniel Neus <d.neus@sirrix.com>
+
+=== 2.7 Installation of TrustedGRUB2, general steps ===
+
+To compile and install TrustedGRUB2, please run
+
+Additional parameters can be listed with
+
+=== 2.8 Additional Compile Options ===
+
+Trusted GRUB has three modes of operations (selectable only before compilation!)
+
+ 1) Normal mode: simply compile and TrustedGRUB runs silently
+
+ 2) Debug mode: compiles additional debug information into Trusted GRUB.
+
+To compile in debug mode edit the file stage2/Makefile.am and look for the
+line                                                                         
+
+{{{
+    # tGRUB: add -DDEBUG or -DSHOW_SHA1
+    STAGE2_CFLAGS = $(INCLUDES)        
+}}}
+
+For mode 2) replace the line with
+
+STAGE2_CFLAGS = $(INCLUDES) -DDEBUG
+                                      
+=== 2.9 Installation of TrustedGRUB2, installing the bootloader ===
+
+./autogen.sh
+./configure --prefix=INSTALLDIR
+make 
+make install
+
+== 3. TrustedGRUB2 Commands ==
+
+=== 3.1 New Commands ===
+
+ ** readpcr PCRNUM
+
+Display current value of the PCR (Platform Configuration Register) within TPM(Trusted Platform Module) at index, PCRNUM.
+
+ ** tcglog LOGINDEX
+
+Displays TCG event log entry at position, LOGINDEX. Type in "0" for all entries.
+
+ ** measure FILE PCRNUM
+
+Perform TCG measurement operation with the file FILE and with PCR(PCRNUM).
+
+=== 3.2 Modified existing GRUB2 Commands ===
+
+ ** linux / linux16
+ ** initrd / initrd16
+ ** chainloader
+ ** ntdlr
+
+These commands are modified to measure before loading. PCR 14 is extended.
+
+== 4. TrustedGRUB2 Utilities==
+
+=== 4.1 util/verify_pcr ===
+
+The "verify_pcr"-tool is intended to check, if a PCR register is extended correctly
+with the given files. For example, if you have a checkfile containing 5 entries,   
+all the files are hashed and extended into PCR 13. The corresponding value of PCR13
+can be verified with this utility. Execute the command with the following parameters:
+
+{{{
+ Usage: ./util/verify_pcr  <pcr initial value {NULL | 20 byte hex}> {filenames-1 ... filenames-n}
+}}}
+
+ Example: All files which are actually loaded are hashed and extended into PCR 14.
+
+If you boot your Linux, this PCR would contain the Linux kernel (and probably initrd-files).
+In order to check if the result is correct, use:                                            
+
+
+{{{
+ # ./util/verify_pcr NULL /boot/vmlinuz
+ *******************************************************************************
+ * Result for PCR: d0 df 5b 82 c2 a8 1a ac 17 0e ff 80 fa 79 fb d2 f2 3e 17 01 *
+ *******************************************************************************
+}}}
+
+which will display the value, which has to be in your PCR. You can then check the
+according value with                                                             
+
+{{{
+ # cat /sys/class/misc/tpm0/device/pcrs | grep PCR-14
+ PCR-14: D0 DF 5B 82 C2 A8 1A AC 17 0E FF 80 FA 79 FB D2 F2 3E 17 01
+}}}
+
+'''Note:''' Be sure to give the correct order of your files as they are listed in your menu.lst.
+Otherwise the result will not be correct.                                                       
+
+'''Update:'''
+The Verification of the commandline-parameters (as loaded through the menu.lst)
+as well as those entered via the bash-like command console are measured into PCR 12.
+Since GRUB parses those commands and replaces tabs into 2 spaces, make sure to append
+those changes to your references as well in order to come up with the same hash value.
+It is planned to write a utility, which will perform the exact GRUB parsing and to    
+calculate the resulting hash in the PCR for you in near future.                       
+
+== 5. General Information ==
+
+=== 5.1 General view on how TrustedGRUB2 works ===
+
+The goal of TrustedGRUB2 is to install a chain of trust, i.e., every component
+measures the integrity of the succeeding component. Concretely, this looks like
+the following ("<-" means "is checked by"):                                    
+
+   BIOS integrity        	<-  TCG extension                                     
+   TrustedGRUB2 MBR bootcode    <-  TCG extension                                     
+   start of TrustedGRUB2 kernel <-  TrustedGRUB2 MBR bootcode                                       
+   rest of TrustedGRUB2 kernel  <-  start of TrustedGRUB2 kernel           
+   OS (kernel and so on) 	<-  TrustedGRUB2 kernel and tpm module
+
+This chain of trust can be extended by making GRUB stage2 able to measure the  
+integrity of arbitrary files. This is done by a newly added command named      
+checkfile which can either be used within the file menu.lst or via the GRUB    
+interface during the boot process.                                             
+
+=== 5.3 Modifications in stage1.S ===
+
+Stage1 has the task to check the integrity of stage2. Because it only loads
+the first sector of stage2, it is only able to check this small piece of   
+code.                                                                      
+In order to perform this task, stage1 is extended in a way that it uses    
+two functions provided by the TCG chip:                                    
+
+  1.) The code of (the first sector) of stage2 is hashed with a SHA-1
+      algorithm. The starting address of the code is 0x8000, its length is
+      512 bytes.                                                          
+  2.) The resulting hash value is written to PCR (Platform Configuration  
+      Register) 8. More precisely, the former content of this register (which
+      actually is 0) is concatenated to the new value, then hashed with SHA1 
+      and finally written again to PCR 8.                                    
+
+Due to the PC architecture, the size of the boot sector (where stage1 is     
+located) is limited to 512 bytes. But the original stage1 is already very    
+close to this limit, leaving very few space for the TCG extensions. Because  
+of this, it was necessary (in the current version of TrustedGRUB) to eliminate the CHS-
+code. This results in the problem that we support only LBA-discs now.                  
+
+
+=== 5.4 Modifications in start.S ===
+
+start.S contains the code for the first sector of GRUB's stage2. Its only task
+is to load of stage2. Therefore, the TCG extension now has to measure the     
+rest of stage2.                                                               
+The changes here are widely the same as in stage1, with the differences that  
+the entry point for the code which has to be checked is a address 0x8200 and  
+that the result is written into PCR 9.                                        
+
+=== 5.6 Other modifications ===
+
+All modifications have been commented with
+
+    /* BEGIN TCG EXTENSION */
+              ...
+    /* END TCG EXTENSION */
+
+"stage2/cmdline.c" contains the new measurements of all commandline-parameters
+
+"stage2/builtins.c" contains the new command line utilities "checkfile" and "sha1"
+
+"stage2/stage2.c" has been extended to check for a TPM and to activate the SHA1-measurements
+
+"stage2/asm.S" contains the Assembler-routines needed for communication with the TPM
+
+"stage2/Makefile.am" had to be modified, since we had to add our sha1-function for compiling
+
+=== 5.7 File list ===
+
+The following list presents the files that have been modified to add TCG
+support to GRUB2.
+
+  - grub-core/
+
+== 6. Thanks ==
+
+TrustedGrub and GRUB-IMA have done a lot of preparatory work in the field and were used for code examples. Some of the code is adapted from them.
+
