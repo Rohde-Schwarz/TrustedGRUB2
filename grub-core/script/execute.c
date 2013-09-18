@@ -28,6 +28,10 @@
 #include <grub/extcmd.h>
 #include <grub/i18n.h>
 
+/* Begin TCG Extension */
+#include <grub/machine/tpm.h>
+/* End TCG Extension */
+
 /* Max digits for a char is 3 (0xFF is 255), similarly for an int it
    is sizeof (int) * 3, and one extra for a possible -ve sign.  */
 #define ERRNO_DIGITS_MAX  (sizeof (int) * 3 + 1)
@@ -941,6 +945,27 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
 	  ret = GRUB_ERR_NONE;
 	}
     }
+
+  /* Begin TCG Extension */
+
+  /* Build string for measurement containing command + args */
+  char command[1024];
+  grub_strcpy( command, argv.args[0] );	/* copy command */
+  unsigned int i;
+  for( i = 1; i < argv.argc; i++  ) {
+	  grub_strcat( command, " " );
+	  grub_strcat( command, argv.args[1] ); /* append whitespace and args */
+  }
+
+  /* make sure string is terminated */
+  command[grub_strlen( command )] = '\0';
+
+  /*  measure string */
+  grub_TPM_measureString( command );
+
+  /* grub_printf( "  %s\n", command ); */
+
+  /* End TCG Extension */
 
   /* Free arguments.  */
   grub_script_argv_free (&argv);
