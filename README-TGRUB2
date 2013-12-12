@@ -76,6 +76,12 @@ in tpm_kern.h
 
 === 2.7 Installation of TrustedGRUB2 ===
 
+Required Packages for compiling:
+- autogen
+- autoconf
+- bison
+- flex
+
 To compile and install TrustedGRUB2, please run
 
 ./autogen.sh
