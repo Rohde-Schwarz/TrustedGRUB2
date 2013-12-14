@@ -166,7 +166,7 @@ GRUB_MOD_INIT(tpm)
 	cmd_measure = grub_register_command( "measure", grub_cmd_measure, N_( "FILE pcrindex" ),
 	  	N_( "Perform TCG measurement operation with the file FILE and with PCR( pcrindex )." ) );
 
-	cmd_setMOR = grub_register_command( "setMOR", grub_cmd_setMOR, N_( "disableAutoDetect" ),
+	cmd_setMOR = grub_register_command( "setmor", grub_cmd_setMOR, N_( "disableAutoDetect" ),
 		  	N_( "Sets Memory Overwrite Request Bit with auto detect enabled (0) or disabled (1)" ) );
 }
 

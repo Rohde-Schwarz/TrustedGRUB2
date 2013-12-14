@@ -345,9 +345,15 @@ grub_TPM_measure( grub_uint8_t *inDigest, unsigned long index ) {
 grub_uint32_t
 grub_TPM_SetMOR_Bit( unsigned int disableAutoDetect ) {
 
-	struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock input;
-	input.iPBLength = 5;
-	input.reserved = 0;
+	struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock *input;
+
+	input = grub_zalloc( 5 );
+	if( !input ) {
+		return 0 ;
+	}
+
+	input->iPBLength = 5;
+	input->reserved = 0;
 
 	// Reserved disableAutoDetect Reserved MOR-Bit
 	// 000             0            000      0
@@ -355,17 +361,19 @@ grub_TPM_SetMOR_Bit( unsigned int disableAutoDetect ) {
 	if( disableAutoDetect ) {
 		// disable autodetect
 		// 000 1 000 1
-		input.memoryOverwriteAction_BitValue = 0x11;
+		input->memoryOverwriteAction_BitValue = 0x11;
 	} else{
 		// autodetect
 		// 000 0 000 1
-		input.memoryOverwriteAction_BitValue = 0x01;
+		input->memoryOverwriteAction_BitValue = 0x01;
 	}
 
-	if ( tcg_SetMemoryOverwriteRequestBit( &input ) == 0 ) {
+	if ( tcg_SetMemoryOverwriteRequestBit( input ) == 0 ) {
+		grub_free( input );
 		return 0;
 	}
 
+	grub_free( input );
 	return 1;
 }
 

@@ -333,16 +333,9 @@ FUNCTION(asm_tcg_SetMemoryOverwriteRequestBit)
 	/* Save es in dx  */
 	movw	20(%eax), %dx
 
-
-	/* preserve %eax before switching to realmode
-	movl %eax, %edx */
-
 	/* messes up %eax and %ebp. */
 	PROT_TO_REAL
 	.code16
-
-	/* restore %eax
-	movl %edx, %eax */
 
 	/* Save registers before creating a new segment */
 	pushw %es
