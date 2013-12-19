@@ -31,6 +31,7 @@ Daniel Neus <d.neus@sirrix.com>, Sirrix AG security technologies, Bochum, German
  ** readpcr PCRNUM
  ** tcglog LOGINDEX
  ** measure FILE PCRNUM
+ ** setmor DISABLEAUTODETECT 
  * Loader measurements:
  ** linux / linux16
  ** initrd / initrd16
@@ -167,6 +168,10 @@ Displays TCG event log entry at position, LOGINDEX. Type in "0" for all entries.
  ** measure FILE PCRNUM
 
 Perform TCG measurement operation with the file FILE and with PCR( PCRNUM ).
+
+ ** setmor DISABLEAUTODETECT
+
+Sets Memory Overwrite Request (MOR) Bit. DISABLEAUTODETECT specifies if bios should auto detect unscheduled reboots.
 
 ==== 3.6.2 Modified existing GRUB2 commands ====
 
