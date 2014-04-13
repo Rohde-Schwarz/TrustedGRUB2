@@ -92,10 +92,13 @@ make install
 
 Installing to device:
 
-./INSTALLDIR/grub-install
+./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc /dev/sda
+
+[WARNING]
+if installing over an old GRUB2 install you probably have to adjust your grub.cfg
 
 For usb-devices this command can be used (assuming /dev/sdb/ is your usb-device):
-./INSTALLDIR/grub-install --directory INSTALLDIR/lib/grub/i386-pc --root-directory=/mnt/sdb1 /dev/sdb
+./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc --root-directory=/mnt/sdb1 /dev/sdb
 
 == 3. General Information ==
 
