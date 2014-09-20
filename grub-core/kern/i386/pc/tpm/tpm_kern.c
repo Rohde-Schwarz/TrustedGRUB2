@@ -216,6 +216,48 @@ tcg_passThroughToTPM( struct tcg_passThroughToTPM_InputParamBlock *input,
 	return 1;
 }
 
+/* Invokes assembler function asm_tcg_SetMemoryOverwriteRequestBit()
+
+   Return 0 on error.
+   Return value = 1 if function successfully completes
+   On error see returncode;
+   Page 12 TCG Platform Reset Attack Mitigation Specification V 1.0.0
+ */
+static grub_uint32_t
+tcg_SetMemoryOverwriteRequestBit( struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock *input ) {
+
+	struct tcg_SetMemoryOverwriteRequestBit_args args;
+	void *p;
+
+	if ( !input->iPBLength ) {
+		return 0;
+	}
+
+	/* copy input buffer */
+	p = grub_map_memory( INPUT_PARAM_BLK_ADDR, input->iPBLength );
+	if( !p ) {
+		return 0;
+	}
+	if( grub_memcpy( p, input, input->iPBLength ) != p ) {
+		return 0;
+	}
+	grub_unmap_memory( p, input->iPBLength );
+
+	args.in_ebx = TCPA;
+	args.in_ecx = 0;
+	args.in_edx = 0;
+	args.in_edi = INPUT_PARAM_BLK_ADDR & 0xF;
+	args.in_es  = INPUT_PARAM_BLK_ADDR >> 4;
+
+	asm_tcg_SetMemoryOverwriteRequestBit( &args );
+
+	if ( args.out_eax != TCG_PC_OK ) {
+		return 0;
+	}
+
+	return 1;
+}
+
 static grub_uint32_t
 grub_TPM_measure( grub_uint8_t *inDigest, unsigned long index ) {
 
@@ -294,6 +336,35 @@ grub_TPM_measure( grub_uint8_t *inDigest, unsigned long index ) {
 	print_sha1( tpmOutput->outDigest );
 	grub_printf("\n\n");
 #endif
+
+	return 1;
+}
+
+/* Sets Memory Overwrite Request bit */
+/* Returns 0 on error */
+grub_uint32_t
+grub_TPM_SetMOR_Bit( unsigned int disableAutoDetect ) {
+
+	struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock input;
+	input.iPBLength = 5;
+	input.reserved = 0;
+
+	// Reserved disableAutoDetect Reserved MOR-Bit
+	// 000             0            000      0
+
+	if( disableAutoDetect ) {
+		// disable autodetect
+		// 000 1 000 1
+		input.memoryOverwriteAction_BitValue = 0x11;
+	} else{
+		// autodetect
+		// 000 0 000 1
+		input.memoryOverwriteAction_BitValue = 0x01;
+	}
+
+	if ( tcg_SetMemoryOverwriteRequestBit( &input ) == 0 ) {
+		return 0;
+	}
 
 	return 1;
 }

@@ -27,7 +27,7 @@
 #define TPM_BADINDEX (TPM_BASE + 0x2)
 
 /* TODO: 0x10000 does not work for some reason */
-/* is  0x20000 and 0x30000 a good choise? */
+/* is  0x20000 and 0x30000 a good choice? */
 #define INPUT_PARAM_BLK_ADDR 0x30000
 #define OUTPUT_PARAM_BLK_ADDR 0x20000
 
@@ -60,6 +60,18 @@ struct tcg_passThroughToTPM_OutputParamBlock {
 	grub_uint8_t TPMOperandOut[1];
 } __attribute__ ((packed));
 
+struct tcg_SetMemoryOverwriteRequestBit_args {
+	grub_uint32_t out_eax;
+	grub_uint32_t in_ebx, in_ecx, in_edx, in_edi, in_es;
+} __attribute__ ((packed));
+
+/* TCG_SetMemoryOverwriteRequestBit Input Parameter Block */
+struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock {
+	grub_uint16_t iPBLength;
+	grub_uint16_t reserved;
+	grub_uint8_t  memoryOverwriteAction_BitValue;
+} __attribute__ ((packed));
+
 typedef struct tdTCG_PCClientPCREventStruc {
 	grub_uint32_t pcrIndex;
 	grub_uint32_t eventType;
@@ -69,6 +81,8 @@ typedef struct tdTCG_PCClientPCREventStruc {
 } __attribute__ ((packed)) TCG_PCClientPCREvent;
 #define TCG_PCR_EVENT_SIZE 32
 
+/* Sets Memory Overwrite Request bit */
+grub_uint32_t EXPORT_FUNC(grub_TPM_SetMOR_Bit) ( unsigned int disableAutoDetect );
 
 /* 	Checks for TPM availability
 
@@ -93,6 +107,7 @@ grub_uint32_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
 /* Assembler exports: */
 grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (struct tcg_statusCheck_args *args);
 grub_uint32_t EXPORT_FUNC(asm_tcg_passThroughToTPM) (struct tcg_passThroughToTPM_args *args);
+grub_uint32_t EXPORT_FUNC(asm_tcg_SetMemoryOverwriteRequestBit) (struct tcg_SetMemoryOverwriteRequestBit_args *args);
 
 #endif
 /* End TCG Extension */
