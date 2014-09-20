@@ -16,7 +16,12 @@
  *  You should have received a copy of the GNU General Public License
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+ /* Legacy feature macro.*/
 #define _BSD_SOURCE
+/* New feature macro that provides everything _BSD_SOURCE and
+ *    _SVID_SOURCE provided and possibly more.  */
+#define _DEFAULT_SOURCE
 #include <grub/fs.h>
 #include <grub/file.h>
 #include <grub/disk.h>
