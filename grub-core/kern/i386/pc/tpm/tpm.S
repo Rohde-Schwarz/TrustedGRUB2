@@ -174,10 +174,10 @@ tcg_statusCheck_end:
    in_ebx = 0x41504354 = "TCPA"
    in_ecx = 0
    in_edx = 0
-   in_esi = Segment portion of the pointer to the TPM input parameter block
+   in_es  = Segment portion of the pointer to the TPM input parameter block
    in_edi = Offset portion of the pointer to the TPM input parameter block
-   in_es = Segment portion of the pointer to the TPM output parameter block
-   in_ds = Offset portion of the pointer to the TPM output parameter block
+   in_ds  = Segment portion of the pointer to the TPM output parameter block
+   in_esi = Offset portion of the pointer to the TPM output parameter block
 
    out_eax = Return code
    DS:SI = Referenced buffer updated to provide return results.
@@ -284,4 +284,118 @@ tcg_passThroughToTPM_end:
 	pop     %ebx
 	pop     %ebp
 	ret
+
+/* int asm_tcg_SetMemoryOverwriteRequestBit( struct tcg_SetMemoryOverwriteRequestBit_args *args )
+
+   This function sets or clears the Memory Overwrite Request (MOR) bit.
+
+   struct tcg_SetMemoryOverwriteRequestBit_args {
+	u32 out_eax;
+	u32 in_ebx, in_ecx, in_edx, in_edi, in_es;
+	} __attribute__ ((packed));
+
+   in_ebx = 0x41504354 = "TCPA"
+   in_ecx = 0
+   in_edx = 0
+   in_es  = Segment portion of the pointer to the TPM input parameter block
+   in_edi = Offset portion of the pointer to the TPM input parameter block
+
+   out_eax = Return code
+ */
+FUNCTION(asm_tcg_SetMemoryOverwriteRequestBit)
+	push	%ebp
+	movl	%esp, %ebp
+	push	%ebx
+	push	%ecx
+	push	%edx
+	push	%esi
+	push	%edi
+
+	/* preserve argument address */
+	push 	%eax
+
+	/* in_ebx  */
+	movl	4(%eax), %ebx
+
+	/* in_ecx */
+	movl	8(%eax), %ecx
+
+	/*
+	movl	12(%eax), %edx	 in_edx
+	*/
+
+	/* in_edi */
+	movl	16(%eax), %edi
+
+	/* TODO: Currently using dx for taking es value to realmode
+	   Find out how to get es value in realmode directly from 20(%eax) */
+
+	/* Save es in dx  */
+	movw	20(%eax), %dx
+
+
+	/* preserve %eax before switching to realmode
+	movl %eax, %edx */
+
+	/* messes up %eax and %ebp. */
+	PROT_TO_REAL
+	.code16
+
+	/* restore %eax
+	movl %edx, %eax */
+
+	/* Save registers before creating a new segment */
+	pushw %es
+
+	/* Setting es only in realmode possible?! */
+	movw	%dx, %es
+
+	/* FIXME: See TODO above */
+	/* in_edx = 0 */
+	xorl %edx, %edx
+
+	/* TCG_SetMemoryOverwriteRequestBit (AH) = BBh, (AL) = 08h */
+	movl $0xBB08, %eax
+
+	/* TCG interrupt call */
+	int $0x1A
+
+	/* Restore registers (go back to previous segment) */
+	popw 	%es
+
+	/* returnCode != 0  => ERROR */
+	test	%eax, %eax
+	jnz     tcg_SetMemoryOverwriteRequestBit_error
+
+	MSG(ok_msg)
+	jmp		tcg_SetMemoryOverwriteRequestBit_end
+
+tcg_SetMemoryOverwriteRequestBit_error:
+	MSG(error_msg)
+
+tcg_SetMemoryOverwriteRequestBit_end:
+	/* preserve %eax before switching to protected mode */
+	movl    %eax, %ebx
+
+	REAL_TO_PROT
+	.code32
+
+	/* restore %eax */
+	movl %ebx, %eax
+
+	/* get argument address in esi */
+	pop 	%esi
+
+	/* set out_eax = returnCode */
+	movl    %esi, %edi
+	movl	%eax, (%edi)
+
+	pop     %edi
+	pop     %esi
+	pop     %edx
+	pop     %ecx
+	pop     %ebx
+	pop     %ebp
+	ret
+
 /* End TCG extension */
