@@ -114,7 +114,7 @@ For usb-devices this command can be used (assuming /dev/sdb/ is your usb-device)
 The goal of TrustedGRUB2 is to accomplish a chain of trust, i.e. every component measures the integrity of the succeeding component. 
 Concretely, this looks like the following:
 
-|         Component							   |		measued by              |
+|         Component							   |		measured by              |
 | -------------------------------------------  |  ----------------------------- |
 | BIOS                  					   | TCG extension 					|
 | TrustedGRUB2 MBR bootcode    				   | TCG extension					|
