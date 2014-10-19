@@ -4,7 +4,13 @@
 
 #include <grub/err.h>
 
-/* #define TGRUB_DEBUG */
+#define TGRUB_DEBUG
+
+#ifdef TGRUB_DEBUG
+	#define DEBUG_PRINT( x ) grub_printf x
+#else
+	#define DEBUG_PRINT( x )
+#endif
 
 #define SHA1_DIGEST_SIZE 20
 #define TCPA 0x41504354
@@ -24,16 +30,24 @@
 /* Command return codes */
 #define TPM_BASE 0x0
 #define TPM_SUCCESS TPM_BASE
+#define TPM_AUTHFAIL (TPM_BASE + 0x1)
 #define TPM_BADINDEX (TPM_BASE + 0x2)
+
 
 /* TODO: 0x10000 does not work for some reason */
 /* is  0x20000 and 0x30000 a good choice? */
 #define INPUT_PARAM_BLK_ADDR 0x30000
 #define OUTPUT_PARAM_BLK_ADDR 0x20000
 
-#define TPM_TAG_RQU_COMMAND 193
+#define TPM_TAG_RQU_COMMAND 0x00C1
+#define TPM_TAG_RQU_AUTH2_COMMAND 0x00C3
 #define TPM_ORD_Extend 0x14
 #define TPM_ORD_PcrRead 0x15
+#define TPM_ORD_Unseal 0x18
+#define TPM_ORD_GetRandom 0x46
+
+/* Key Handle Values */
+#define TPM_KH_SRK 0x40000000
 
 struct tcg_statusCheck_args {
 	grub_uint32_t out_eax, out_ebx, out_ecx, out_edx, out_esi, out_edi;
@@ -81,21 +95,19 @@ typedef struct tdTCG_PCClientPCREventStruc {
 } __attribute__ ((packed)) TCG_PCClientPCREvent;
 #define TCG_PCR_EVENT_SIZE 32
 
-/* Sets Memory Overwrite Request bit */
-grub_uint32_t EXPORT_FUNC(grub_TPM_SetMOR_Bit) ( unsigned int disableAutoDetect );
+
 
 /* 	Checks for TPM availability
 
   	Returns 1 if available
 	Returns 0 if not
- */
-/* grub_uint32_t grub_TPM_isAvailable( void ); */
+*/
 grub_uint32_t EXPORT_FUNC(grub_TPM_isAvailable) ( void );
 
 /* 	Measure string */
 grub_uint32_t EXPORT_FUNC(grub_TPM_measureString) ( char *string );
 /* 	Measure files */
-grub_uint32_t EXPORT_FUNC(grub_TPM_measureFile) ( char *filename, unsigned long index );
+grub_uint32_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
 
 /* read pcr specified by index */
 /*TODO: print in cmd function. here: return result in second parameter  */
@@ -103,6 +115,15 @@ grub_uint32_t EXPORT_FUNC(grub_TPM_readpcr) ( unsigned long index );
 
 /* read tcg log entry specified by index */
 grub_uint32_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
+
+/* Sets Memory Overwrite Request bit */
+grub_uint32_t EXPORT_FUNC(grub_TPM_SetMOR_Bit) ( unsigned int disableAutoDetect );
+
+/* Unseals file with SRK */
+grub_uint32_t EXPORT_FUNC(grub_TPM_unseal) ( const char* sealedFile );
+
+/* get random from TPM  */
+grub_uint32_t EXPORT_FUNC(grub_TPM_getRandom) ( unsigned char* random, const grub_uint32_t randomBytesRequested );
 
 /* Assembler exports: */
 grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (struct tcg_statusCheck_args *args);
