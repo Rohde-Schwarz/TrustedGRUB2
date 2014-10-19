@@ -152,7 +152,56 @@ grub_cmd_setMOR( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 	return GRUB_ERR_NONE;
 }
 
+#ifdef TGRUB_DEBUG
+static grub_err_t
+grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
+
+	if( ! grub_TPM_isAvailable() ) {
+		grub_printf( "TPM not available\n" );
+		return GRUB_ERR_NONE;
+	}
+
+	if ( argc == 0 ) {
+		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "value expected" ) );
+	}
+
+	if ( argc > 1 ) {
+		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Too many arguments" ) );
+	}
+
+	grub_uint32_t randomBytesRequested = grub_strtoul( args[0], NULL, 10 );
+	/* if disableAutoDetect is invalid */
+	if( grub_errno != GRUB_ERR_NONE ) {
+		grub_print_error();
+		grub_errno = GRUB_ERR_NONE;
+		return grub_errno;
+	}
+
+	if( randomBytesRequested <= 0 ) {
+		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Value must be greater 0" ) );
+	}
+
+	unsigned char random[randomBytesRequested];
+
+	if( grub_TPM_getRandom( &random[0], randomBytesRequested ) == 0 ) {
+		grub_printf( "getRandom failed\n" );
+		return GRUB_ERR_NONE;
+	}
+
+	unsigned int j;
+	for( j = 0; j < randomBytesRequested; ++j ) {
+		grub_printf( "%02x", random[j] );
+	}
+
+	return GRUB_ERR_NONE;
+}
+#endif
+
 static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure, cmd_setMOR;
+
+#ifdef TGRUB_DEBUG
+	static grub_command_t cmd_random;
+#endif
 
 GRUB_MOD_INIT(tpm)
 {
@@ -168,6 +217,12 @@ GRUB_MOD_INIT(tpm)
 
 	cmd_setMOR = grub_register_command( "setmor", grub_cmd_setMOR, N_( "disableAutoDetect" ),
 		  	N_( "Sets Memory Overwrite Request Bit with auto detect enabled (0) or disabled (1)" ) );
+
+#ifdef TGRUB_DEBUG
+	cmd_random = grub_register_command( "random", grub_cmd_getRandom, N_( "bytesRequested" ),
+			  	N_( "Gets random bytes from TPM." ) );
+#endif
+
 }
 
 GRUB_MOD_FINI(tpm)
@@ -176,6 +231,11 @@ GRUB_MOD_FINI(tpm)
 	grub_unregister_command( cmd_tcglog );
 	grub_unregister_command( cmd_measure );
 	grub_unregister_command( cmd_setMOR );
+
+#ifdef TGRUB_DEBUG
+	grub_unregister_command( cmd_setMOR );
+#endif
+
 }
 
 /* End TCG extension */
