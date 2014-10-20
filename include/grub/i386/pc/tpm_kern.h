@@ -123,8 +123,9 @@ grub_uint32_t EXPORT_FUNC(grub_TPM_measureString) ( char *string );
 /* 	Measure files */
 grub_uint32_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
 
-/* read tcg log entry specified by index */
-grub_uint32_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
+/* Invokes assembler function asm_tcg_statusCheck() */
+grub_uint32_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *minor,
+		grub_uint32_t *featureFlags, grub_uint32_t *eventLog, grub_uint32_t *edi );
 
 /* pass commands to TPM */
 grub_uint32_t EXPORT_FUNC(tcg_passThroughToTPM) ( struct tcg_passThroughToTPM_InputParamBlock *input,

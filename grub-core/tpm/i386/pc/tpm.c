@@ -149,6 +149,93 @@ grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 	return GRUB_ERR_NONE;
 }
 
+/* Returns 0 on error. */
+/* index = 0 for all entries */
+static grub_err_t
+grub_TPM_read_tcglog( int index ) {
+
+	if( grub_TPM_isAvailable() ) {
+		grub_uint32_t returnCode, featureFlags, eventLog = 0, logAddr = 0, edi = 0;
+		grub_uint8_t major, minor;
+
+		/* get event log pointer */
+		if( tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi ) == 0) {
+			return 0;
+		}
+
+		/* edi = 0 means event log is empty */
+		if( edi == 0 ) {
+			grub_printf( "Event log empty\n" );
+			return 0;
+		}
+
+		logAddr = eventLog;
+		TCG_PCClientPCREvent *event;
+		/* index = 0: print all entries */
+		if ( index == 0 ) {
+
+			/* eventLog = absolute pointer to the beginning of the event log. */
+			event = (TCG_PCClientPCREvent *)logAddr;
+
+			/* If there is exactly one entry */
+			if( edi == eventLog ) {
+				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+				grub_printf( "eventType: %x \n", event->eventType );
+				grub_printf( "digest: " );
+				print_sha1( event->digest );
+				grub_printf( "\n\n" );
+			} else {	/* If there is more than one entry */
+				do {
+					grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+					grub_printf( "eventType: %x \n", event->eventType );
+					grub_printf( "digest: " );
+					print_sha1( event->digest );
+					grub_printf( "\n\n" );
+
+					logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
+					event = (TCG_PCClientPCREvent *)logAddr;
+				} while( logAddr != edi );
+
+				/* print the last one */
+				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+				grub_printf( "eventType: %x \n", event->eventType );
+				grub_printf( "digest: " );
+				print_sha1( event->digest );
+				grub_printf( "\n\n" );
+			}
+		} else { /* print specific entry */
+			if( index < 0 ) {
+				grub_printf( "Index must be greater or equal 0\n" );
+				return 0;
+			}
+
+			logAddr = eventLog;
+
+			int i;
+			for( i = 1; i < index; i++ ) {
+				event = (TCG_PCClientPCREvent *)logAddr;
+				logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
+
+				if( logAddr > edi ) { /* index not valid.  */
+					grub_printf( "logentry nonexistent\n" );
+					return 0;
+				}
+			}
+
+			event = (TCG_PCClientPCREvent *)logAddr;
+			grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+			grub_printf( "eventType: %x \n", event->eventType );
+			grub_printf( "digest: " );
+			print_sha1( event->digest );
+			grub_printf( "\n\n" );
+		}
+	} else {
+		return 0;
+	}
+
+  return 1;
+}
+
 static grub_err_t
 grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
