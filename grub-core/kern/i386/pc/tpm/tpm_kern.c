@@ -24,6 +24,7 @@
 #include <grub/err.h>
 #include <grub/file.h>
 #include <grub/sha1.h>
+#include <grub/crypto.h>
 
 #include <grub/machine/tpm_kern.h>
 #include <grub/machine/memory.h>
@@ -584,6 +585,93 @@ grub_TPM_readpcr( unsigned long index ) {
 }
 
 /* Returns 0 on error. */
+/* index = 0 for all entries */
+grub_err_t
+grub_TPM_read_tcglog( int index ) {
+
+	if( grub_TPM_isAvailable() ) {
+		grub_uint32_t returnCode, featureFlags, eventLog = 0, logAddr = 0, edi = 0;
+		grub_uint8_t major, minor;
+
+		/* get event log pointer */
+		if( tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi ) == 0) {
+			return 0;
+		}
+
+		/* edi = 0 means event log is empty */
+		if( edi == 0 ) {
+			grub_printf( "Event log empty\n" );
+			return 0;
+		}
+
+		logAddr = eventLog;
+		TCG_PCClientPCREvent *event;
+		/* index = 0: print all entries */
+		if ( index == 0 ) {
+
+			/* eventLog = absolute pointer to the beginning of the event log. */
+			event = (TCG_PCClientPCREvent *)logAddr;
+
+			/* If there is exactly one entry */
+			if( edi == eventLog ) {
+				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+				grub_printf( "eventType: %x \n", event->eventType );
+				grub_printf( "digest: " );
+				print_sha1( event->digest );
+				grub_printf( "\n\n" );
+			} else {	/* If there is more than one entry */
+				do {
+					grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+					grub_printf( "eventType: %x \n", event->eventType );
+					grub_printf( "digest: " );
+					print_sha1( event->digest );
+					grub_printf( "\n\n" );
+
+					logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
+					event = (TCG_PCClientPCREvent *)logAddr;
+				} while( logAddr != edi );
+
+				/* print the last one */
+				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+				grub_printf( "eventType: %x \n", event->eventType );
+				grub_printf( "digest: " );
+				print_sha1( event->digest );
+				grub_printf( "\n\n" );
+			}
+		} else { /* print specific entry */
+			if( index < 0 ) {
+				grub_printf( "Index must be greater or equal 0\n" );
+				return 0;
+			}
+
+			logAddr = eventLog;
+
+			int i;
+			for( i = 1; i < index; i++ ) {
+				event = (TCG_PCClientPCREvent *)logAddr;
+				logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
+
+				if( logAddr > edi ) { /* index not valid.  */
+					grub_printf( "logentry nonexistent\n" );
+					return 0;
+				}
+			}
+
+			event = (TCG_PCClientPCREvent *)logAddr;
+			grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+			grub_printf( "eventType: %x \n", event->eventType );
+			grub_printf( "digest: " );
+			print_sha1( event->digest );
+			grub_printf( "\n\n" );
+		}
+	} else {
+		return 0;
+	}
+
+  return 1;
+}
+
+/* Returns 0 on error. */
 grub_err_t
 grub_TPM_getRandom( unsigned char* random, const grub_uint32_t randomBytesRequested ) {
 
@@ -682,7 +770,10 @@ grub_TPM_getRandom( unsigned char* random, const grub_uint32_t randomBytesReques
 		return 0;
 	}
 
-	grub_memcpy( random, tpmOutput->randomBytes, randomBytesRequested );
+	if( grub_memcpy( random, tpmOutput->randomBytes, randomBytesRequested ) != random ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
 
 	grub_free( output );
 
@@ -780,99 +871,14 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, unsigned char* nonceEven )
 	}
 
 	*authHandle = swap32( tpmOutput->authHandle );
-	grub_memcpy( nonceEven, tpmOutput->nonceEven, TPM_NONCE_SIZE );
+	if( grub_memcpy( nonceEven, tpmOutput->nonceEven, TPM_NONCE_SIZE ) != nonceEven ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
 
 	grub_free( output );
 
 	return 1;
-}
-
-
-/* Returns 0 on error. */
-/* index = 0 for all entries */
-grub_err_t
-grub_TPM_read_tcglog( int index ) {
-
-	if( grub_TPM_isAvailable() ) {
-		grub_uint32_t returnCode, featureFlags, eventLog = 0, logAddr = 0, edi = 0;
-		grub_uint8_t major, minor;
-
-		/* get event log pointer */
-		if( tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi ) == 0) {
-			return 0;
-		}
-
-		/* edi = 0 means event log is empty */
-		if( edi == 0 ) {
-			grub_printf( "Event log empty\n" );
-			return 0;
-		}
-
-		logAddr = eventLog;
-		TCG_PCClientPCREvent *event;
-		/* index = 0: print all entries */
-		if ( index == 0 ) {
-
-			/* eventLog = absolute pointer to the beginning of the event log. */
-			event = (TCG_PCClientPCREvent *)logAddr;
-
-			/* If there is exactly one entry */
-			if( edi == eventLog ) {
-				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-				grub_printf( "eventType: %x \n", event->eventType );
-				grub_printf( "digest: " );
-				print_sha1( event->digest );
-				grub_printf( "\n\n" );
-			} else {	/* If there is more than one entry */
-				do {
-					grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-					grub_printf( "eventType: %x \n", event->eventType );
-					grub_printf( "digest: " );
-					print_sha1( event->digest );
-					grub_printf( "\n\n" );
-
-					logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
-					event = (TCG_PCClientPCREvent *)logAddr;
-				} while( logAddr != edi );
-
-				/* print the last one */
-				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-				grub_printf( "eventType: %x \n", event->eventType );
-				grub_printf( "digest: " );
-				print_sha1( event->digest );
-				grub_printf( "\n\n" );
-			}
-		} else { /* print specific entry */
-			if( index < 0 ) {
-				grub_printf( "Index must be greater or equal 0\n" );
-				return 0;
-			}
-
-			logAddr = eventLog;
-
-			int i;
-			for( i = 1; i < index; i++ ) {
-				event = (TCG_PCClientPCREvent *)logAddr;
-				logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
-
-				if( logAddr > edi ) { /* index not valid.  */
-					grub_printf( "logentry nonexistent\n" );
-					return 0;
-				}
-			}
-
-			event = (TCG_PCClientPCREvent *)logAddr;
-			grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-			grub_printf( "eventType: %x \n", event->eventType );
-			grub_printf( "digest: " );
-			print_sha1( event->digest );
-			grub_printf( "\n\n" );
-		}
-	} else {
-		return 0;
-	}
-
-  return 1;
 }
 
 
@@ -894,29 +900,30 @@ grub_TPM_unseal( const char* sealedFileName ) {
 	grub_size_t fileSize = grub_file_size (file);
 	if ( ! fileSize )
 	{
+		DEBUG_PRINT( ( "Retrieving file size failed\n" ) );
 		grub_file_close (file);
 		return 0;
 	}
+	DEBUG_PRINT( ( "sealed file size = %d\n", fileSize ) );
 
 	unsigned char* buf = grub_zalloc (fileSize);
 	if ( ! buf )
 	{
+		DEBUG_PRINT( ( "Memory allocation failed\n" ) );
 		grub_file_close (file);
 		return 0;
 	}
 
 	/* read file */
-
 	if ( grub_file_read (file, buf, fileSize) != (grub_ssize_t) fileSize )
 	{
+		DEBUG_PRINT( ( "Read file failed\n" ) );
 		grub_free( buf );
 		grub_file_close (file);
 		return 0;
 	}
 
 	grub_file_close( file );
-
-	/* TODO */
 
 	/* TPM_UNSEAL Incoming Operand */
 	struct {
@@ -928,11 +935,11 @@ grub_TPM_unseal( const char* sealedFileName ) {
 		grub_uint32_t authHandle;
 		grub_uint8_t  nonceOdd[TPM_NONCE_SIZE];
 		grub_uint8_t  continueAuthSession;
-		grub_uint8_t  parentAuth[20];
+		grub_uint8_t  parentAuth[TPM_AUTHDATA_SIZE];
 		grub_uint32_t dataAuthHandle;
 		grub_uint8_t  dataNonceOdd[TPM_NONCE_SIZE];
 		grub_uint8_t  continueDataSession;
-		grub_uint8_t  dataAuth[20];
+		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
 	} __attribute__ ((packed)) *tpmInput;
 
 	/* TPM_UNSEAL Outgoing Operand */
@@ -941,13 +948,13 @@ grub_TPM_unseal( const char* sealedFileName ) {
 		grub_uint32_t paramSize;
 		grub_uint32_t returnCode;
 		grub_uint32_t secretSize;
-		grub_uint8_t  unsealedData[1024];		/* FIXME: what size to use here? */
+		grub_uint8_t  unsealedData[fileSize + 512];		/* FIXME: what size to use here? */
 		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
 		grub_uint8_t  continueAuthSession;
-		grub_uint8_t  resAuth[20];
+		grub_uint8_t  resAuth[TPM_AUTHDATA_SIZE];
 		grub_uint8_t  dataNonceEven[TPM_NONCE_SIZE];
 		grub_uint8_t  continueDataSession;
-		grub_uint8_t  dataAuth[20];
+		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
 	} __attribute__ ((packed)) *tpmOutput;
 
 	struct tcg_passThroughToTPM_InputParamBlock *input;
@@ -964,11 +971,13 @@ grub_TPM_unseal( const char* sealedFileName ) {
 
 	input = grub_zalloc( inputlen );
 	if( ! input ) {
+		DEBUG_PRINT( ( "Memory allocation failed\n" ) );
 		return 0;
 	}
 
 	output = grub_zalloc( outputlen );
 	if( ! output ) {
+		DEBUG_PRINT( ( "Memory allocation failed\n" ) );
 		return 0;
 	}
 
@@ -984,41 +993,129 @@ grub_TPM_unseal( const char* sealedFileName ) {
 	grub_memcmp ( tpmInput->sealedData, buf, fileSize );
 	grub_free( buf );
 
-	// TODO: tpmInput->authHandle =
-	// TODO: tpmInput->nonceOdd
-	// TODO: tpmInput->continueAuthSession = 0;
-	// TODO: tpmInput->parentAuth
-	// TODO: tpmInput->dataAuthHandle
-	// TODO: tpmInput->dataNonceOdd
-	// TODO: tpmInput->continueDataSession
-	// TODO: tpmInput->dataAuth
+
+	/* get first authHandle and authLastNonceEven */
+	unsigned char authLastNonceEven[TPM_NONCE_SIZE];
+	grub_uint32_t authHandle = 0;
+	if( ! grub_TPM_openOIAP_Session( &authHandle, &authLastNonceEven[0] ) ) {
+		return 0;
+	}
+
+	tpmInput->authHandle = swap32( authHandle );
+
+	/* get random for nonceOdd */
+	unsigned char nonceOdd[TPM_NONCE_SIZE];
+	if ( ! grub_TPM_getRandom( &nonceOdd[0], TPM_NONCE_SIZE ) ) {
+		return 0;
+	}
+
+	if( grub_memcpy( tpmInput->nonceOdd, nonceOdd, TPM_NONCE_SIZE ) != tpmInput->nonceOdd ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+	tpmInput->continueAuthSession = 0;		// swap32 if 1
+
+	/* Generate HMAC */
+
+	/* SHA1( ordinal, inData ) */
+	grub_uint32_t concatenatedOrdinalAndInDataSize = sizeof( grub_uint32_t ) + fileSize;
+	grub_uint8_t* concatenatedOrdinalAndInData = grub_zalloc( concatenatedOrdinalAndInDataSize );
+	if( ! concatenatedOrdinalAndInData ) {
+		DEBUG_PRINT( ( "Memory allocation failed\n" ) );
+		return 0;
+	}
+
+	/* copy ordinal */
+	if( grub_memcpy( concatenatedOrdinalAndInData, &tpmInput->ordinal, sizeof( grub_uint32_t ) ) != concatenatedOrdinalAndInData ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	/* copy inData */
+	if( grub_memcpy( concatenatedOrdinalAndInData + sizeof( grub_uint32_t ) , tpmInput->sealedData, fileSize ) != concatenatedOrdinalAndInData + sizeof( grub_uint32_t ) ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	grub_uint8_t hashResult[SHA1_DIGEST_SIZE];
+	if( ! sha1_hash_buffer( concatenatedOrdinalAndInData, concatenatedOrdinalAndInDataSize, &hashResult[0] ) ) {
+		grub_free( concatenatedOrdinalAndInData );
+		DEBUG_PRINT( ( "Calculate hash failed\n" ) );
+		return 0;
+	}
+
+	/* HMAC( key.usageAuth, SHA1( ordinal, inData ), authLastNonceEven, nonceOdd, continueAuthSession ) */
+	//tpmInput->parentAuth
+
+	grub_uint8_t keyUsageAuth[SHA1_DIGEST_SIZE];
+	if( grub_memset( keyUsageAuth, 0, SHA1_DIGEST_SIZE ) != keyUsageAuth ) {
+		DEBUG_PRINT( ( "memset failed.\n" ) );
+		return 0;;
+	}
+
+	grub_uint8_t hmacResult[SHA1_DIGEST_SIZE];
+	gcry_err_code_t hmacErrorCode = grub_crypto_hmac_buffer( GRUB_MD_SHA1, &keyUsageAuth[0], SHA1_DIGEST_SIZE, &concatenatedOrdinalAndInData[0],
+			concatenatedOrdinalAndInDataSize, hmacResult );
+
+	if( hmacErrorCode ) {
+		grub_free( concatenatedOrdinalAndInData );
+		DEBUG_PRINT( ( "Calculate hmac failed\n" ) );
+		return 0;
+	}
+
+	grub_free( concatenatedOrdinalAndInData );
+
+	/* get second dataAuthHandle and dataLastNonceEven */
+	unsigned char dataLastNonceEven[TPM_NONCE_SIZE];
+	grub_uint32_t dataAuthHandle = 0;
+	if( ! grub_TPM_openOIAP_Session( &dataAuthHandle, &dataLastNonceEven[0] ) ) {
+		return 0;
+	}
+
+	tpmInput->dataAuthHandle = swap32( dataAuthHandle );
+
+	/* get random for dataNonceOdd */
+	unsigned char dataNonceOdd[TPM_NONCE_SIZE];
+	if ( ! grub_TPM_getRandom( &dataNonceOdd[0], TPM_NONCE_SIZE ) ) {
+		return 0;
+	}
+
+	if( grub_memcpy( tpmInput->dataNonceOdd, dataNonceOdd, TPM_NONCE_SIZE ) != tpmInput->dataNonceOdd ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;;
+	}
+	tpmInput->continueDataSession = 0;		// swap32 if 1
+
+	/* Generate HMAC */
+	/* HMAC( entity.usageAuth, SHA1( ordinal, inData ), dataLastNonceEven, dataNonceOdd, continueDataSession ) */
+	//tpmInput->dataAuth
 
 	grub_uint32_t passThroughTo_TPM_ReturnCode;
 	if( ! tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) ) {
+		DEBUG_PRINT( ( "tcg_passThroughToTPM failed with: %x\n", passThroughTo_TPM_ReturnCode ) );
 		grub_free( input );
 		grub_free( output );
 		return 0;
 	}
+	grub_free( input );
 
 	tpmOutput = (void *)output->TPMOperandOut;
 	grub_uint32_t tpm_UnsealReturnCode = swap32( tpmOutput->returnCode );
 
 	if( tpm_UnsealReturnCode != TPM_SUCCESS ) {
-		grub_free( input );
 		grub_free( output );
 
 		if( tpm_UnsealReturnCode == TPM_AUTHFAIL ) {
-			grub_printf( "Authentication failed\n" );
+			DEBUG_PRINT( ( "Authentication failed\n" ) );
 		} else {
-			grub_printf( "Unseal failed: %x \n", tpm_UnsealReturnCode );
+			DEBUG_PRINT( ( "Unseal failed: %x \n", tpm_UnsealReturnCode ) );
 		}
 
 		return 0;
 	}
 
-	grub_free( input );
-	grub_free( output );
 
+	grub_free( output );
 	grub_printf("OK\n");
 
 	return 1;
