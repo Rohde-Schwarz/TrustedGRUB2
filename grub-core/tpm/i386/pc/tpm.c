@@ -195,12 +195,39 @@ grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char 
 
 	return GRUB_ERR_NONE;
 }
+
+static grub_err_t
+grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attribute__ ((unused)), char** args __attribute__ ((unused))) {
+
+	if( ! grub_TPM_isAvailable() ) {
+		grub_printf( "TPM not available\n" );
+		return GRUB_ERR_NONE;
+	}
+
+	unsigned char nonceEven[TPM_NONCE_SIZE];
+	grub_uint32_t authHandle = 0;
+
+	if( grub_TPM_openOIAP_Session( &authHandle, &nonceEven[0] ) == 0 ) {
+		grub_printf( "open OIAP session failed\n" );
+		return GRUB_ERR_NONE;
+	}
+
+	grub_printf( "nonceEven: " );
+	unsigned int j;
+	for( j = 0; j < TPM_NONCE_SIZE; ++j ) {
+		grub_printf( "%02x", nonceEven[j] );
+	}
+
+	grub_printf( "\n authHandle: %x \n", authHandle );
+
+	return GRUB_ERR_NONE;
+}
 #endif
 
 static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure, cmd_setMOR;
 
 #ifdef TGRUB_DEBUG
-	static grub_command_t cmd_random;
+	static grub_command_t cmd_random, cmd_oiap;
 #endif
 
 GRUB_MOD_INIT(tpm)
@@ -221,6 +248,8 @@ GRUB_MOD_INIT(tpm)
 #ifdef TGRUB_DEBUG
 	cmd_random = grub_register_command( "random", grub_cmd_getRandom, N_( "bytesRequested" ),
 			  	N_( "Gets random bytes from TPM." ) );
+	cmd_oiap = grub_register_command( "oiap", grub_cmd_openOIAP, 0,
+				  	N_( "Opens OIAP Session" ) );
 #endif
 
 }
@@ -233,7 +262,8 @@ GRUB_MOD_FINI(tpm)
 	grub_unregister_command( cmd_setMOR );
 
 #ifdef TGRUB_DEBUG
-	grub_unregister_command( cmd_setMOR );
+	grub_unregister_command( cmd_random );
+	grub_unregister_command( cmd_oiap );
 #endif
 
 }

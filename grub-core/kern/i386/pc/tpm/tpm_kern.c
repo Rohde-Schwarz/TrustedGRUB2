@@ -662,21 +662,20 @@ grub_TPM_getRandom( unsigned char* random, const grub_uint32_t randomBytesReques
 		return 0;
 	}
 
+	grub_free( input );
+
 	tpmOutput = (void *)output->TPMOperandOut;
 	grub_uint32_t tpm_getRandomReturnCode = swap32( tpmOutput->returnCode );
 
 	if( tpm_getRandomReturnCode != TPM_SUCCESS ) {
-		grub_free( input );
 		grub_free( output );
 
 		DEBUG_PRINT( ( "tpm_getRandomReturnCode: %x \n", tpm_getRandomReturnCode ) );
 		return 0;
 	}
 
-	grub_free( input );
-	grub_free( output );
-
 	if( swap32( tpmOutput->randomBytesSize ) != randomBytesRequested ) {
+		grub_free( output );
 		DEBUG_PRINT( ( "tpmOutput->randomBytesSize != randomBytesRequested\n" ) );
 		DEBUG_PRINT( ( "tpmOutput->randomBytesSize = %x \n", swap32( tpmOutput->randomBytesSize ) ) );
 		DEBUG_PRINT( ( "randomBytesRequested = %x \n", randomBytesRequested ) );
@@ -684,6 +683,106 @@ grub_TPM_getRandom( unsigned char* random, const grub_uint32_t randomBytesReques
 	}
 
 	grub_memcpy( random, tpmOutput->randomBytes, randomBytesRequested );
+
+	grub_free( output );
+
+	return 1;
+}
+
+
+/* Returns 0 on error. */
+grub_err_t
+grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, unsigned char* nonceEven ) {
+
+	if( ! grub_TPM_isAvailable() ) {
+		return 0;
+	}
+
+	if( ! authHandle )
+	{
+		DEBUG_PRINT( ( "authHandle argument is NULL.\n" ) );
+		return 0;
+	}
+
+	if( ! nonceEven )
+	{
+		DEBUG_PRINT( ( "nonceEven argument is NULL.\n" ) );
+		return 0;
+	}
+
+	/* TPM_OIAP Incoming Operand */
+	struct {
+		grub_uint16_t tag;
+		grub_uint32_t paramSize;
+		grub_uint32_t ordinal;
+	} __attribute__ ((packed)) *tpmInput;
+
+	/* TPM_OIAP Outgoing Operand */
+	struct {
+		grub_uint16_t tag;
+		grub_uint32_t paramSize;
+		grub_uint32_t returnCode;
+		grub_uint32_t authHandle;
+		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
+	} __attribute__ ((packed)) *tpmOutput;
+
+	struct tcg_passThroughToTPM_InputParamBlock* input;
+	grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
+
+	/* FIXME: Why is this Offset value (+47) needed? */
+	struct tcg_passThroughToTPM_OutputParamBlock* output;
+	grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
+
+	/* 	grub_printf( "output=%x ", sizeof( *output )  );
+		grub_printf( "output->TPMOperandOut=%x ", sizeof( output->TPMOperandOut )  );
+		grub_printf( "tpmOutput=%x ", sizeof( *tpmOutput )  );
+		grub_printf( "tpmOutput->pcr_value=%x ", sizeof( tpmOutput->pcr_value )  ); */
+
+	input = grub_zalloc( inputlen );
+	if( ! input ) {
+		DEBUG_PRINT( ( "memory allocation for 'input' failed\n" ) );
+		return 0;
+	}
+
+	output = grub_zalloc( outputlen );
+	if( ! output ) {
+		DEBUG_PRINT( ( "memory allocation for 'output' failed\n" ) );
+		return 0;
+	}
+
+	input->IPBLength = inputlen;
+	input->OPBLength = outputlen;
+
+	tpmInput = (void *)input->TPMOperandIn;
+	tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
+	tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
+	tpmInput->ordinal = swap32( TPM_ORD_OIAP );
+
+	grub_uint32_t passThroughTo_TPM_ReturnCode;
+	if( tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) == 0 ) {
+		grub_free( input );
+		grub_free( output );
+
+		DEBUG_PRINT( ( "tcg_passThroughToTPM failed\n" ) );
+		return 0;
+	}
+
+	grub_free( input );
+
+	tpmOutput = (void *)output->TPMOperandOut;
+	grub_uint32_t tpm_OIAP_ReturnCode = swap32( tpmOutput->returnCode );
+
+	if( tpm_OIAP_ReturnCode != TPM_SUCCESS ) {
+		grub_free( output );
+
+		DEBUG_PRINT( ( "tpm_OIAP_ReturnCode: %x \n", tpm_OIAP_ReturnCode ) );
+		return 0;
+	}
+
+	*authHandle = swap32( tpmOutput->authHandle );
+	grub_memcpy( nonceEven, tpmOutput->nonceEven, TPM_NONCE_SIZE );
+
+	grub_free( output );
 
 	return 1;
 }
@@ -827,11 +926,11 @@ grub_TPM_unseal( const char* sealedFileName ) {
 		grub_uint32_t parentHandle;
 		grub_uint8_t  sealedData[fileSize];
 		grub_uint32_t authHandle;
-		grub_uint8_t  nonceOdd[20];
+		grub_uint8_t  nonceOdd[TPM_NONCE_SIZE];
 		grub_uint8_t  continueAuthSession;
 		grub_uint8_t  parentAuth[20];
 		grub_uint32_t dataAuthHandle;
-		grub_uint8_t  dataNonceOdd[20];
+		grub_uint8_t  dataNonceOdd[TPM_NONCE_SIZE];
 		grub_uint8_t  continueDataSession;
 		grub_uint8_t  dataAuth[20];
 	} __attribute__ ((packed)) *tpmInput;
@@ -843,10 +942,10 @@ grub_TPM_unseal( const char* sealedFileName ) {
 		grub_uint32_t returnCode;
 		grub_uint32_t secretSize;
 		grub_uint8_t  unsealedData[1024];		/* FIXME: what size to use here? */
-		grub_uint8_t  nonceEven[20];
+		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
 		grub_uint8_t  continueAuthSession;
 		grub_uint8_t  resAuth[20];
-		grub_uint8_t  dataNonceEven[20];
+		grub_uint8_t  dataNonceEven[TPM_NONCE_SIZE];
 		grub_uint8_t  continueDataSession;
 		grub_uint8_t  dataAuth[20];
 	} __attribute__ ((packed)) *tpmOutput;
