@@ -1,9 +1,6 @@
 /* Begin TCG Extension */
 
-/* FIXME: Would be better to use sha1 functions that are already present in grub
-   But is this even possible? Want to measure before any module is loaded.
-   error: undefined reference. call the gcryptlib sha1 functions from kernel?
-   before any module is loaded */
+/*  This implementation is needed because we have to measure some parts before the crypto module is loaded */
 
 /*  This SHA1-implementation has been written by Marko Wolf <mwolf@crypto.rub.de> and tested according to FIPS-180.
 	The SHA1-macros are from "Christophe Devine" <devine@cr0.net>.
@@ -415,22 +412,4 @@ sha1_hash_string( char *string, void *result ) {
 	return 1;
 }
 
-grub_uint32_t
-sha1_hash_buffer( grub_uint8_t* buf, grub_size_t size, void* result ) {
-	sha1_context context;
-
-	if( sha1_init( &context ) != 0 ) {
-		return 0;
-	}
-
-	if( sha1_update( &context, buf, size ) != 0 ) {
-		return 0;
-	}
-
-	if( sha1_finish( &context, result ) != 0 ) {
-		return 0;
-	}
-
-	return 1;
-}
 /* End TCG Extension */

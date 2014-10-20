@@ -23,6 +23,8 @@
 #include <grub/extcmd.h>
 #include <grub/mm.h>
 #include <grub/dl.h>
+#include <grub/crypto.h>
+#include <grub/file.h>
 
 #include <grub/machine/tpm_kern.h>
 #include <grub/machine/boot.h>
@@ -609,10 +611,21 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, unsigned char* nonceEven )
 	return 1;
 }
 
-#if 0
 /* Returns 0 on error. */
-grub_err_t
-grub_TPM_unseal( const char* sealedFileName ) {
+static grub_err_t
+grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* resultSize ) {
+
+	if( ! sealedFileName ) {
+		return 0;
+	}
+
+	if( result ) {
+		return 0;
+	}
+
+	if( ! resultSize ) {
+		return 0;
+	}
 
 	if( ! grub_TPM_isAvailable() ) {
 		return 0;
@@ -744,6 +757,7 @@ grub_TPM_unseal( const char* sealedFileName ) {
 	tpmInput->continueAuthSession = 0;		// swap32 if 1
 
 	/* Generate HMAC */
+	/* HMAC( key.usageAuth, SHA1( ordinal, inData ), authLastNonceEven, nonceOdd, continueAuthSession ) */
 
 	/* SHA1( ordinal, inData ) */
 	grub_uint32_t concatenatedOrdinalAndInDataSize = sizeof( grub_uint32_t ) + fileSize;
@@ -766,15 +780,10 @@ grub_TPM_unseal( const char* sealedFileName ) {
 	}
 
 	grub_uint8_t hashResult[SHA1_DIGEST_SIZE];
-	if( ! sha1_hash_buffer( concatenatedOrdinalAndInData, concatenatedOrdinalAndInDataSize, &hashResult[0] ) ) {
-		grub_free( concatenatedOrdinalAndInData );
-		DEBUG_PRINT( ( "Calculate hash failed\n" ) );
-		return 0;
-	}
+	grub_crypto_hash( GRUB_MD_SHA1, &hashResult[0], concatenatedOrdinalAndInData, concatenatedOrdinalAndInDataSize );
 
-	/* HMAC( key.usageAuth, SHA1( ordinal, inData ), authLastNonceEven, nonceOdd, continueAuthSession ) */
-	//tpmInput->parentAuth
 
+	/* key = well known secret = 20 zero bytes */
 	grub_uint8_t keyUsageAuth[SHA1_DIGEST_SIZE];
 	if( grub_memset( keyUsageAuth, 0, SHA1_DIGEST_SIZE ) != keyUsageAuth ) {
 		DEBUG_PRINT( ( "memset failed.\n" ) );
@@ -848,7 +857,27 @@ grub_TPM_unseal( const char* sealedFileName ) {
 
 	return 1;
 }
-#endif
+
+static grub_err_t
+grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
+
+	if( !grub_TPM_isAvailable() ) {
+		grub_printf( "TPM not available\n" );
+		return GRUB_ERR_NONE;
+	}
+
+	if ( argc != 2 ) {
+		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Wrong number of arguments" ) );
+	}
+
+	grub_uint8_t* result = 0;
+	grub_size_t resultSize;
+	grub_TPM_unseal( args[0], result, &resultSize );
+
+	/* TODO: write result to file */
+
+  return GRUB_ERR_NONE;
+}
 
 
 #ifdef TGRUB_DEBUG
@@ -923,7 +952,7 @@ grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 }
 #endif
 
-static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure, cmd_setMOR;
+static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure, cmd_setMOR, cmd_unseal;
 
 #ifdef TGRUB_DEBUG
 	static grub_command_t cmd_random, cmd_oiap;
@@ -944,6 +973,9 @@ GRUB_MOD_INIT(tpm)
 	cmd_setMOR = grub_register_command( "setmor", grub_cmd_setMOR, N_( "disableAutoDetect" ),
 		  	N_( "Sets Memory Overwrite Request Bit with auto detect enabled (0) or disabled (1)" ) );
 
+	cmd_unseal = grub_register_command( "setmor", grub_cmd_unseal, N_( "sealedFile unsealedFile" ),
+			  	N_( "Unseals 'sealedFile' and writes result to 'unsealedFile' " ) );
+
 #ifdef TGRUB_DEBUG
 	cmd_random = grub_register_command( "random", grub_cmd_getRandom, N_( "bytesRequested" ),
 			  	N_( "Gets random bytes from TPM." ) );
@@ -959,6 +991,7 @@ GRUB_MOD_FINI(tpm)
 	grub_unregister_command( cmd_tcglog );
 	grub_unregister_command( cmd_measure );
 	grub_unregister_command( cmd_setMOR );
+	grub_unregister_command( cmd_unseal );
 
 #ifdef TGRUB_DEBUG
 	grub_unregister_command( cmd_random );
