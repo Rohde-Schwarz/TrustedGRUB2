@@ -14,6 +14,8 @@
 
 #define SHA1_DIGEST_SIZE 20
 #define TPM_NONCE_SIZE 20
+#define TPM_AUTHDATA_SIZE 20
+
 #define TCPA 0x41504354
 
 /* Measure into following PCRs */
