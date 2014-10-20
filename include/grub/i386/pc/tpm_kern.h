@@ -13,6 +13,7 @@
 #endif
 
 #define SHA1_DIGEST_SIZE 20
+#define TPM_NONCE_SIZE 20
 #define TCPA 0x41504354
 
 /* Measure into following PCRs */
@@ -41,10 +42,13 @@
 
 #define TPM_TAG_RQU_COMMAND 0x00C1
 #define TPM_TAG_RQU_AUTH2_COMMAND 0x00C3
+
+/* Ordinals */
 #define TPM_ORD_Extend 0x14
 #define TPM_ORD_PcrRead 0x15
 #define TPM_ORD_Unseal 0x18
 #define TPM_ORD_GetRandom 0x46
+#define TPM_ORD_OIAP 0xA
 
 /* Key Handle Values */
 #define TPM_KH_SRK 0x40000000
@@ -124,6 +128,9 @@ grub_uint32_t EXPORT_FUNC(grub_TPM_unseal) ( const char* sealedFile );
 
 /* get random from TPM  */
 grub_uint32_t EXPORT_FUNC(grub_TPM_getRandom) ( unsigned char* random, const grub_uint32_t randomBytesRequested );
+
+/* get random from TPM  */
+grub_uint32_t EXPORT_FUNC(grub_TPM_openOIAP_Session) ( grub_uint32_t* authHandle, unsigned char* nonceEven );
 
 /* Assembler exports: */
 grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (struct tcg_statusCheck_args *args);
