@@ -122,9 +122,6 @@ grub_uint32_t EXPORT_FUNC(grub_TPM_readpcr) ( unsigned long index );
 /* read tcg log entry specified by index */
 grub_uint32_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
 
-/* Sets Memory Overwrite Request bit */
-grub_uint32_t EXPORT_FUNC(tcg_SetMemoryOverwriteRequestBit) ( struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock *input );
-
 /* Unseals file with SRK */
 //grub_uint32_t EXPORT_FUNC(grub_TPM_unseal) ( const char* sealedFile );
 
