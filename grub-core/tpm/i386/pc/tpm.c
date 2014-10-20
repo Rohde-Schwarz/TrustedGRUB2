@@ -30,6 +30,94 @@
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
+
+/* Returns 0 on error. */
+static grub_err_t
+grub_TPM_readpcr( unsigned long index ) {		/*TODO: print in cmd function. return result in second parameter  */
+
+	if( grub_TPM_isAvailable() ) {
+		struct tcg_passThroughToTPM_InputParamBlock *input;
+		struct tcg_passThroughToTPM_OutputParamBlock *output;
+
+		/* TPM_PCRRead Incoming Operand */
+		struct {
+			grub_uint16_t tag;
+			grub_uint32_t paramSize;
+			grub_uint32_t ordinal;
+			grub_uint32_t pcrIndex;
+		} __attribute__ ((packed)) *tpmInput;
+
+		/* TPM_PCRRead Outgoing Operand */
+		struct {
+			grub_uint16_t tag;
+			grub_uint32_t paramSize;
+			grub_uint32_t returnCode;
+			grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
+		} __attribute__ ((packed)) *tpmOutput;
+
+		grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
+
+		/* FIXME: Why is this Offset value (+47) needed? */
+		grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
+
+		/* 	grub_printf( "output=%x ", sizeof( *output )  );
+			grub_printf( "output->TPMOperandOut=%x ", sizeof( output->TPMOperandOut )  );
+			grub_printf( "tpmOutput=%x ", sizeof( *tpmOutput )  );
+			grub_printf( "tpmOutput->pcr_value=%x ", sizeof( tpmOutput->pcr_value )  ); */
+
+		input = grub_zalloc( inputlen );
+		if( !input ) {
+			return 0;
+		}
+
+		output = grub_zalloc( outputlen );
+		if( !output ) {
+			return 0;
+		}
+
+		input->IPBLength = inputlen;
+		input->OPBLength = outputlen;
+
+		tpmInput = (void *)input->TPMOperandIn;
+		tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
+		tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
+		tpmInput->ordinal = swap32( TPM_ORD_PcrRead );
+		tpmInput->pcrIndex = swap32( index );
+
+		grub_uint32_t passThroughTo_TPM_ReturnCode;
+		if( tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) == 0 ) {
+			grub_free( input );
+			grub_free( output );
+			return 0;
+		}
+
+		tpmOutput = (void *)output->TPMOperandOut;
+		grub_uint32_t tpm_PCRreadReturnCode = swap32( tpmOutput->returnCode );
+
+		if( tpm_PCRreadReturnCode != TPM_SUCCESS ) {
+			grub_free( input );
+			grub_free( output );
+
+			if( tpm_PCRreadReturnCode == TPM_BADINDEX ) {
+				grub_printf( "Bad PCR index\n" );
+				return 0;
+			}
+			return 0;
+		}
+
+		grub_free( input );
+		grub_free( output );
+
+		grub_printf( "PCR[%lu]=", index );
+		print_sha1( tpmOutput->pcr_value );
+		grub_printf("\n");
+	} else {
+		return 0;
+	}
+
+	return 1;
+}
+
 static grub_err_t
 grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 

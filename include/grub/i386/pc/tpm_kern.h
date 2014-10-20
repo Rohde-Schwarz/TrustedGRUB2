@@ -102,6 +102,14 @@ typedef struct tdTCG_PCClientPCREventStruc {
 #define TCG_PCR_EVENT_SIZE 32
 
 
+/* print SHA1 hash of input */
+void EXPORT_FUNC(print_sha1) ( grub_uint8_t *inDigest );
+
+/* 16 bit big to little-endian conversion */
+grub_uint16_t EXPORT_FUNC(swap16) ( grub_uint16_t value );
+
+/* 32 bit big to little-endian conversion */
+grub_uint32_t EXPORT_FUNC(swap32) ( grub_uint32_t value );
 
 /* 	Checks for TPM availability
 
@@ -115,12 +123,12 @@ grub_uint32_t EXPORT_FUNC(grub_TPM_measureString) ( char *string );
 /* 	Measure files */
 grub_uint32_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
 
-/* read pcr specified by index */
-/*TODO: print in cmd function. here: return result in second parameter  */
-grub_uint32_t EXPORT_FUNC(grub_TPM_readpcr) ( unsigned long index );
-
 /* read tcg log entry specified by index */
 grub_uint32_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
+
+/* pass commands to TPM */
+grub_uint32_t EXPORT_FUNC(tcg_passThroughToTPM) ( struct tcg_passThroughToTPM_InputParamBlock *input,
+		struct tcg_passThroughToTPM_OutputParamBlock *output, grub_uint32_t *returnCode );
 
 /* Unseals file with SRK */
 //grub_uint32_t EXPORT_FUNC(grub_TPM_unseal) ( const char* sealedFile );
