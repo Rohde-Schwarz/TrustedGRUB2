@@ -24,7 +24,6 @@
 #include <grub/err.h>
 #include <grub/file.h>
 #include <grub/sha1.h>
-#include <grub/crypto.h>
 
 #include <grub/machine/tpm_kern.h>
 #include <grub/machine/memory.h>
@@ -224,7 +223,7 @@ tcg_passThroughToTPM( struct tcg_passThroughToTPM_InputParamBlock *input,
    On error see returncode;
    Page 12 TCG Platform Reset Attack Mitigation Specification V 1.0.0
  */
-static grub_uint32_t
+grub_uint32_t
 tcg_SetMemoryOverwriteRequestBit( struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock *input ) {
 
 	struct tcg_SetMemoryOverwriteRequestBit_args args;
@@ -337,35 +336,6 @@ grub_TPM_measure( grub_uint8_t *inDigest, unsigned long index ) {
 	print_sha1( tpmOutput->outDigest );
 	grub_printf("\n\n");
 #endif
-
-	return 1;
-}
-
-/* Sets Memory Overwrite Request bit */
-/* Returns 0 on error */
-grub_uint32_t
-grub_TPM_SetMOR_Bit( unsigned int disableAutoDetect ) {
-
-	struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock input;
-	input.iPBLength = 5;
-	input.reserved = 0;
-
-	// Reserved disableAutoDetect Reserved MOR-Bit
-	// 000             0            000      0
-
-	if( disableAutoDetect ) {
-		// disable autodetect
-		// 000 1 000 1
-		input.memoryOverwriteAction_BitValue = 0x11;
-	} else{
-		// autodetect
-		// 000 0 000 1
-		input.memoryOverwriteAction_BitValue = 0x01;
-	}
-
-	if ( tcg_SetMemoryOverwriteRequestBit( &input ) == 0 ) {
-		return 0;
-	}
 
 	return 1;
 }
@@ -881,7 +851,7 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, unsigned char* nonceEven )
 	return 1;
 }
 
-
+#if 0
 /* Returns 0 on error. */
 grub_err_t
 grub_TPM_unseal( const char* sealedFileName ) {
@@ -1120,6 +1090,6 @@ grub_TPM_unseal( const char* sealedFileName ) {
 
 	return 1;
 }
-
+#endif
 
 /* End TCG Extension */
