@@ -131,15 +131,6 @@ grub_uint32_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint
 grub_uint32_t EXPORT_FUNC(tcg_passThroughToTPM) ( struct tcg_passThroughToTPM_InputParamBlock *input,
 		struct tcg_passThroughToTPM_OutputParamBlock *output, grub_uint32_t *returnCode );
 
-/* Unseals file with SRK */
-//grub_uint32_t EXPORT_FUNC(grub_TPM_unseal) ( const char* sealedFile );
-
-/* get random from TPM  */
-grub_uint32_t EXPORT_FUNC(grub_TPM_getRandom) ( unsigned char* random, const grub_uint32_t randomBytesRequested );
-
-/* get random from TPM  */
-grub_uint32_t EXPORT_FUNC(grub_TPM_openOIAP_Session) ( grub_uint32_t* authHandle, unsigned char* nonceEven );
-
 /* Assembler exports: */
 grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (struct tcg_statusCheck_args *args);
 grub_uint32_t EXPORT_FUNC(asm_tcg_passThroughToTPM) (struct tcg_passThroughToTPM_args *args);
