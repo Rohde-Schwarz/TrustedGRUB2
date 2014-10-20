@@ -716,12 +716,6 @@ grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* 
 		return 0;
 	}
 
-	output = grub_zalloc( outputlen );
-	if( ! output ) {
-		DEBUG_PRINT( ( "Memory allocation failed\n" ) );
-		return 0;
-	}
-
 	input->IPBLength = inputlen;
 	input->OPBLength = outputlen;
 
@@ -734,11 +728,11 @@ grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* 
 	grub_memcmp ( tpmInput->sealedData, buf, fileSize );
 	grub_free( buf );
 
-
 	/* get first authHandle and authLastNonceEven */
 	unsigned char authLastNonceEven[TPM_NONCE_SIZE];
 	grub_uint32_t authHandle = 0;
 	if( ! grub_TPM_openOIAP_Session( &authHandle, &authLastNonceEven[0] ) ) {
+		grub_free( input );
 		return 0;
 	}
 
@@ -747,65 +741,120 @@ grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* 
 	/* get random for nonceOdd */
 	unsigned char nonceOdd[TPM_NONCE_SIZE];
 	if ( ! grub_TPM_getRandom( &nonceOdd[0], TPM_NONCE_SIZE ) ) {
+		grub_free( input );
 		return 0;
 	}
 
 	if( grub_memcpy( tpmInput->nonceOdd, nonceOdd, TPM_NONCE_SIZE ) != tpmInput->nonceOdd ) {
+		grub_free( input );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
+
 	tpmInput->continueAuthSession = 0;		// swap32 if 1
 
 	/* Generate HMAC */
 	/* HMAC( key.usageAuth, SHA1( ordinal, inData ), authLastNonceEven, nonceOdd, continueAuthSession ) */
 
+	/* data to hmac */
+	grub_size_t dataSize = SHA1_DIGEST_SIZE /* keyUsageAuth size */ +
+			SHA1_DIGEST_SIZE /* hashed ordinal and inData */+
+			TPM_NONCE_SIZE /* authLastNonceEven */ +
+			TPM_NONCE_SIZE /* nonceOdd */ +
+			sizeof( grub_uint32_t ) /* continueAuthSession */;
+
+	/* key = well known secret = 20 zero bytes */
+	grub_uint8_t keyUsageAuth[SHA1_DIGEST_SIZE];
+	if( grub_memset( keyUsageAuth, 0, SHA1_DIGEST_SIZE ) != keyUsageAuth ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memset failed.\n" ) );
+		return 0;
+	}
+
+	grub_uint8_t data[dataSize];
+	grub_uint8_t* dataPointer = &data[0];
+
+	if( grub_memcpy( dataPointer, &keyUsageAuth[0], SHA1_DIGEST_SIZE ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	dataPointer += SHA1_DIGEST_SIZE;
+
 	/* SHA1( ordinal, inData ) */
 	grub_uint32_t concatenatedOrdinalAndInDataSize = sizeof( grub_uint32_t ) + fileSize;
 	grub_uint8_t* concatenatedOrdinalAndInData = grub_zalloc( concatenatedOrdinalAndInDataSize );
 	if( ! concatenatedOrdinalAndInData ) {
+		grub_free( input );
 		DEBUG_PRINT( ( "Memory allocation failed\n" ) );
 		return 0;
 	}
 
 	/* copy ordinal */
 	if( grub_memcpy( concatenatedOrdinalAndInData, &tpmInput->ordinal, sizeof( grub_uint32_t ) ) != concatenatedOrdinalAndInData ) {
+		grub_free( input );
+		grub_free( concatenatedOrdinalAndInData );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
 
 	/* copy inData */
 	if( grub_memcpy( concatenatedOrdinalAndInData + sizeof( grub_uint32_t ) , tpmInput->sealedData, fileSize ) != concatenatedOrdinalAndInData + sizeof( grub_uint32_t ) ) {
+		grub_free( input );
+		grub_free( concatenatedOrdinalAndInData );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
 
 	grub_uint8_t hashResult[SHA1_DIGEST_SIZE];
 	grub_crypto_hash( GRUB_MD_SHA1, &hashResult[0], concatenatedOrdinalAndInData, concatenatedOrdinalAndInDataSize );
+	grub_free( concatenatedOrdinalAndInData );
 
-
-	/* key = well known secret = 20 zero bytes */
-	grub_uint8_t keyUsageAuth[SHA1_DIGEST_SIZE];
-	if( grub_memset( keyUsageAuth, 0, SHA1_DIGEST_SIZE ) != keyUsageAuth ) {
-		DEBUG_PRINT( ( "memset failed.\n" ) );
-		return 0;;
-	}
-
-	grub_uint8_t hmacResult[SHA1_DIGEST_SIZE];
-	gcry_err_code_t hmacErrorCode = grub_crypto_hmac_buffer( GRUB_MD_SHA1, &keyUsageAuth[0], SHA1_DIGEST_SIZE, &concatenatedOrdinalAndInData[0],
-			concatenatedOrdinalAndInDataSize, hmacResult );
-
-	if( hmacErrorCode ) {
-		grub_free( concatenatedOrdinalAndInData );
-		DEBUG_PRINT( ( "Calculate hmac failed\n" ) );
+	if( grub_memcpy( dataPointer, hashResult, SHA1_DIGEST_SIZE ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
 
-	grub_free( concatenatedOrdinalAndInData );
+	dataPointer += SHA1_DIGEST_SIZE;
+
+	if( grub_memcpy( dataPointer, &authLastNonceEven[0], TPM_NONCE_SIZE ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	dataPointer += TPM_NONCE_SIZE;
+
+	if( grub_memcpy( dataPointer, tpmInput->nonceOdd, TPM_NONCE_SIZE ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	dataPointer += TPM_NONCE_SIZE;
+
+	if( grub_memcpy( dataPointer, &tpmInput->continueAuthSession, sizeof( grub_uint32_t ) ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	gcry_err_code_t hmacErrorCode = grub_crypto_hmac_buffer( GRUB_MD_SHA1, &keyUsageAuth[0], SHA1_DIGEST_SIZE, &data[0],
+			dataSize, tpmInput->parentAuth );
+
+	if( hmacErrorCode ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "Calculate hmac failed\n" ) );
+		return 0;
+	}
 
 	/* get second dataAuthHandle and dataLastNonceEven */
 	unsigned char dataLastNonceEven[TPM_NONCE_SIZE];
 	grub_uint32_t dataAuthHandle = 0;
 	if( ! grub_TPM_openOIAP_Session( &dataAuthHandle, &dataLastNonceEven[0] ) ) {
+		grub_free( input );
 		return 0;
 	}
 
@@ -814,18 +863,84 @@ grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* 
 	/* get random for dataNonceOdd */
 	unsigned char dataNonceOdd[TPM_NONCE_SIZE];
 	if ( ! grub_TPM_getRandom( &dataNonceOdd[0], TPM_NONCE_SIZE ) ) {
+		grub_free( input );
 		return 0;
 	}
 
 	if( grub_memcpy( tpmInput->dataNonceOdd, dataNonceOdd, TPM_NONCE_SIZE ) != tpmInput->dataNonceOdd ) {
+		grub_free( input );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;;
 	}
+
 	tpmInput->continueDataSession = 0;		// swap32 if 1
 
-	/* Generate HMAC */
+	/* Generate second HMAC */
 	/* HMAC( entity.usageAuth, SHA1( ordinal, inData ), dataLastNonceEven, dataNonceOdd, continueDataSession ) */
-	//tpmInput->dataAuth
+
+	/* clear data array. dataSize is the same */
+	if( grub_memset( data, 0, dataSize ) != data ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memset failed.\n" ) );
+		return 0;
+	}
+
+	dataPointer = &data[0];
+
+	/* use keyUsageAuth as entityAuth = well known secret */
+	if( grub_memcpy( dataPointer, &keyUsageAuth[0], SHA1_DIGEST_SIZE ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	dataPointer += SHA1_DIGEST_SIZE;
+
+	if( grub_memcpy( dataPointer, &hashResult[0], SHA1_DIGEST_SIZE ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	dataPointer += SHA1_DIGEST_SIZE;
+
+	if( grub_memcpy( dataPointer, &dataLastNonceEven[0], TPM_NONCE_SIZE ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	dataPointer += TPM_NONCE_SIZE;
+
+	if( grub_memcpy( dataPointer, tpmInput->dataNonceOdd, TPM_NONCE_SIZE ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	dataPointer += TPM_NONCE_SIZE;
+
+	if( grub_memcpy( dataPointer, &tpmInput->continueDataSession, sizeof( grub_uint32_t ) ) != dataPointer ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	hmacErrorCode = grub_crypto_hmac_buffer( GRUB_MD_SHA1, &keyUsageAuth[0], SHA1_DIGEST_SIZE, &data[0],
+			dataSize, tpmInput->dataAuth );
+
+	if( hmacErrorCode ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "Calculate hmac failed\n" ) );
+		return 0;
+	}
+
+	output = grub_zalloc( outputlen );
+	if( ! output ) {
+		grub_free( input );
+		DEBUG_PRINT( ( "Memory allocation failed\n" ) );
+		return 0;
+	}
 
 	grub_uint32_t passThroughTo_TPM_ReturnCode;
 	if( ! tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) ) {
@@ -851,6 +966,7 @@ grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* 
 		return 0;
 	}
 
+	/* TODO: return result */
 
 	grub_free( output );
 	grub_printf("OK\n");
@@ -872,7 +988,10 @@ grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 
 	grub_uint8_t* result = 0;
 	grub_size_t resultSize;
-	grub_TPM_unseal( args[0], result, &resultSize );
+	if( grub_TPM_unseal( args[0], result, &resultSize ) == 0 ) {
+		grub_printf( "Unsealing failed\n" );
+		return GRUB_ERR_NONE;
+	}
 
 	/* TODO: write result to file */
 
@@ -973,7 +1092,7 @@ GRUB_MOD_INIT(tpm)
 	cmd_setMOR = grub_register_command( "setmor", grub_cmd_setMOR, N_( "disableAutoDetect" ),
 		  	N_( "Sets Memory Overwrite Request Bit with auto detect enabled (0) or disabled (1)" ) );
 
-	cmd_unseal = grub_register_command( "setmor", grub_cmd_unseal, N_( "sealedFile unsealedFile" ),
+	cmd_unseal = grub_register_command( "unseal", grub_cmd_unseal, N_( "sealedFile unsealedFile" ),
 			  	N_( "Unseals 'sealedFile' and writes result to 'unsealedFile' " ) );
 
 #ifdef TGRUB_DEBUG
