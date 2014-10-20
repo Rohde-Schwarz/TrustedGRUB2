@@ -170,7 +170,7 @@ grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char 
 	}
 
 	grub_uint32_t randomBytesRequested = grub_strtoul( args[0], NULL, 10 );
-	/* if disableAutoDetect is invalid */
+	/* if randomBytesRequested is invalid */
 	if( grub_errno != GRUB_ERR_NONE ) {
 		grub_print_error();
 		grub_errno = GRUB_ERR_NONE;
