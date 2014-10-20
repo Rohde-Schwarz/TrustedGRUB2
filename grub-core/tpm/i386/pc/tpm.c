@@ -117,6 +117,35 @@ grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **
   return GRUB_ERR_NONE;
 }
 
+/* Sets Memory Overwrite Request bit */
+/* Returns 0 on error */
+static grub_uint32_t
+grub_TPM_SetMOR_Bit( unsigned int disableAutoDetect ) {
+
+	struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock input;
+	input.iPBLength = 5;
+	input.reserved = 0;
+
+	// Reserved disableAutoDetect Reserved MOR-Bit
+	// 000             0            000      0
+
+	if( disableAutoDetect ) {
+		// disable autodetect
+		// 000 1 000 1
+		input.memoryOverwriteAction_BitValue = 0x11;
+	} else{
+		// autodetect
+		// 000 0 000 1
+		input.memoryOverwriteAction_BitValue = 0x01;
+	}
+
+	if ( tcg_SetMemoryOverwriteRequestBit( &input ) == 0 ) {
+		return 0;
+	}
+
+	return 1;
+}
+
 static grub_err_t
 grub_cmd_setMOR( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 

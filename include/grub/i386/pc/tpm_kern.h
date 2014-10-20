@@ -123,10 +123,10 @@ grub_uint32_t EXPORT_FUNC(grub_TPM_readpcr) ( unsigned long index );
 grub_uint32_t EXPORT_FUNC(grub_TPM_read_tcglog) ( int index );
 
 /* Sets Memory Overwrite Request bit */
-grub_uint32_t EXPORT_FUNC(grub_TPM_SetMOR_Bit) ( unsigned int disableAutoDetect );
+grub_uint32_t EXPORT_FUNC(tcg_SetMemoryOverwriteRequestBit) ( struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock *input );
 
 /* Unseals file with SRK */
-grub_uint32_t EXPORT_FUNC(grub_TPM_unseal) ( const char* sealedFile );
+//grub_uint32_t EXPORT_FUNC(grub_TPM_unseal) ( const char* sealedFile );
 
 /* get random from TPM  */
 grub_uint32_t EXPORT_FUNC(grub_TPM_getRandom) ( unsigned char* random, const grub_uint32_t randomBytesRequested );
