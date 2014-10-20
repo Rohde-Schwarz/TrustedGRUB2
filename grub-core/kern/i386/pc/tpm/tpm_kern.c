@@ -28,15 +28,6 @@
 #include <grub/machine/tpm_kern.h>
 #include <grub/machine/memory.h>
 
-static void
-print_sha1( grub_uint8_t *inDigest ) {
-
-	/* print SHA1 hash of input file */
-	unsigned int j;
-	for( j = 0; j < SHA1_DIGEST_SIZE; j++ ) {
-		grub_printf( "%02x", inDigest[j] );
-	}
-}
 /* ++++++++++++++++++++++++++++++++++++++++ */
 /* code adapted from bitvisor http://www.bitvisor.org */
 static void
@@ -62,7 +53,7 @@ conv8to16( grub_uint8_t lowSource, grub_uint8_t highSource, grub_uint16_t *dest 
 }
 
 /* 16 bit big to little-endian conversion */
-static grub_uint16_t
+grub_uint16_t
 swap16( grub_uint16_t value ) {
 	grub_uint8_t low, high;
 
@@ -72,7 +63,7 @@ swap16( grub_uint16_t value ) {
 }
 
 /* 32 bit big to little-endian conversion */
-static grub_uint32_t
+grub_uint32_t
 swap32( grub_uint32_t value ) {
 	grub_uint16_t low, high;
 
@@ -81,7 +72,16 @@ swap32( grub_uint32_t value ) {
 	return value;
 }
 /* end functions from bitvisor */
-/* ++++++++++++++++++++++++++++++++++++++++ */
+
+void
+print_sha1( grub_uint8_t *inDigest ) {
+
+	/* print SHA1 hash of input */
+	unsigned int j;
+	for( j = 0; j < SHA1_DIGEST_SIZE; j++ ) {
+		grub_printf( "%02x", inDigest[j] );
+	}
+}
 
 /* Invokes assembler function asm_tcg_statusCheck()
 
@@ -132,7 +132,7 @@ tcg_statusCheck( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *m
    On error see returncode;
    Page 112 TCG_PCClientImplementation_1-21_1_00
  */
-static grub_uint32_t
+grub_uint32_t
 tcg_passThroughToTPM( struct tcg_passThroughToTPM_InputParamBlock *input,
 				 	  struct tcg_passThroughToTPM_OutputParamBlock *output, grub_uint32_t *returnCode ) {
 
@@ -420,93 +420,6 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 		}
 
 	} else {	/* FIXME */
-	}
-
-	return 1;
-}
-
-/* Returns 0 on error. */
-grub_err_t
-grub_TPM_readpcr( unsigned long index ) {
-
-	if( grub_TPM_isAvailable() ) {
-		struct tcg_passThroughToTPM_InputParamBlock *input;
-		struct tcg_passThroughToTPM_OutputParamBlock *output;
-
-		/* TPM_PCRRead Incoming Operand */
-		struct {
-			grub_uint16_t tag;
-			grub_uint32_t paramSize;
-			grub_uint32_t ordinal;
-			grub_uint32_t pcrIndex;
-		} __attribute__ ((packed)) *tpmInput;
-
-		/* TPM_PCRRead Outgoing Operand */
-		struct {
-			grub_uint16_t tag;
-			grub_uint32_t paramSize;
-			grub_uint32_t returnCode;
-			grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
-		} __attribute__ ((packed)) *tpmOutput;
-
-		grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
-
-		/* FIXME: Why is this Offset value (+47) needed? */
-		grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
-
-		/* 	grub_printf( "output=%x ", sizeof( *output )  );
-			grub_printf( "output->TPMOperandOut=%x ", sizeof( output->TPMOperandOut )  );
-			grub_printf( "tpmOutput=%x ", sizeof( *tpmOutput )  );
-			grub_printf( "tpmOutput->pcr_value=%x ", sizeof( tpmOutput->pcr_value )  ); */
-
-		input = grub_zalloc( inputlen );
-		if( !input ) {
-			return 0;
-		}
-
-		output = grub_zalloc( outputlen );
-		if( !output ) {
-			return 0;
-		}
-
-		input->IPBLength = inputlen;
-		input->OPBLength = outputlen;
-
-		tpmInput = (void *)input->TPMOperandIn;
-		tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
-		tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
-		tpmInput->ordinal = swap32( TPM_ORD_PcrRead );
-		tpmInput->pcrIndex = swap32( index );
-
-		grub_uint32_t passThroughTo_TPM_ReturnCode;
-		if( tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) == 0 ) {
-			grub_free( input );
-			grub_free( output );
-			return 0;
-		}
-
-		tpmOutput = (void *)output->TPMOperandOut;
-		grub_uint32_t tpm_PCRreadReturnCode = swap32( tpmOutput->returnCode );
-
-		if( tpm_PCRreadReturnCode != TPM_SUCCESS ) {
-			grub_free( input );
-			grub_free( output );
-
-			if( tpm_PCRreadReturnCode == TPM_BADINDEX ) {
-				grub_printf( "Bad PCR index\n" );
-				return 0;
-			}
-			return 0;
-		}
-
-		grub_free( input );
-		grub_free( output );
-
-		grub_printf( "PCR[%lu]=", index );
-		print_sha1( tpmOutput->pcr_value );
-		grub_printf("\n");
-	} else {
-		return 0;
 	}
 
 	return 1;
