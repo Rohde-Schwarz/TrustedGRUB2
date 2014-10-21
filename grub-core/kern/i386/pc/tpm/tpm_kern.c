@@ -29,6 +29,9 @@
 #include <grub/machine/memory.h>
 
 
+/* Ordinals */
+static const grub_uint32_t TPM_ORD_Extend = 0x00000014;
+
 /* TPM_Extend Incoming Operand */
 typedef struct {
 	grub_uint16_t tag;
