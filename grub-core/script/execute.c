@@ -29,7 +29,7 @@
 #include <grub/i18n.h>
 
 /* Begin TCG Extension */
-#include <grub/machine/tpm_kern.h>
+#include <grub/machine/tpm.h>
 /* End TCG Extension */
 
 /* Max digits for a char is 3 (0xFF is 255), similarly for an int it

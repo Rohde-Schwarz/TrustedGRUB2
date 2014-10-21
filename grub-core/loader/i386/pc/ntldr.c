@@ -34,7 +34,7 @@
 #include <grub/cpu/relocator.h>
 #include <grub/machine/chainloader.h>
 
-#include <grub/machine/tpm_kern.h>
+#include <grub/machine/tpm.h>
 
 GRUB_MOD_LICENSE ("GPLv3+");
 

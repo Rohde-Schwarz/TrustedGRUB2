@@ -41,7 +41,7 @@
 #include <grub/i386/relocator.h>
 
 /* Begin TCG Extension */
-#include <grub/machine/tpm_kern.h>
+#include <grub/machine/tpm.h>
 /* End TCG Extension */
 
 

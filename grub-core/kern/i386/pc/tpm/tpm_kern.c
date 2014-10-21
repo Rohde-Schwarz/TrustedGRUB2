@@ -25,7 +25,7 @@
 #include <grub/file.h>
 #include <grub/sha1.h>
 
-#include <grub/machine/tpm_kern.h>
+#include <grub/machine/tpm.h>
 #include <grub/machine/memory.h>
 
 /* ++++++++++++++++++++++++++++++++++++++++ */

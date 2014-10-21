@@ -34,7 +34,7 @@
 #include <grub/script_sh.h>
 
 /* BEGIN TCG EXTENSION */
-#include <grub/machine/tpm_kern.h>
+#include <grub/machine/tpm.h>
 
 #define TGRUB_VERSION "1.00"
 /* END TCG EXTENSION */
