@@ -33,7 +33,6 @@
 GRUB_MOD_LICENSE ("GPLv3+");
 
 
-
 /* TPM_ENTITY_TYPE values */
 static const grub_uint16_t TPM_ET_SRK =  0x0004;
 
@@ -42,7 +41,20 @@ static const grub_uint32_t TPM_KH_SRK = 0x40000000;
 
 /* Ordinals */
 static const grub_uint32_t TPM_ORD_OSAP = 0x0000000B;
+static const grub_uint32_t TPM_ORD_PcrRead = 0x00000015;
+static const grub_uint32_t TPM_ORD_Unseal = 0x00000018;
+static const grub_uint32_t TPM_ORD_GetRandom = 0x00000046;
+static const grub_uint32_t TPM_ORD_OIAP = 0x0000000A;
 
+static const grub_uint32_t TCG_PCR_EVENT_SIZE = 32;
+
+static const grub_uint16_t TPM_TAG_RQU_AUTH2_COMMAND = 0x00C3;
+
+#define TPM_NONCE_SIZE 20
+static const grub_uint32_t TPM_AUTHDATA_SIZE = 20;
+
+static const grub_uint8_t srkAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static const grub_uint8_t blobAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /* TPM_PCRRead Incoming Operand */
 typedef struct {
@@ -111,9 +123,14 @@ typedef struct {
 	grub_uint8_t  nonceEvenOSAP[TPM_NONCE_SIZE];
 } __attribute__ ((packed)) OSAP_Outgoing;
 
+typedef struct tdTCG_PCClientPCREventStruc {
+	grub_uint32_t pcrIndex;
+	grub_uint32_t eventType;
+	grub_uint8_t digest[SHA1_DIGEST_SIZE];
+	grub_uint32_t eventDataSize;
+	grub_uint8_t event[1];
+} __attribute__ ((packed)) TCG_PCClientPCREvent;
 
-static const grub_uint8_t srkAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-static const grub_uint8_t blobAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /* Returns 0 on error. */
 static grub_err_t
@@ -823,7 +840,7 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
 }
 
 /* Returns 0 on error. */
-static grub_err_t
+static grub_err_t __attribute__ ((unused)) /* ATTENTION: remove attribute when used */
 grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t* result, grub_size_t* resultSize ) {
 
 	CHECK_FOR_NULL_ARGUMENT( sealedBuffer )

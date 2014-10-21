@@ -4,7 +4,7 @@
 
 #include <grub/err.h>
 
-#define TGRUB_DEBUG
+/* #define TGRUB_DEBUG */
 
 #ifdef TGRUB_DEBUG
 	#define DEBUG_PRINT( x ) grub_printf x
@@ -19,9 +19,6 @@
 			}
 
 #define SHA1_DIGEST_SIZE 20
-#define TPM_NONCE_SIZE 20
-#define TPM_AUTHDATA_SIZE 20
-
 #define TCPA 0x41504354
 
 /* Measure into following PCRs */
@@ -42,21 +39,12 @@
 #define TPM_AUTHFAIL (TPM_BASE + 0x1)
 #define TPM_BADINDEX (TPM_BASE + 0x2)
 
-
 /* TODO: 0x10000 does not work for some reason */
 /* is  0x20000 and 0x30000 a good choice? */
 #define INPUT_PARAM_BLK_ADDR 0x30000
 #define OUTPUT_PARAM_BLK_ADDR 0x20000
 
 #define TPM_TAG_RQU_COMMAND 0x00C1
-#define TPM_TAG_RQU_AUTH2_COMMAND 0x00C3
-
-/* Ordinals */
-#define TPM_ORD_Extend 0x14
-#define TPM_ORD_PcrRead 0x15
-#define TPM_ORD_Unseal 0x18
-#define TPM_ORD_GetRandom 0x46
-#define TPM_ORD_OIAP 0xA
 
 typedef struct {
 	grub_uint32_t out_eax, out_ebx, out_ecx, out_edx, out_esi, out_edi;
@@ -82,15 +70,6 @@ typedef struct {
 	grub_uint16_t Reserved;
 	grub_uint8_t TPMOperandOut[1];
 } __attribute__ ((packed)) PassThroughToTPM_OutputParamBlock;
-
-typedef struct tdTCG_PCClientPCREventStruc {
-	grub_uint32_t pcrIndex;
-	grub_uint32_t eventType;
-	grub_uint8_t digest[SHA1_DIGEST_SIZE];
-	grub_uint32_t eventDataSize;
-	grub_uint8_t event[1];
-} __attribute__ ((packed)) TCG_PCClientPCREvent;
-#define TCG_PCR_EVENT_SIZE 32
 
 typedef struct {
 	grub_uint32_t out_eax;
