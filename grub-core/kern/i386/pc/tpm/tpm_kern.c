@@ -28,6 +28,25 @@
 #include <grub/machine/tpm.h>
 #include <grub/machine/memory.h>
 
+
+/* TPM_Extend Incoming Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t ordinal;
+	grub_uint32_t pcrNum;
+	grub_uint8_t inDigest[SHA1_DIGEST_SIZE];		/* The 160 bit value representing the event to be recorded. */
+} __attribute__ ((packed)) ExtendIncoming;
+
+/* TPM_Extend Outgoing Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t returnCode;
+	grub_uint8_t outDigest[SHA1_DIGEST_SIZE];		/* The PCR value after execution of the command. */
+} __attribute__ ((packed)) ExtendOutgoing;
+
+
 /* ++++++++++++++++++++++++++++++++++++++++ */
 /* code adapted from bitvisor http://www.bitvisor.org */
 static void
@@ -98,8 +117,16 @@ print_sha1( grub_uint8_t *inDigest ) {
    For more information see page 115 TCG_PCClientImplementation 1.21
  */
 grub_uint32_t
-tcg_statusCheck( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *minor, grub_uint32_t *featureFlags, grub_uint32_t *eventLog, grub_uint32_t *edi ) {
-	struct tcg_statusCheck_args args;
+tcg_statusCheck( grub_uint32_t* returnCode, grub_uint8_t* major, grub_uint8_t* minor, grub_uint32_t* featureFlags, grub_uint32_t* eventLog, grub_uint32_t* edi ) {
+
+	CHECK_FOR_NULL_ARGUMENT( returnCode )
+	CHECK_FOR_NULL_ARGUMENT( major )
+	CHECK_FOR_NULL_ARGUMENT( minor )
+	CHECK_FOR_NULL_ARGUMENT( featureFlags )
+	CHECK_FOR_NULL_ARGUMENT( eventLog )
+	CHECK_FOR_NULL_ARGUMENT( edi )
+
+	StatusCheckArgs args;
 
 	/* invoke assembler func */
 	asm_tcg_statusCheck( &args );
@@ -107,10 +134,12 @@ tcg_statusCheck( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *m
 	*returnCode = args.out_eax;
 
 	if( args.out_eax != TCG_PC_OK ) {
+		DEBUG_PRINT( ( "args.out_eax != TCG_PC_OK\n" ) );
 		return 0;
 	}
 
 	if( args.out_ebx != TCPA ) {
+		DEBUG_PRINT( ( "args.out_ebx != TCPA\n" ) );
 		return 0;
 	}
 
@@ -120,8 +149,6 @@ tcg_statusCheck( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *m
 	*eventLog = args.out_esi;
 	*edi = args.out_edi;
 
-	/* grub_printf("%u", *major);
-	   grub_printf(".%u", *minor); */
 	return 1;
 }
 
@@ -133,47 +160,31 @@ tcg_statusCheck( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *m
    Page 112 TCG_PCClientImplementation_1-21_1_00
  */
 grub_uint32_t
-tcg_passThroughToTPM( struct tcg_passThroughToTPM_InputParamBlock *input,
-				 	  struct tcg_passThroughToTPM_OutputParamBlock *output, grub_uint32_t *returnCode ) {
+tcg_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, PassThroughToTPM_OutputParamBlock* output, grub_uint32_t* returnCode ) {
 
-	struct tcg_passThroughToTPM_args args;
-	void *p;
+	CHECK_FOR_NULL_ARGUMENT( input );
+	CHECK_FOR_NULL_ARGUMENT( output );
 
-	if ( !input->IPBLength || !input->OPBLength ) {
+	if ( ! input->IPBLength || ! input->OPBLength ) {
+		DEBUG_PRINT( ( "! input->IPBLength || ! input->OPBLength\n" ) );
 		return 0;
 	}
 
 	/* copy input buffer */
-	p = grub_map_memory( INPUT_PARAM_BLK_ADDR, input->IPBLength );
-	if( !p ) {
+	void* p = grub_map_memory( INPUT_PARAM_BLK_ADDR, input->IPBLength );
+
+	if( ! p ) {
 		return 0;
 	}
+
 	if( grub_memcpy( p, input, input->IPBLength ) != p ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
+
 	grub_unmap_memory( p, input->IPBLength );
 
-	/*  grub_printf( "input->IPBLength: %x\n", input->IPBLength );
-		grub_printf( "input->OPBLength: %x\n", input->OPBLength );
-		grub_printf( "input->Reserved1: %x\n", input->Reserved1 );
-		grub_printf( "input->Reserved2: %x\n", input->Reserved2 );
-		grub_printf( "input->TPMOperandIn: %x\n", *input->TPMOperandIn ); */
-
-	/* TPM_Extend Incoming Operand
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t ordinal;
-		grub_uint32_t pcrNum;
-		grub_uint8_t inDigest[SHA1_DIGEST_SIZE];
-	} __attribute__ ((packed)) *tpmInput; */
-
-	/* tpmInput = (void *)input->TPMOperandIn;
-		grub_printf( "tpminput->tag: %x\n", tpmInput->tag );
-		grub_printf( "tpminput->paramSize: %x\n", tpmInput->paramSize );
-		grub_printf( "tpminput->ordinal: %x\n", tpmInput->ordinal );
-		grub_printf( "tpminput->pcrNum: %x\n", tpmInput->pcrNum ); */
-
+	PassThroughToTPMArgs args;
 	args.in_ebx = TCPA;
 	args.in_ecx = 0;
 	args.in_edx = 0;
@@ -182,102 +193,93 @@ tcg_passThroughToTPM( struct tcg_passThroughToTPM_InputParamBlock *input,
 	args.in_edi = INPUT_PARAM_BLK_ADDR & 0xF;
 	args.in_es = INPUT_PARAM_BLK_ADDR >> 4;
 
-	/* 	grub_printf( "esi: %x\n", args.in_esi );
-		grub_printf( "ds: %x\n", args.in_ds );
-		grub_printf( "edi: %x\n", args.in_edi );
-		grub_printf( "es: %x\n", args.in_es ); */
-
 	asm_tcg_passThroughToTPM( &args );
 
 	*returnCode = args.out_eax;
-	/* grub_printf( "%x\n", args.out_eax ); */
 
 	if ( args.out_eax != TCG_PC_OK ) {
+		DEBUG_PRINT( ( "args.out_eax != TCG_PC_OK\n" ) );
 		return 0;
 	}
 
 	/* copy output_buffer */
 	p = grub_map_memory( OUTPUT_PARAM_BLK_ADDR, input->OPBLength );
+
 	if( !p ) {
 		return 0;
 	}
+
 	if( grub_memcpy( output, p, input->OPBLength ) != output ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
+
 	grub_unmap_memory( p, input->OPBLength );
 
-	/* FIXME
+	/* FIXME:
 	   output->OPBLength should be the same as input->OPBLength
 	   But they are not ?!
 	   output->Reserved has to be zero. But it is not. */
 
-	/* grub_printf( "%x\n", output->OPBLength ); */
-	/* grub_printf( "%x\n", output->Reserved ); */
 	return 1;
 }
 
 static grub_uint32_t
-grub_TPM_measure( grub_uint8_t *inDigest, unsigned long index ) {
+grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 
-	/* TPM_Extend Incoming Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t ordinal;
-		grub_uint32_t pcrNum;
-		grub_uint8_t inDigest[SHA1_DIGEST_SIZE];		/* The 160 bit value representing the event to be recorded. */
-	} __attribute__ ((packed)) *tpmInput;
+	CHECK_FOR_NULL_ARGUMENT( inDigest );
 
-	/* TPM_Extend Outgoing Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t returnCode;
-		grub_uint8_t outDigest[SHA1_DIGEST_SIZE];		/* The PCR value after execution of the command. */
-	} __attribute__ ((packed)) *tpmOutput;
+	ExtendIncoming* extendInput;
+	PassThroughToTPM_InputParamBlock* passThroughInput;
+	grub_uint32_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *extendInput );
 
-	struct tcg_passThroughToTPM_InputParamBlock *input;
-	struct tcg_passThroughToTPM_OutputParamBlock *output;
+	ExtendOutgoing* extendOutput;
+	PassThroughToTPM_OutputParamBlock* passThroughOutput;
+	/* FIXME: Why are these additional +64 bytes needed? */
+	grub_uint32_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *extendOutput ) + 64;
 
-	grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
-
-	/* FIXME: Why is this Offset value (+64) needed? */
-	grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 64 ;
-
-	input = grub_zalloc( inputlen );
-	if( !input ) {
+	passThroughInput = grub_zalloc( inputlen );
+	if( ! passThroughInput ) {
+		DEBUG_PRINT( ( "memory allocation failed.\n" ) );
 		return 0 ;
 	}
-	output = grub_zalloc( outputlen );
-	if( !output ) {
+
+	passThroughInput->IPBLength = inputlen;
+	passThroughInput->OPBLength = outputlen;
+
+	extendInput = (void *)passThroughInput->TPMOperandIn;
+	extendInput->tag = swap16( TPM_TAG_RQU_COMMAND );
+	extendInput->paramSize = swap32( sizeof( *extendInput ) );
+	extendInput->ordinal = swap32( TPM_ORD_Extend );
+	extendInput->pcrNum = swap32( index );
+
+	if( grub_memcpy( extendInput->inDigest, inDigest, SHA1_DIGEST_SIZE) != extendInput->inDigest ) {
+		grub_free( passThroughInput );
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
-	input->IPBLength = inputlen;
-	input->OPBLength = outputlen;
 
-	tpmInput = (void *)input->TPMOperandIn;
-	tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
-	tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
-	tpmInput->ordinal = swap32( TPM_ORD_Extend );
-	tpmInput->pcrNum = swap32( index );
-
-	if( grub_memcpy( tpmInput->inDigest, inDigest, SHA1_DIGEST_SIZE) != tpmInput->inDigest ) {
+	passThroughOutput = grub_zalloc( outputlen );
+	if( ! passThroughOutput ) {
+		grub_free( passThroughInput );
+		DEBUG_PRINT( ( "memory allocation failed.\n" ) );
 		return 0;
 	}
 
 	grub_uint32_t passThrough_TPM_ReturnCode;
-	if ( tcg_passThroughToTPM( input, output, &passThrough_TPM_ReturnCode ) == 0 ) {
-		grub_free( input );
-		grub_free( output );
+	if ( tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThrough_TPM_ReturnCode ) == 0 ) {
+		DEBUG_PRINT( ( "tcg_passThroughToTPM failed with: %x\n", passThrough_TPM_ReturnCode ) );
+		grub_free( passThroughInput );
+		grub_free( passThroughOutput );
 		return 0;
 	}
+	grub_free( passThroughInput );
 
-	tpmOutput = (void *)output->TPMOperandOut;
-	grub_uint32_t tpmExtendReturnCode = swap32( tpmOutput->returnCode );
+	extendOutput = (void *)passThroughOutput->TPMOperandOut;
+	grub_uint32_t tpmExtendReturnCode = swap32( extendOutput->returnCode );
 
 	if( tpmExtendReturnCode != TPM_SUCCESS ) {
-		grub_free( input );
-		grub_free( output );
+		grub_free( passThroughOutput );
 
 		if( tpmExtendReturnCode == TPM_BADINDEX ) {
 			grub_printf( "Bad PCR index\n" );
@@ -286,15 +288,13 @@ grub_TPM_measure( grub_uint8_t *inDigest, unsigned long index ) {
 		return 0;
 	}
 
-	grub_free( input );
-	grub_free( output );
-
 #ifdef TGRUB_DEBUG
 	grub_printf( "New PCR[%lu]=", index );
-	print_sha1( tpmOutput->outDigest );
+	print_sha1( extendOutput->outDigest );
 	grub_printf("\n\n");
 #endif
 
+	grub_free( passThroughOutput );
 	return 1;
 }
 
@@ -326,46 +326,45 @@ grub_TPM_isAvailable( void ) {
 
 /* Returns 0 on error. */
 grub_uint32_t
-grub_TPM_measureString( char *string ) {
+grub_TPM_measureString( const char* string ) {
 
-	if( grub_TPM_isAvailable() ) {
-		if ( string == 0 ) {
-			return 0;
-		}
+	CHECK_FOR_NULL_ARGUMENT( string )
 
-		/* hash string */
-		grub_uint32_t result[5];
-
-		if( sha1_hash_string( string, result ) == 0 ) {
-			return 0;
-		}
-
-		/* convert from uint32_t to uint8_t */
-		grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
-		int j, i = 0;
-		for( j = 0; j < 5; j++ ) {
-			convertedResult[i++] = ((result[j]>>24)&0xff);
-			convertedResult[i++] = ((result[j]>>16)&0xff);
-			convertedResult[i++] = ((result[j]>>8)&0xff);
-			convertedResult[i++] = (result[j]&0xff);
-		}
-
-#ifdef TGRUB_DEBUG
-	/* print SHA1 hash of input string */
-	grub_printf( "\n" );
-	print_sha1( convertedResult );
-	grub_printf( "  %s\n", string );
-#endif
-
-		/* measure */
-		if( grub_TPM_measure( convertedResult, TPM_COMMAND_MEASUREMENT_PCR ) == 0 ) {
-			grub_printf( "Measurement failed\n" );
-			return 0;
-		}
-
-	} else {
+	if( ! grub_TPM_isAvailable() ) {
 		return 0;
 	}
+
+	/* hash string */
+	grub_uint32_t result[5];
+
+	if( sha1_hash_string( string, result ) == 0 ) {
+		DEBUG_PRINT( ( "sha1_hash_string() failed\n" ) );
+		return 0;
+	}
+
+	/* convert from uint32_t to uint8_t */
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	int j, i = 0;
+	for( j = 0; j < 5; j++ ) {
+		convertedResult[i++] = ((result[j]>>24)&0xff);
+		convertedResult[i++] = ((result[j]>>16)&0xff);
+		convertedResult[i++] = ((result[j]>>8)&0xff);
+		convertedResult[i++] = (result[j]&0xff);
+	}
+
+#ifdef TGRUB_DEBUG
+/* print SHA1 hash of input string */
+grub_printf( "\n" );
+print_sha1( convertedResult );
+grub_printf( "  %s\n", string );
+#endif
+
+	/* measure */
+	if( grub_TPM_measure( convertedResult, TPM_COMMAND_MEASUREMENT_PCR ) == 0 ) {
+		grub_printf( "Measurement failed\n" );
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -373,53 +372,53 @@ grub_TPM_measureString( char *string ) {
 grub_uint32_t
 grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 
-	if( grub_TPM_isAvailable() ) {
-		if ( filename == 0 ) {
-			return 0;
-		}
+	CHECK_FOR_NULL_ARGUMENT( filename )
 
-		/* open file */
-		grub_file_t file = grub_file_open( filename );
-		if( !file ) {
-			grub_print_error();
-			return 0;
-		}
+	if( ! grub_TPM_isAvailable() ) {
+		return 0;
+	}
 
-		/* hash file */
-		grub_uint32_t result[5];
-		if( sha1_hash_file( file, result  ) == 0)  {
-			return 0;
-		}
-		grub_file_close( file );
+	/* open file */
+	grub_file_t file = grub_file_open( filename );
+	if( ! file ) {
+		grub_print_error();
+		return 0;
+	}
 
-		if( grub_errno != GRUB_ERR_NONE ) {
-			grub_print_error();
-			return 0;
-		}
+	/* hash file */
+	grub_uint32_t result[5];
+	if( sha1_hash_file( file, result  ) == 0)  {
+		DEBUG_PRINT( ( "sha1_hash_file() failed" ) );
+		return 0;
+	}
 
-		/* convert from uint32_t to uint8_t */
-		grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
-		int j, i = 0;
-		for( j = 0; j < 5; j++ ) {
-			convertedResult[i++] = ((result[j]>>24)&0xff);
-			convertedResult[i++] = ((result[j]>>16)&0xff);
-			convertedResult[i++] = ((result[j]>>8)&0xff);
-			convertedResult[i++] = (result[j]&0xff);
-		}
+	grub_file_close( file );
+
+	if( grub_errno != GRUB_ERR_NONE ) {
+		grub_print_error();
+		return 0;
+	}
+
+	/* convert from uint32_t to uint8_t */
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	int j, i = 0;
+	for( j = 0; j < 5; j++ ) {
+		convertedResult[i++] = ((result[j]>>24)&0xff);
+		convertedResult[i++] = ((result[j]>>16)&0xff);
+		convertedResult[i++] = ((result[j]>>8)&0xff);
+		convertedResult[i++] = (result[j]&0xff);
+	}
 
 #ifdef TGRUB_DEBUG
-	/* print hash */
-	print_sha1( convertedResult );
-	grub_printf( "  %s\n", filename );
+/* print hash */
+print_sha1( convertedResult );
+grub_printf( "  %s\n", filename );
 #endif
 
-		/* measure */
-		if( grub_TPM_measure( convertedResult, index ) == 0 ) {
-			grub_printf( "Measurement failed\n" );
-			return 0;
-		}
-
-	} else {	/* FIXME */
+	/* measure */
+	if( grub_TPM_measure( convertedResult, index ) == 0 ) {
+		DEBUG_PRINT( ( "grub_TPM_measure() failed\n" ) );
+		return 0;
 	}
 
 	return 1;

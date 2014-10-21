@@ -12,8 +12,8 @@
 */
 
 /* Added by TrustedGRUB2 author:
-	sha1_hash_file( grub_file_t file, void *result )
-	sha1_hash_string( char *string, void *result )
+	sha1_hash_file( const grub_file_t file, void* result )
+	sha1_hash_string( const char* string, void* result )
 */
 
 #include <grub/sha1.h>
@@ -365,7 +365,7 @@ static int sha1_finish(sha1_context *ctx, t_U32 *sha1_hash)
 }
 
 grub_uint32_t
-sha1_hash_file( grub_file_t file, void *result ) {
+sha1_hash_file( const grub_file_t file, void* result ) {
   sha1_context context;
   grub_uint8_t readbuf[4096];
 
@@ -394,7 +394,7 @@ sha1_hash_file( grub_file_t file, void *result ) {
 }
 
 grub_uint32_t
-sha1_hash_string( char *string, void *result ) {
+sha1_hash_string( const char* string, void* result ) {
 	sha1_context context;
 
 	if( sha1_init( &context ) != 0 ) {
