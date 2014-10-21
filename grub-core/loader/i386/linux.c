@@ -36,7 +36,7 @@
 #include <grub/lib/cmdline.h>
 
 /* Begin TCG Extension */
-#include <grub/machine/tpm_kern.h>
+#include <grub/machine/tpm.h>
 /* End TCG Extension */
 
 GRUB_MOD_LICENSE ("GPLv3+");

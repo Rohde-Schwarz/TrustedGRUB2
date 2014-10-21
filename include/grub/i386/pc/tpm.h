@@ -52,9 +52,6 @@
 #define TPM_ORD_GetRandom 0x46
 #define TPM_ORD_OIAP 0xA
 
-/* Key Handle Values */
-#define TPM_KH_SRK 0x40000000
-
 struct tcg_statusCheck_args {
 	grub_uint32_t out_eax, out_ebx, out_ecx, out_edx, out_esi, out_edi;
 } __attribute__ ((packed));

@@ -26,11 +26,22 @@
 #include <grub/crypto.h>
 #include <grub/file.h>
 
-#include <grub/machine/tpm_kern.h>
+#include <grub/machine/tpm.h>
 #include <grub/machine/boot.h>
 #include <grub/machine/memory.h>
 
 GRUB_MOD_LICENSE ("GPLv3+");
+
+
+
+/* TPM_ENTITY_TYPE values */
+static const grub_uint16_t TPM_ET_SRK =  0x0004;
+
+/* Reserved Key Handles */
+static const grub_uint32_t TPM_KH_SRK = 0x40000000;
+
+/* Ordinals */
+static const grub_uint32_t TPM_ORD_OSAP = 0x0000000B;
 
 
 /* Returns 0 on error. */
@@ -613,6 +624,122 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, unsigned char* nonceEven )
 
 /* Returns 0 on error. */
 static grub_err_t
+grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t entityValue, grub_uint32_t* authHandle, grub_uint8_t* nonceEven, grub_uint8_t* nonceEvenOSAP ) {
+
+	if( ! grub_TPM_isAvailable() ) {
+		return 0;
+	}
+
+	if( ! authHandle )	{
+		DEBUG_PRINT( ( "authHandle argument is NULL.\n" ) );
+		return 0;
+	}
+
+	if( ! nonceEven ) {
+		DEBUG_PRINT( ( "nonceEven argument is NULL.\n" ) );
+		return 0;
+	}
+
+	if( ! nonceEvenOSAP ) {
+		DEBUG_PRINT( ( "nonceEven argument is NULL.\n" ) );
+		return 0;
+	}
+
+	/* TPM_OSAP Incoming Operand */
+	struct {
+		grub_uint16_t tag;
+		grub_uint32_t paramSize;
+		grub_uint32_t ordinal;
+		grub_uint16_t entityType;
+		grub_uint32_t entityValue;
+		grub_uint8_t  nonceOddOSAP[TPM_NONCE_SIZE];
+	} __attribute__ ((packed)) *tpmInput;
+
+	/* TPM_OSAP Outgoing Operand */
+	struct {
+		grub_uint16_t tag;
+		grub_uint32_t paramSize;
+		grub_uint32_t returnCode;
+		grub_uint32_t authHandle;
+		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
+		grub_uint8_t  nonceEvenOSAP[TPM_NONCE_SIZE];
+	} __attribute__ ((packed)) *tpmOutput;
+
+	struct tcg_passThroughToTPM_InputParamBlock* input;
+	grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
+
+	/* FIXME: Why is this Offset value (+47) needed? */
+	struct tcg_passThroughToTPM_OutputParamBlock* output;
+	grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
+
+	input = grub_zalloc( inputlen );
+	if( ! input ) {
+		DEBUG_PRINT( ( "memory allocation for 'input' failed\n" ) );
+		return 0;
+	}
+
+	input->IPBLength = inputlen;
+	input->OPBLength = outputlen;
+
+	tpmInput = (void *)input->TPMOperandIn;
+	tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
+	tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
+	tpmInput->ordinal = swap32( TPM_ORD_OSAP );
+	tpmInput->entityType = swap16( entityType );
+	tpmInput->entityValue = swap32( entityValue );
+
+	/* get random for nonceOddOSAP */
+	if ( ! grub_TPM_getRandom( tpmInput->nonceOddOSAP, TPM_NONCE_SIZE ) ) {
+		grub_free( input );
+		return 0;
+	}
+
+	output = grub_zalloc( outputlen );
+	if( ! output ) {
+		DEBUG_PRINT( ( "memory allocation for 'output' failed\n" ) );
+		return 0;
+	}
+
+	grub_uint32_t passThroughTo_TPM_ReturnCode;
+	if( tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) == 0 ) {
+		grub_free( input );
+		grub_free( output );
+
+		DEBUG_PRINT( ( "tcg_passThroughToTPM failed\n" ) );
+		return 0;
+	}
+
+	grub_free( input );
+
+	tpmOutput = (void *)output->TPMOperandOut;
+	grub_uint32_t tpm_OSAP_ReturnCode = swap32( tpmOutput->returnCode );
+
+	if( tpm_OSAP_ReturnCode != TPM_SUCCESS ) {
+		grub_free( output );
+
+		DEBUG_PRINT( ( "tpm_OSAP_ReturnCode: %d \n", tpm_OSAP_ReturnCode ) );
+		return 0;
+	}
+
+	*authHandle = swap32( tpmOutput->authHandle );
+
+	if( grub_memcpy( nonceEven, tpmOutput->nonceEven, TPM_NONCE_SIZE ) != nonceEven ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	if( grub_memcpy( nonceEvenOSAP, tpmOutput->nonceEvenOSAP, TPM_NONCE_SIZE ) != nonceEvenOSAP ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	grub_free( output );
+
+	return 1;
+}
+
+/* Returns 0 on error. */
+static grub_err_t
 grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* resultSize ) {
 
 	if( ! sealedFileName ) {
@@ -1051,13 +1178,15 @@ grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 		return GRUB_ERR_NONE;
 	}
 
-	unsigned char nonceEven[TPM_NONCE_SIZE];
 	grub_uint32_t authHandle = 0;
+	grub_uint8_t nonceEven[TPM_NONCE_SIZE];
 
 	if( grub_TPM_openOIAP_Session( &authHandle, &nonceEven[0] ) == 0 ) {
 		grub_printf( "open OIAP session failed\n" );
 		return GRUB_ERR_NONE;
 	}
+
+	grub_printf( "authHandle: %x \n", authHandle );
 
 	grub_printf( "nonceEven: " );
 	unsigned int j;
@@ -1065,7 +1194,38 @@ grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 		grub_printf( "%02x", nonceEven[j] );
 	}
 
-	grub_printf( "\n authHandle: %x \n", authHandle );
+	return GRUB_ERR_NONE;
+}
+
+static grub_err_t
+grub_cmd_openOSAP(grub_command_t cmd __attribute__ ((unused)), int argc __attribute__ ((unused)), char** args __attribute__ ((unused))) {
+
+	if( ! grub_TPM_isAvailable() ) {
+		grub_printf( "TPM not available\n" );
+		return GRUB_ERR_NONE;
+	}
+
+	grub_uint32_t authHandle = 0;
+	grub_uint8_t nonceEven[TPM_NONCE_SIZE];
+	grub_uint8_t nonceEvenOSAP[TPM_NONCE_SIZE];
+
+	if( grub_TPM_openOSAP_Session( TPM_ET_SRK, TPM_KH_SRK, &authHandle, &nonceEven[0], &nonceEvenOSAP[0] ) == 0 ) {
+		grub_printf( "open OSAP session failed\n" );
+		return GRUB_ERR_NONE;
+	}
+
+	grub_printf( "authHandle: %x \n", authHandle );
+
+	grub_printf( "nonceEven: " );
+	unsigned int j;
+	for( j = 0; j < TPM_NONCE_SIZE; ++j ) {
+		grub_printf( "%02x", nonceEven[j] );
+	}
+
+	grub_printf( "\n nonceEvenOSAP: " );
+	for( j = 0; j < TPM_NONCE_SIZE; ++j ) {
+		grub_printf( "%02x", nonceEvenOSAP[j] );
+	}
 
 	return GRUB_ERR_NONE;
 }
@@ -1074,7 +1234,7 @@ grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure, cmd_setMOR, cmd_unseal;
 
 #ifdef TGRUB_DEBUG
-	static grub_command_t cmd_random, cmd_oiap;
+	static grub_command_t cmd_random, cmd_oiap, cmd_osap;
 #endif
 
 GRUB_MOD_INIT(tpm)
@@ -1100,6 +1260,8 @@ GRUB_MOD_INIT(tpm)
 			  	N_( "Gets random bytes from TPM." ) );
 	cmd_oiap = grub_register_command( "oiap", grub_cmd_openOIAP, 0,
 				  	N_( "Opens OIAP Session" ) );
+	cmd_osap = grub_register_command( "osap", grub_cmd_openOSAP, 0,
+					  	N_( "Opens OSAP Session" ) );
 #endif
 
 }
@@ -1115,6 +1277,7 @@ GRUB_MOD_FINI(tpm)
 #ifdef TGRUB_DEBUG
 	grub_unregister_command( cmd_random );
 	grub_unregister_command( cmd_oiap );
+	grub_unregister_command( cmd_osap );
 #endif
 
 }

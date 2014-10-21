@@ -35,7 +35,7 @@
 
 /* Begin TCG Extension */
 #include <grub/sha1.h>
-#include <grub/machine/tpm_kern.h>
+#include <grub/machine/tpm.h>
 /* End TCG Extension */
 
 /* Platforms where modules are in a readonly area of memory.  */
