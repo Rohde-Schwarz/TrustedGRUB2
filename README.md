@@ -33,6 +33,11 @@ The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.co
   * initrd / initrd16
   * chainloader
   * ntdlr
+* Functionality added without own command:
+  * TPM_Unseal
+  * TPM_GetRandom
+  * TPM_OIAP
+  * TPM_OSAP
 
 ### 1.4 Measurements (in short)
 
