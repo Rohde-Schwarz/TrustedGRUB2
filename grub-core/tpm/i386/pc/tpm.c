@@ -676,7 +676,7 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
 	osapInput->entityType = swap16( entityType );
 	osapInput->entityValue = swap32( entityValue );
 
-	if( grub_memcpy( osapInput->nonceOddOSAP, &nonceOddOSAP, TPM_NONCE_SIZE ) != osapInput->nonceOddOSAP ) {
+	if( grub_memcpy( osapInput->nonceOddOSAP, nonceOddOSAP, TPM_NONCE_SIZE ) != osapInput->nonceOddOSAP ) {
 		grub_free( passThroughInput );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
@@ -859,7 +859,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 		grub_uint32_t paramSize;
 		grub_uint32_t returnCode;
 		grub_uint32_t secretSize;
-		grub_uint8_t  unsealedData[inputSize + 512];		/* FIXME: what size to use here? */
+		grub_uint8_t  unsealedData[inputSize + 256];		/* FIXME: what size to use here? */
 		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
 		grub_uint8_t  continueAuthSession;
 		grub_uint8_t  resAuth[TPM_AUTHDATA_SIZE];
@@ -1028,7 +1028,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 		return 0;
 	}
 
-	/* skip check for return AuthData */
+	/* skip check for returned AuthData */
 
 	/* return result */
 	*resultSize = swap32( unsealOutput->secretSize );
@@ -1044,6 +1044,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 	return 1;
 }
 
+#ifdef TGRUB_DEBUG
 static grub_err_t
 grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
@@ -1052,8 +1053,12 @@ grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 		return GRUB_ERR_NONE;
 	}
 
-	if ( argc != 2 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Wrong number of arguments" ) );
+	if ( argc == 0 ) {
+		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "value expected" ) );
+	}
+
+	if ( argc > 1 ) {
+		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Too many arguments" ) );
 	}
 
 	/* open file */
@@ -1105,17 +1110,14 @@ grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 
 		return GRUB_ERR_NONE;
 	}
-	grub_free( buf );
 
-	/* TODO: write result to file */
+	grub_free( buf );
 
 	grub_free( result );
 
 	return GRUB_ERR_NONE;
 }
 
-
-#ifdef TGRUB_DEBUG
 static grub_err_t
 grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
@@ -1226,10 +1228,10 @@ grub_cmd_openOSAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 }
 #endif
 
-static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure, cmd_setMOR, cmd_unseal;
+static grub_command_t cmd_readpcr, cmd_tcglog, cmd_measure, cmd_setMOR;
 
 #ifdef TGRUB_DEBUG
-	static grub_command_t cmd_random, cmd_oiap, cmd_osap;
+	static grub_command_t cmd_random, cmd_oiap, cmd_osap, cmd_unseal;
 #endif
 
 GRUB_MOD_INIT(tpm)
@@ -1247,9 +1249,6 @@ GRUB_MOD_INIT(tpm)
 	cmd_setMOR = grub_register_command( "setmor", grub_cmd_setMOR, N_( "disableAutoDetect" ),
 		  	N_( "Sets Memory Overwrite Request Bit with auto detect enabled (0) or disabled (1)" ) );
 
-	cmd_unseal = grub_register_command( "unseal", grub_cmd_unseal, N_( "sealedFile unsealedFile" ),
-			  	N_( "Unseals 'sealedFile' and writes result to 'unsealedFile' " ) );
-
 #ifdef TGRUB_DEBUG
 	cmd_random = grub_register_command( "random", grub_cmd_getRandom, N_( "bytesRequested" ),
 			  	N_( "Gets random bytes from TPM." ) );
@@ -1257,6 +1256,8 @@ GRUB_MOD_INIT(tpm)
 				  	N_( "Opens OIAP Session" ) );
 	cmd_osap = grub_register_command( "osap", grub_cmd_openOSAP, 0,
 					  	N_( "Opens OSAP Session" ) );
+	cmd_unseal = grub_register_command( "unseal", grub_cmd_unseal, N_( "sealedFile" ),
+			  	N_( "Unseals 'sealedFile' " ) );
 #endif
 
 }
@@ -1267,12 +1268,12 @@ GRUB_MOD_FINI(tpm)
 	grub_unregister_command( cmd_tcglog );
 	grub_unregister_command( cmd_measure );
 	grub_unregister_command( cmd_setMOR );
-	grub_unregister_command( cmd_unseal );
 
 #ifdef TGRUB_DEBUG
 	grub_unregister_command( cmd_random );
 	grub_unregister_command( cmd_oiap );
 	grub_unregister_command( cmd_osap );
+	grub_unregister_command( cmd_unseal );
 #endif
 
 }
