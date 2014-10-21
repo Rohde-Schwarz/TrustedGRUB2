@@ -44,97 +44,152 @@ static const grub_uint32_t TPM_KH_SRK = 0x40000000;
 static const grub_uint32_t TPM_ORD_OSAP = 0x0000000B;
 
 
+/* TPM_PCRRead Incoming Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t ordinal;
+	grub_uint32_t pcrIndex;
+} __attribute__ ((packed)) PCRReadIncoming;
+
+/* TPM_PCRRead Outgoing Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t returnCode;
+	grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
+} __attribute__ ((packed)) PCRReadOutgoing;
+
+/* TCG_SetMemoryOverwriteRequestBit Input Parameter Block */
+typedef struct {
+	grub_uint16_t iPBLength;
+	grub_uint16_t reserved;
+	grub_uint8_t  memoryOverwriteActionBitValue;
+} __attribute__ ((packed)) SetMemoryOverwriteRequestBitInputParamBlock;
+
+/* TPM_GetRandom Incoming Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t ordinal;
+	grub_uint32_t bytesRequested;
+} __attribute__ ((packed)) GetRandomIncoming;
+
+/* TPM_OIAP Incoming Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t ordinal;
+} __attribute__ ((packed)) OIAP_Incoming;
+
+/* TPM_OIAP Outgoing Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t returnCode;
+	grub_uint32_t authHandle;
+	grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
+} __attribute__ ((packed)) OIAP_Outgoing;
+
+/* TPM_OSAP Incoming Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t ordinal;
+	grub_uint16_t entityType;
+	grub_uint32_t entityValue;
+	grub_uint8_t  nonceOddOSAP[TPM_NONCE_SIZE];
+} __attribute__ ((packed)) OSAP_Incoming;
+
+/* TPM_OSAP Outgoing Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t returnCode;
+	grub_uint32_t authHandle;
+	grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
+	grub_uint8_t  nonceEvenOSAP[TPM_NONCE_SIZE];
+} __attribute__ ((packed)) OSAP_Outgoing;
+
+
 /* Returns 0 on error. */
 static grub_err_t
-grub_TPM_readpcr( unsigned long index ) {		/*TODO: print in cmd function. return result in second parameter  */
+grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 
-	if( grub_TPM_isAvailable() ) {
-		struct tcg_passThroughToTPM_InputParamBlock *input;
-		struct tcg_passThroughToTPM_OutputParamBlock *output;
-
-		/* TPM_PCRRead Incoming Operand */
-		struct {
-			grub_uint16_t tag;
-			grub_uint32_t paramSize;
-			grub_uint32_t ordinal;
-			grub_uint32_t pcrIndex;
-		} __attribute__ ((packed)) *tpmInput;
-
-		/* TPM_PCRRead Outgoing Operand */
-		struct {
-			grub_uint16_t tag;
-			grub_uint32_t paramSize;
-			grub_uint32_t returnCode;
-			grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
-		} __attribute__ ((packed)) *tpmOutput;
-
-		grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
-
-		/* FIXME: Why is this Offset value (+47) needed? */
-		grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
-
-		/* 	grub_printf( "output=%x ", sizeof( *output )  );
-			grub_printf( "output->TPMOperandOut=%x ", sizeof( output->TPMOperandOut )  );
-			grub_printf( "tpmOutput=%x ", sizeof( *tpmOutput )  );
-			grub_printf( "tpmOutput->pcr_value=%x ", sizeof( tpmOutput->pcr_value )  ); */
-
-		input = grub_zalloc( inputlen );
-		if( !input ) {
-			return 0;
-		}
-
-		output = grub_zalloc( outputlen );
-		if( !output ) {
-			return 0;
-		}
-
-		input->IPBLength = inputlen;
-		input->OPBLength = outputlen;
-
-		tpmInput = (void *)input->TPMOperandIn;
-		tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
-		tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
-		tpmInput->ordinal = swap32( TPM_ORD_PcrRead );
-		tpmInput->pcrIndex = swap32( index );
-
-		grub_uint32_t passThroughTo_TPM_ReturnCode;
-		if( tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) == 0 ) {
-			grub_free( input );
-			grub_free( output );
-			return 0;
-		}
-
-		tpmOutput = (void *)output->TPMOperandOut;
-		grub_uint32_t tpm_PCRreadReturnCode = swap32( tpmOutput->returnCode );
-
-		if( tpm_PCRreadReturnCode != TPM_SUCCESS ) {
-			grub_free( input );
-			grub_free( output );
-
-			if( tpm_PCRreadReturnCode == TPM_BADINDEX ) {
-				grub_printf( "Bad PCR index\n" );
-				return 0;
-			}
-			return 0;
-		}
-
-		grub_free( input );
-		grub_free( output );
-
-		grub_printf( "PCR[%lu]=", index );
-		print_sha1( tpmOutput->pcr_value );
-		grub_printf("\n");
-	} else {
+	if( ! grub_TPM_isAvailable() ) {
 		return 0;
 	}
 
+	CHECK_FOR_NULL_ARGUMENT( result )
+
+	PassThroughToTPM_InputParamBlock *passThroughInput;
+	PCRReadIncoming* pcrReadIncoming;
+	grub_uint32_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *pcrReadIncoming );
+
+	PassThroughToTPM_OutputParamBlock *passThroughOutput;
+	PCRReadOutgoing* pcrReadOutgoing;
+	/* FIXME: Why are these additional +47 bytes needed? */
+	grub_uint32_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *pcrReadOutgoing ) + 47 ;
+
+	passThroughInput = grub_zalloc( inputlen );
+	if( ! passThroughInput ) {
+		DEBUG_PRINT( ( "memory allocation failed.\n" ) );
+		return 0;
+	}
+
+	passThroughInput->IPBLength = inputlen;
+	passThroughInput->OPBLength = outputlen;
+
+	pcrReadIncoming = (void *)passThroughInput->TPMOperandIn;
+	pcrReadIncoming->tag = swap16( TPM_TAG_RQU_COMMAND );
+	pcrReadIncoming->paramSize = swap32( sizeof( *pcrReadIncoming ) );
+	pcrReadIncoming->ordinal = swap32( TPM_ORD_PcrRead );
+	pcrReadIncoming->pcrIndex = swap32( index );
+
+	passThroughOutput = grub_zalloc( outputlen );
+	if( ! passThroughOutput ) {
+		DEBUG_PRINT( ( "memory allocation failed.\n" ) );
+		grub_free( passThroughInput );
+		return 0;
+	}
+
+	grub_uint32_t passThroughTo_TPM_ReturnCode;
+	if( tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode ) == 0 ) {
+		DEBUG_PRINT( ( "tcg_passThroughToTPM  failed with: %x.\n", passThroughTo_TPM_ReturnCode ) );
+		grub_free( passThroughInput );
+		grub_free( passThroughOutput );
+		return 0;
+	}
+	grub_free( passThroughInput );
+
+	pcrReadOutgoing = (void *)passThroughOutput->TPMOperandOut;
+	grub_uint32_t tpm_PCRreadReturnCode = swap32( pcrReadOutgoing->returnCode );
+
+	if( tpm_PCRreadReturnCode != TPM_SUCCESS ) {
+		grub_free( passThroughOutput );
+
+		if( tpm_PCRreadReturnCode == TPM_BADINDEX ) {
+			grub_printf( "Bad PCR index\n" );
+			return 0;
+		}
+
+		DEBUG_PRINT( ( "tpm_PCRreadReturnCode: %x .\n", tpm_PCRreadReturnCode ) );
+		return 0;
+	}
+
+	if( grub_memcpy( result, pcrReadOutgoing->pcr_value, SHA1_DIGEST_SIZE ) != result ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
+		return 0;
+	}
+
+	grub_free( passThroughOutput );
 	return 1;
 }
 
 static grub_err_t
 grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
-	if( !grub_TPM_isAvailable() ) {
+	if( ! grub_TPM_isAvailable() ) {
 		grub_printf( "TPM not available\n" );
 		return GRUB_ERR_NONE;
 	}
@@ -155,9 +210,15 @@ grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 		return grub_errno;
 	}
 
-	if( grub_TPM_readpcr( index ) == 0 ) {
+	grub_uint8_t result[SHA1_DIGEST_SIZE];
+	if( grub_TPM_readpcr( index, &result[0] ) == 0 ) {
 		grub_printf( "PCR read failed\n" );
+		return GRUB_ERR_NONE;
 	}
+
+	grub_printf( "PCR[%lu]=", index );
+	print_sha1( result );
+	grub_printf("\n");
 
 	return GRUB_ERR_NONE;
 }
@@ -165,85 +226,81 @@ grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 /* Returns 0 on error. */
 /* index = 0 for all entries */
 static grub_err_t
-grub_TPM_read_tcglog( int index ) {
+grub_TPM_read_tcglog( const unsigned long index ) {
 
-	if( grub_TPM_isAvailable() ) {
-		grub_uint32_t returnCode, featureFlags, eventLog = 0, logAddr = 0, edi = 0;
-		grub_uint8_t major, minor;
+	if( ! grub_TPM_isAvailable() ) {
+		return 0;
+	}
 
-		/* get event log pointer */
-		if( tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi ) == 0) {
-			return 0;
-		}
+	grub_uint32_t returnCode, featureFlags, eventLog = 0, logAddr = 0, edi = 0;
+	grub_uint8_t major, minor;
 
-		/* edi = 0 means event log is empty */
-		if( edi == 0 ) {
-			grub_printf( "Event log empty\n" );
-			return 0;
-		}
+	/* get event log pointer */
+	if( tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi ) == 0 ) {
+		DEBUG_PRINT( ( "tcg_statusCheck failed.\n" ) );
+		return 0;
+	}
 
-		logAddr = eventLog;
-		TCG_PCClientPCREvent *event;
-		/* index = 0: print all entries */
-		if ( index == 0 ) {
+	/* edi = 0 means event log is empty */
+	if( edi == 0 ) {
+		grub_printf( "Event log empty\n" );
+		return 0;
+	}
 
-			/* eventLog = absolute pointer to the beginning of the event log. */
-			event = (TCG_PCClientPCREvent *)logAddr;
+	logAddr = eventLog;
+	TCG_PCClientPCREvent *event;
+	/* index = 0: print all entries */
+	if ( index == 0 ) {
 
-			/* If there is exactly one entry */
-			if( edi == eventLog ) {
+		/* eventLog = absolute pointer to the beginning of the event log. */
+		event = (TCG_PCClientPCREvent *) logAddr;
+
+		/* If there is exactly one entry */
+		if( edi == eventLog ) {
+			grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+			grub_printf( "eventType: %x \n", event->eventType );
+			grub_printf( "digest: " );
+			print_sha1( event->digest );
+			grub_printf( "\n\n" );
+		} else {	/* If there is more than one entry */
+			do {
 				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
 				grub_printf( "eventType: %x \n", event->eventType );
 				grub_printf( "digest: " );
 				print_sha1( event->digest );
 				grub_printf( "\n\n" );
-			} else {	/* If there is more than one entry */
-				do {
-					grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-					grub_printf( "eventType: %x \n", event->eventType );
-					grub_printf( "digest: " );
-					print_sha1( event->digest );
-					grub_printf( "\n\n" );
 
-					logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
-					event = (TCG_PCClientPCREvent *)logAddr;
-				} while( logAddr != edi );
-
-				/* print the last one */
-				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-				grub_printf( "eventType: %x \n", event->eventType );
-				grub_printf( "digest: " );
-				print_sha1( event->digest );
-				grub_printf( "\n\n" );
-			}
-		} else { /* print specific entry */
-			if( index < 0 ) {
-				grub_printf( "Index must be greater or equal 0\n" );
-				return 0;
-			}
-
-			logAddr = eventLog;
-
-			int i;
-			for( i = 1; i < index; i++ ) {
-				event = (TCG_PCClientPCREvent *)logAddr;
 				logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
+				event = (TCG_PCClientPCREvent *)logAddr;
+			} while( logAddr != edi );
 
-				if( logAddr > edi ) { /* index not valid.  */
-					grub_printf( "logentry nonexistent\n" );
-					return 0;
-				}
-			}
-
-			event = (TCG_PCClientPCREvent *)logAddr;
+			/* print the last one */
 			grub_printf( "pcrIndex: %x \n", event->pcrIndex );
 			grub_printf( "eventType: %x \n", event->eventType );
 			grub_printf( "digest: " );
 			print_sha1( event->digest );
 			grub_printf( "\n\n" );
 		}
-	} else {
-		return 0;
+	} else { /* print specific entry */
+		logAddr = eventLog;
+
+		unsigned long i;
+		for( i = 1; i < index; i++ ) {
+			event = (TCG_PCClientPCREvent *)logAddr;
+			logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
+
+			if( logAddr > edi ) { /* index not valid.  */
+				grub_printf( "logentry nonexistent\n" );
+				return 0;
+			}
+		}
+
+		event = (TCG_PCClientPCREvent *)logAddr;
+		grub_printf( "pcrIndex: %x \n", event->pcrIndex );
+		grub_printf( "eventType: %x \n", event->eventType );
+		grub_printf( "digest: " );
+		print_sha1( event->digest );
+		grub_printf( "\n\n" );
 	}
 
   return 1;
@@ -252,7 +309,7 @@ grub_TPM_read_tcglog( int index ) {
 static grub_err_t
 grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
-	if( !grub_TPM_isAvailable() ) {
+	if( ! grub_TPM_isAvailable() ) {
 		grub_printf( "TPM not available\n" );
 		return GRUB_ERR_NONE;
 	}
@@ -283,7 +340,7 @@ grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 static grub_err_t
 grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
-	if( !grub_TPM_isAvailable() ) {
+	if( ! grub_TPM_isAvailable() ) {
 		grub_printf( "TPM not available\n" );
 		return GRUB_ERR_NONE;
 	}
@@ -293,7 +350,6 @@ grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 	}
 
 	unsigned long index = grub_strtoul( args[1], NULL, 10 );
-
 	/* if index is invalid */
 	if( grub_errno != GRUB_ERR_NONE ) {
 		grub_print_error();
@@ -301,7 +357,9 @@ grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 		return grub_errno;
 	}
 
-	grub_TPM_measureFile( args[0], index );
+	if( grub_TPM_measureFile( args[0], index ) == 0 ) {
+		grub_printf( "Measurement failed.\n" );
+	}
 
   return GRUB_ERR_NONE;
 }
@@ -314,25 +372,24 @@ grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **
    Page 12 TCG Platform Reset Attack Mitigation Specification V 1.0.0
  */
 static grub_uint32_t
-tcg_SetMemoryOverwriteRequestBit( struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock *input ) {
+tcg_SetMemoryOverwriteRequestBit( const SetMemoryOverwriteRequestBitInputParamBlock* input ) {
 
-	struct tcg_SetMemoryOverwriteRequestBit_args args;
-	void *p;
-
-	if ( !input->iPBLength ) {
-		return 0;
-	}
+	CHECK_FOR_NULL_ARGUMENT( input )
 
 	/* copy input buffer */
-	p = grub_map_memory( INPUT_PARAM_BLK_ADDR, input->iPBLength );
-	if( !p ) {
+	void* p = grub_map_memory( INPUT_PARAM_BLK_ADDR, input->iPBLength );
+
+	if( ! p ) {
 		return 0;
 	}
+
 	if( grub_memcpy( p, input, input->iPBLength ) != p ) {
+		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
 	grub_unmap_memory( p, input->iPBLength );
 
+	SetMemoryOverwriteRequestBitArgs args;
 	args.in_ebx = TCPA;
 	args.in_ecx = 0;
 	args.in_edx = 0;
@@ -342,6 +399,7 @@ tcg_SetMemoryOverwriteRequestBit( struct tcg_SetMemoryOverwriteRequestBit_InputP
 	asm_tcg_SetMemoryOverwriteRequestBit( &args );
 
 	if ( args.out_eax != TCG_PC_OK ) {
+		DEBUG_PRINT( ( "args.out_eax != TCG_PC_OK\n" ) );
 		return 0;
 	}
 
@@ -351,9 +409,9 @@ tcg_SetMemoryOverwriteRequestBit( struct tcg_SetMemoryOverwriteRequestBit_InputP
 /* Sets Memory Overwrite Request bit */
 /* Returns 0 on error */
 static grub_uint32_t
-grub_TPM_SetMOR_Bit( unsigned int disableAutoDetect ) {
+grub_TPM_SetMOR_Bit( const grub_uint32_t disableAutoDetect ) {
 
-	struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock input;
+	SetMemoryOverwriteRequestBitInputParamBlock input;
 	input.iPBLength = 5;
 	input.reserved = 0;
 
@@ -363,14 +421,15 @@ grub_TPM_SetMOR_Bit( unsigned int disableAutoDetect ) {
 	if( disableAutoDetect ) {
 		// disable autodetect
 		// 000 1 000 1
-		input.memoryOverwriteAction_BitValue = 0x11;
+		input.memoryOverwriteActionBitValue = 0x11;
 	} else{
 		// autodetect
 		// 000 0 000 1
-		input.memoryOverwriteAction_BitValue = 0x01;
+		input.memoryOverwriteActionBitValue = 0x01;
 	}
 
 	if ( tcg_SetMemoryOverwriteRequestBit( &input ) == 0 ) {
+		DEBUG_PRINT( ( "tcg_SetMemoryOverwriteRequestBit failed\n" ) );
 		return 0;
 	}
 
@@ -380,7 +439,7 @@ grub_TPM_SetMOR_Bit( unsigned int disableAutoDetect ) {
 static grub_err_t
 grub_cmd_setMOR( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
-	if( !grub_TPM_isAvailable() ) {
+	if( ! grub_TPM_isAvailable() ) {
 		grub_printf( "TPM not available\n" );
 		return GRUB_ERR_NONE;
 	}
@@ -393,7 +452,7 @@ grub_cmd_setMOR( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Too many arguments" ) );
 	}
 
-	unsigned int disableAutoDetect = grub_strtoul( args[0], NULL, 10 );
+	grub_uint32_t disableAutoDetect = grub_strtoul( args[0], NULL, 10 );
 	/* if disableAutoDetect is invalid */
 	if( grub_errno != GRUB_ERR_NONE ) {
 		grub_print_error();
@@ -414,211 +473,165 @@ grub_cmd_setMOR( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 
 /* Returns 0 on error. */
 static grub_err_t
-grub_TPM_getRandom( unsigned char* random, const grub_uint32_t randomBytesRequested ) {
+grub_TPM_getRandom( const grub_uint32_t randomBytesRequested, grub_uint8_t* result ) {
 
 	if( ! grub_TPM_isAvailable() ) {
 		return 0;
 	}
 
-	if( ! random )
-	{
-		DEBUG_PRINT( ( "random argument is NULL.\n" ) );
-		return 0;
-	}
+	CHECK_FOR_NULL_ARGUMENT( result )
+	CHECK_FOR_NULL_ARGUMENT( randomBytesRequested )
 
-	if( ! randomBytesRequested )
-	{
-		DEBUG_PRINT( ( "randomBytesRequested argument is 0.\n" ) );
-		return 0;
-	}
+	GetRandomIncoming* getRandomInput;
+	PassThroughToTPM_InputParamBlock* passThroughInput;
+	grub_uint32_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *getRandomInput );
 
-	/* TPM_GetRandom Incoming Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t ordinal;
-		grub_uint32_t bytesRequested;
-	} __attribute__ ((packed)) *tpmInput;
-
+	/* variable size struct, must be defined here?! */
 	/* TPM_GetRandom Outgoing Operand */
 	struct {
 		grub_uint16_t tag;
 		grub_uint32_t paramSize;
 		grub_uint32_t returnCode;
 		grub_uint32_t randomBytesSize;
-		grub_uint8_t  randomBytes[randomBytesRequested];
-	} __attribute__ ((packed)) *tpmOutput;
+		grub_uint8_t randomBytes[randomBytesRequested];
+	} __attribute__ ((packed)) *getRandomOutput;
 
-	struct tcg_passThroughToTPM_InputParamBlock* input;
-	grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
+	PassThroughToTPM_OutputParamBlock* passThroughOutput;
+	/* FIXME: Why are these additional +47 bytes needed? */
+	grub_uint32_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *getRandomOutput ) + 47;
 
-	/* FIXME: Why is this Offset value (+47) needed? */
-	struct tcg_passThroughToTPM_OutputParamBlock* output;
-	grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
-
-	/* 	grub_printf( "output=%x ", sizeof( *output )  );
-		grub_printf( "output->TPMOperandOut=%x ", sizeof( output->TPMOperandOut )  );
-		grub_printf( "tpmOutput=%x ", sizeof( *tpmOutput )  );
-		grub_printf( "tpmOutput->pcr_value=%x ", sizeof( tpmOutput->pcr_value )  ); */
-
-	input = grub_zalloc( inputlen );
-	if( ! input ) {
-		DEBUG_PRINT( ( "memory allocation for 'input' failed\n" ) );
+	passThroughInput = grub_zalloc( inputlen );
+	if( ! passThroughInput ) {
+		DEBUG_PRINT( ( "memory allocation for 'passThroughInput' failed\n" ) );
 		return 0;
 	}
 
-	output = grub_zalloc( outputlen );
-	if( ! output ) {
-		DEBUG_PRINT( ( "memory allocation for 'output' failed\n" ) );
+	passThroughInput->IPBLength = inputlen;
+	passThroughInput->OPBLength = outputlen;
+
+	getRandomInput = (void *)passThroughInput->TPMOperandIn;
+	getRandomInput->tag = swap16( TPM_TAG_RQU_COMMAND );
+	getRandomInput->paramSize = swap32( sizeof( *getRandomInput ) );
+	getRandomInput->ordinal = swap32( TPM_ORD_GetRandom );
+	getRandomInput->bytesRequested = swap32( randomBytesRequested );
+
+	passThroughOutput = grub_zalloc( outputlen );
+	if( ! passThroughOutput ) {
+		grub_free( passThroughInput );
+		DEBUG_PRINT( ( "memory allocation for 'passThroughOutput' failed\n" ) );
 		return 0;
 	}
-
-	input->IPBLength = inputlen;
-	input->OPBLength = outputlen;
-
-	tpmInput = (void *)input->TPMOperandIn;
-	tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
-	tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
-	tpmInput->ordinal = swap32( TPM_ORD_GetRandom );
-	tpmInput->bytesRequested = swap32( randomBytesRequested );
 
 	grub_uint32_t passThroughTo_TPM_ReturnCode;
-	if( tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) == 0 ) {
-		grub_free( input );
-		grub_free( output );
+	if( tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode ) == 0 ) {
+		grub_free( passThroughInput );
+		grub_free( passThroughOutput );
 
 		DEBUG_PRINT( ( "tcg_passThroughToTPM failed\n" ) );
 		return 0;
 	}
 
-	grub_free( input );
+	grub_free( passThroughInput );
 
-	tpmOutput = (void *)output->TPMOperandOut;
-	grub_uint32_t tpm_getRandomReturnCode = swap32( tpmOutput->returnCode );
+	getRandomOutput = (void *)passThroughOutput->TPMOperandOut;
+	grub_uint32_t tpm_getRandomReturnCode = swap32( getRandomOutput->returnCode );
 
 	if( tpm_getRandomReturnCode != TPM_SUCCESS ) {
-		grub_free( output );
+		grub_free( passThroughOutput );
 
 		DEBUG_PRINT( ( "tpm_getRandomReturnCode: %x \n", tpm_getRandomReturnCode ) );
 		return 0;
 	}
 
-	if( swap32( tpmOutput->randomBytesSize ) != randomBytesRequested ) {
-		grub_free( output );
+	if( swap32( getRandomOutput->randomBytesSize ) != randomBytesRequested ) {
+		grub_free( passThroughOutput );
 		DEBUG_PRINT( ( "tpmOutput->randomBytesSize != randomBytesRequested\n" ) );
-		DEBUG_PRINT( ( "tpmOutput->randomBytesSize = %x \n", swap32( tpmOutput->randomBytesSize ) ) );
+		DEBUG_PRINT( ( "tpmOutput->randomBytesSize = %x \n", swap32( getRandomOutput->randomBytesSize ) ) );
 		DEBUG_PRINT( ( "randomBytesRequested = %x \n", randomBytesRequested ) );
 		return 0;
 	}
 
-	if( grub_memcpy( random, tpmOutput->randomBytes, randomBytesRequested ) != random ) {
+	if( grub_memcpy( result, getRandomOutput->randomBytes, randomBytesRequested ) != result ) {
+		grub_free( passThroughOutput );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
 
-	grub_free( output );
-
+	grub_free( passThroughOutput );
 	return 1;
 }
 
 
 /* Returns 0 on error. */
 static grub_err_t
-grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, unsigned char* nonceEven ) {
+grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) {
 
 	if( ! grub_TPM_isAvailable() ) {
 		return 0;
 	}
 
-	if( ! authHandle )
-	{
-		DEBUG_PRINT( ( "authHandle argument is NULL.\n" ) );
+	CHECK_FOR_NULL_ARGUMENT( authHandle )
+	CHECK_FOR_NULL_ARGUMENT( nonceEven )
+
+	OIAP_Incoming* oiapInput;
+	PassThroughToTPM_InputParamBlock* passThroughInput;
+	grub_uint32_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *oiapInput );
+
+	OIAP_Outgoing* oiapOutput;
+	PassThroughToTPM_OutputParamBlock* passThroughOutput;
+	/* FIXME: Why are these additional +47 bytes needed? */
+	grub_uint32_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *oiapOutput ) + 47 ;
+
+	passThroughInput = grub_zalloc( inputlen );
+	if( ! passThroughInput ) {
+		DEBUG_PRINT( ( "memory allocation for 'passThroughInput' failed\n" ) );
 		return 0;
 	}
 
-	if( ! nonceEven )
-	{
-		DEBUG_PRINT( ( "nonceEven argument is NULL.\n" ) );
+	passThroughInput->IPBLength = inputlen;
+	passThroughInput->OPBLength = outputlen;
+
+	oiapInput = (void *)passThroughInput->TPMOperandIn;
+	oiapInput->tag = swap16( TPM_TAG_RQU_COMMAND );
+	oiapInput->paramSize = swap32( sizeof( *oiapInput ) );
+	oiapInput->ordinal = swap32( TPM_ORD_OIAP );
+
+	passThroughOutput = grub_zalloc( outputlen );
+	if( ! passThroughOutput ) {
+		grub_free( passThroughOutput );
+		DEBUG_PRINT( ( "memory allocation for 'passThroughOutput' failed\n" ) );
 		return 0;
 	}
-
-	/* TPM_OIAP Incoming Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t ordinal;
-	} __attribute__ ((packed)) *tpmInput;
-
-	/* TPM_OIAP Outgoing Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t returnCode;
-		grub_uint32_t authHandle;
-		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
-	} __attribute__ ((packed)) *tpmOutput;
-
-	struct tcg_passThroughToTPM_InputParamBlock* input;
-	grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
-
-	/* FIXME: Why is this Offset value (+47) needed? */
-	struct tcg_passThroughToTPM_OutputParamBlock* output;
-	grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
-
-	/* 	grub_printf( "output=%x ", sizeof( *output )  );
-		grub_printf( "output->TPMOperandOut=%x ", sizeof( output->TPMOperandOut )  );
-		grub_printf( "tpmOutput=%x ", sizeof( *tpmOutput )  );
-		grub_printf( "tpmOutput->pcr_value=%x ", sizeof( tpmOutput->pcr_value )  ); */
-
-	input = grub_zalloc( inputlen );
-	if( ! input ) {
-		DEBUG_PRINT( ( "memory allocation for 'input' failed\n" ) );
-		return 0;
-	}
-
-	output = grub_zalloc( outputlen );
-	if( ! output ) {
-		DEBUG_PRINT( ( "memory allocation for 'output' failed\n" ) );
-		return 0;
-	}
-
-	input->IPBLength = inputlen;
-	input->OPBLength = outputlen;
-
-	tpmInput = (void *)input->TPMOperandIn;
-	tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
-	tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
-	tpmInput->ordinal = swap32( TPM_ORD_OIAP );
 
 	grub_uint32_t passThroughTo_TPM_ReturnCode;
-	if( tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) == 0 ) {
-		grub_free( input );
-		grub_free( output );
+	if( tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode ) == 0 ) {
+		grub_free( passThroughInput );
+		grub_free( passThroughOutput );
 
 		DEBUG_PRINT( ( "tcg_passThroughToTPM failed\n" ) );
 		return 0;
 	}
 
-	grub_free( input );
+	grub_free( passThroughInput );
 
-	tpmOutput = (void *)output->TPMOperandOut;
-	grub_uint32_t tpm_OIAP_ReturnCode = swap32( tpmOutput->returnCode );
+	oiapOutput = (void *)passThroughOutput->TPMOperandOut;
+	grub_uint32_t tpm_OIAP_ReturnCode = swap32( oiapOutput->returnCode );
 
 	if( tpm_OIAP_ReturnCode != TPM_SUCCESS ) {
-		grub_free( output );
+		grub_free( passThroughOutput );
 
 		DEBUG_PRINT( ( "tpm_OIAP_ReturnCode: %x \n", tpm_OIAP_ReturnCode ) );
 		return 0;
 	}
 
-	*authHandle = swap32( tpmOutput->authHandle );
-	if( grub_memcpy( nonceEven, tpmOutput->nonceEven, TPM_NONCE_SIZE ) != nonceEven ) {
+	*authHandle = swap32( oiapOutput->authHandle );
+	if( grub_memcpy( nonceEven, oiapOutput->nonceEven, TPM_NONCE_SIZE ) != nonceEven ) {
+		grub_free( passThroughOutput );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
 
-	grub_free( output );
-
+	grub_free( passThroughOutput );
 	return 1;
 }
 
@@ -630,117 +643,91 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
 		return 0;
 	}
 
-	if( ! authHandle )	{
-		DEBUG_PRINT( ( "authHandle argument is NULL.\n" ) );
+	CHECK_FOR_NULL_ARGUMENT( authHandle )
+	CHECK_FOR_NULL_ARGUMENT( nonceEven )
+	CHECK_FOR_NULL_ARGUMENT( nonceEvenOSAP )
+
+	OSAP_Incoming* osapInput;
+	PassThroughToTPM_InputParamBlock* passThroughInput;
+	grub_uint32_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *osapInput );
+
+	OSAP_Outgoing* osapOutput;
+	PassThroughToTPM_OutputParamBlock* passThroughOutput;
+	/* FIXME: Why are these additional +47 bytes needed? */
+	grub_uint32_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *osapOutput ) + 47 ;
+
+	passThroughInput = grub_zalloc( inputlen );
+	if( ! passThroughInput ) {
+		DEBUG_PRINT( ( "memory allocation for 'passThroughInput' failed\n" ) );
 		return 0;
 	}
 
-	if( ! nonceEven ) {
-		DEBUG_PRINT( ( "nonceEven argument is NULL.\n" ) );
-		return 0;
-	}
+	passThroughInput->IPBLength = inputlen;
+	passThroughInput->OPBLength = outputlen;
 
-	if( ! nonceEvenOSAP ) {
-		DEBUG_PRINT( ( "nonceEven argument is NULL.\n" ) );
-		return 0;
-	}
-
-	/* TPM_OSAP Incoming Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t ordinal;
-		grub_uint16_t entityType;
-		grub_uint32_t entityValue;
-		grub_uint8_t  nonceOddOSAP[TPM_NONCE_SIZE];
-	} __attribute__ ((packed)) *tpmInput;
-
-	/* TPM_OSAP Outgoing Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t returnCode;
-		grub_uint32_t authHandle;
-		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
-		grub_uint8_t  nonceEvenOSAP[TPM_NONCE_SIZE];
-	} __attribute__ ((packed)) *tpmOutput;
-
-	struct tcg_passThroughToTPM_InputParamBlock* input;
-	grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
-
-	/* FIXME: Why is this Offset value (+47) needed? */
-	struct tcg_passThroughToTPM_OutputParamBlock* output;
-	grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
-
-	input = grub_zalloc( inputlen );
-	if( ! input ) {
-		DEBUG_PRINT( ( "memory allocation for 'input' failed\n" ) );
-		return 0;
-	}
-
-	input->IPBLength = inputlen;
-	input->OPBLength = outputlen;
-
-	tpmInput = (void *)input->TPMOperandIn;
-	tpmInput->tag = swap16( TPM_TAG_RQU_COMMAND );
-	tpmInput->paramSize = swap32( sizeof( *tpmInput ) );
-	tpmInput->ordinal = swap32( TPM_ORD_OSAP );
-	tpmInput->entityType = swap16( entityType );
-	tpmInput->entityValue = swap32( entityValue );
+	osapInput = (void *)passThroughInput->TPMOperandIn;
+	osapInput->tag = swap16( TPM_TAG_RQU_COMMAND );
+	osapInput->paramSize = swap32( sizeof( *osapInput ) );
+	osapInput->ordinal = swap32( TPM_ORD_OSAP );
+	osapInput->entityType = swap16( entityType );
+	osapInput->entityValue = swap32( entityValue );
 
 	/* get random for nonceOddOSAP */
-	if ( ! grub_TPM_getRandom( tpmInput->nonceOddOSAP, TPM_NONCE_SIZE ) ) {
-		grub_free( input );
+	if ( ! grub_TPM_getRandom( TPM_NONCE_SIZE, osapInput->nonceOddOSAP ) ) {
+		grub_free( passThroughInput );
 		return 0;
 	}
 
-	output = grub_zalloc( outputlen );
-	if( ! output ) {
-		DEBUG_PRINT( ( "memory allocation for 'output' failed\n" ) );
+	passThroughOutput = grub_zalloc( outputlen );
+	if( ! passThroughOutput ) {
+		grub_free( passThroughInput );
+		DEBUG_PRINT( ( "memory allocation for 'passThroughOutput' failed\n" ) );
 		return 0;
 	}
 
 	grub_uint32_t passThroughTo_TPM_ReturnCode;
-	if( tcg_passThroughToTPM( input, output, &passThroughTo_TPM_ReturnCode ) == 0 ) {
-		grub_free( input );
-		grub_free( output );
+	if( tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode ) == 0 ) {
+		grub_free( passThroughInput );
+		grub_free( passThroughOutput );
 
 		DEBUG_PRINT( ( "tcg_passThroughToTPM failed\n" ) );
 		return 0;
 	}
 
-	grub_free( input );
+	grub_free( passThroughInput );
 
-	tpmOutput = (void *)output->TPMOperandOut;
-	grub_uint32_t tpm_OSAP_ReturnCode = swap32( tpmOutput->returnCode );
+	osapOutput = (void *)passThroughOutput->TPMOperandOut;
+	grub_uint32_t tpm_OSAP_ReturnCode = swap32( osapOutput->returnCode );
 
 	if( tpm_OSAP_ReturnCode != TPM_SUCCESS ) {
-		grub_free( output );
+		grub_free( passThroughOutput );
 
 		DEBUG_PRINT( ( "tpm_OSAP_ReturnCode: %d \n", tpm_OSAP_ReturnCode ) );
 		return 0;
 	}
 
-	*authHandle = swap32( tpmOutput->authHandle );
+	*authHandle = swap32( osapOutput->authHandle );
 
-	if( grub_memcpy( nonceEven, tpmOutput->nonceEven, TPM_NONCE_SIZE ) != nonceEven ) {
+	if( grub_memcpy( nonceEven, osapOutput->nonceEven, TPM_NONCE_SIZE ) != nonceEven ) {
+		grub_free( passThroughOutput );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
 
-	if( grub_memcpy( nonceEvenOSAP, tpmOutput->nonceEvenOSAP, TPM_NONCE_SIZE ) != nonceEvenOSAP ) {
+	if( grub_memcpy( nonceEvenOSAP, osapOutput->nonceEvenOSAP, TPM_NONCE_SIZE ) != nonceEvenOSAP ) {
+		grub_free( passThroughOutput );
 		DEBUG_PRINT( ( "memcpy failed.\n" ) );
 		return 0;
 	}
 
-	grub_free( output );
+	grub_free( passThroughOutput );
 
 	return 1;
 }
 
 /* Returns 0 on error. */
 static grub_err_t
-grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* resultSize ) {
+grub_TPM_unseal( const const char* sealedFileName, grub_uint8_t* result, grub_size_t* resultSize ) {
 
 	if( ! sealedFileName ) {
 		return 0;
@@ -825,11 +812,11 @@ grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* 
 		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
 	} __attribute__ ((packed)) *tpmOutput;
 
-	struct tcg_passThroughToTPM_InputParamBlock *input;
+	PassThroughToTPM_InputParamBlock *input;
 	grub_uint32_t inputlen = sizeof( *input ) - sizeof( input->TPMOperandIn ) + sizeof( *tpmInput );
 
 	/* FIXME: Why is this Offset value (+47) needed? */
-	struct tcg_passThroughToTPM_OutputParamBlock *output;
+	PassThroughToTPM_OutputParamBlock *output;
 	grub_uint32_t outputlen = sizeof( *output ) - sizeof( output->TPMOperandOut ) + sizeof( *tpmOutput ) + 47 ;
 
 	/* 	grub_printf( "output=%x ", sizeof( *output )  );
@@ -867,7 +854,7 @@ grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* 
 
 	/* get random for nonceOdd */
 	unsigned char nonceOdd[TPM_NONCE_SIZE];
-	if ( ! grub_TPM_getRandom( &nonceOdd[0], TPM_NONCE_SIZE ) ) {
+	if ( ! grub_TPM_getRandom( TPM_NONCE_SIZE, &nonceOdd[0] ) ) {
 		grub_free( input );
 		return 0;
 	}
@@ -989,7 +976,7 @@ grub_TPM_unseal( const char* sealedFileName, grub_uint8_t* result, grub_size_t* 
 
 	/* get random for dataNonceOdd */
 	unsigned char dataNonceOdd[TPM_NONCE_SIZE];
-	if ( ! grub_TPM_getRandom( &dataNonceOdd[0], TPM_NONCE_SIZE ) ) {
+	if ( ! grub_TPM_getRandom( TPM_NONCE_SIZE, &dataNonceOdd[0] ) ) {
 		grub_free( input );
 		return 0;
 	}
@@ -1114,7 +1101,7 @@ grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 	}
 
 	grub_uint8_t* result = 0;
-	grub_size_t resultSize;
+	grub_size_t resultSize = 0;
 	if( grub_TPM_unseal( args[0], result, &resultSize ) == 0 ) {
 		grub_printf( "Unsealing failed\n" );
 		return GRUB_ERR_NONE;
@@ -1155,9 +1142,9 @@ grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char 
 		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Value must be greater 0" ) );
 	}
 
-	unsigned char random[randomBytesRequested];
+	grub_uint8_t random[randomBytesRequested];
 
-	if( grub_TPM_getRandom( &random[0], randomBytesRequested ) == 0 ) {
+	if( grub_TPM_getRandom( randomBytesRequested, &random[0] ) == 0 ) {
 		grub_printf( "getRandom failed\n" );
 		return GRUB_ERR_NONE;
 	}

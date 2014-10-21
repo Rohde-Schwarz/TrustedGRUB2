@@ -12,6 +12,12 @@
 	#define DEBUG_PRINT( x )
 #endif
 
+#define CHECK_FOR_NULL_ARGUMENT( argument ) 						\
+			if( ! argument ) {										\
+				DEBUG_PRINT( ( "result argument is NULL.\n" ) );	\
+				return 0;											\
+			}
+
 #define SHA1_DIGEST_SIZE 20
 #define TPM_NONCE_SIZE 20
 #define TPM_AUTHDATA_SIZE 20
@@ -52,42 +58,30 @@
 #define TPM_ORD_GetRandom 0x46
 #define TPM_ORD_OIAP 0xA
 
-struct tcg_statusCheck_args {
+typedef struct {
 	grub_uint32_t out_eax, out_ebx, out_ecx, out_edx, out_esi, out_edi;
-} __attribute__ ((packed));
+} __attribute__ ((packed)) StatusCheckArgs;
 
-struct tcg_passThroughToTPM_args {
+typedef struct {
 	grub_uint32_t out_eax;
 	grub_uint32_t in_ebx, in_ecx, in_edx, in_esi, in_edi, in_es, in_ds;
-} __attribute__ ((packed));
+} __attribute__ ((packed)) PassThroughToTPMArgs;
 
 /* TCG_PassThroughToTPM Input Parameter Block */
-struct tcg_passThroughToTPM_InputParamBlock {
+typedef struct {
 	grub_uint16_t IPBLength;
 	grub_uint16_t Reserved1;
 	grub_uint16_t OPBLength;
 	grub_uint16_t Reserved2;
 	grub_uint8_t TPMOperandIn[1];
-} __attribute__ ((packed));
+} __attribute__ ((packed)) PassThroughToTPM_InputParamBlock;
 
 /* TCG_PassThroughToTPM Output Parameter Block */
-struct tcg_passThroughToTPM_OutputParamBlock {
+typedef struct {
 	grub_uint16_t OPBLength;
 	grub_uint16_t Reserved;
 	grub_uint8_t TPMOperandOut[1];
-} __attribute__ ((packed));
-
-struct tcg_SetMemoryOverwriteRequestBit_args {
-	grub_uint32_t out_eax;
-	grub_uint32_t in_ebx, in_ecx, in_edx, in_edi, in_es;
-} __attribute__ ((packed));
-
-/* TCG_SetMemoryOverwriteRequestBit Input Parameter Block */
-struct tcg_SetMemoryOverwriteRequestBit_InputParamBlock {
-	grub_uint16_t iPBLength;
-	grub_uint16_t reserved;
-	grub_uint8_t  memoryOverwriteAction_BitValue;
-} __attribute__ ((packed));
+} __attribute__ ((packed)) PassThroughToTPM_OutputParamBlock;
 
 typedef struct tdTCG_PCClientPCREventStruc {
 	grub_uint32_t pcrIndex;
@@ -98,6 +92,10 @@ typedef struct tdTCG_PCClientPCREventStruc {
 } __attribute__ ((packed)) TCG_PCClientPCREvent;
 #define TCG_PCR_EVENT_SIZE 32
 
+typedef struct {
+	grub_uint32_t out_eax;
+	grub_uint32_t in_ebx, in_ecx, in_edx, in_edi, in_es;
+} __attribute__ ((packed)) SetMemoryOverwriteRequestBitArgs;
 
 /* print SHA1 hash of input */
 void EXPORT_FUNC(print_sha1) ( grub_uint8_t *inDigest );
@@ -116,7 +114,7 @@ grub_uint32_t EXPORT_FUNC(swap32) ( grub_uint32_t value );
 grub_uint32_t EXPORT_FUNC(grub_TPM_isAvailable) ( void );
 
 /* 	Measure string */
-grub_uint32_t EXPORT_FUNC(grub_TPM_measureString) ( char *string );
+grub_uint32_t EXPORT_FUNC(grub_TPM_measureString) ( const char *string );
 /* 	Measure files */
 grub_uint32_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
 
@@ -125,13 +123,13 @@ grub_uint32_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint
 		grub_uint32_t *featureFlags, grub_uint32_t *eventLog, grub_uint32_t *edi );
 
 /* pass commands to TPM */
-grub_uint32_t EXPORT_FUNC(tcg_passThroughToTPM) ( struct tcg_passThroughToTPM_InputParamBlock *input,
-		struct tcg_passThroughToTPM_OutputParamBlock *output, grub_uint32_t *returnCode );
+grub_uint32_t EXPORT_FUNC(tcg_passThroughToTPM) ( const PassThroughToTPM_InputParamBlock* input,
+		PassThroughToTPM_OutputParamBlock* output, grub_uint32_t* returnCode );
 
 /* Assembler exports: */
-grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (struct tcg_statusCheck_args *args);
-grub_uint32_t EXPORT_FUNC(asm_tcg_passThroughToTPM) (struct tcg_passThroughToTPM_args *args);
-grub_uint32_t EXPORT_FUNC(asm_tcg_SetMemoryOverwriteRequestBit) (struct tcg_SetMemoryOverwriteRequestBit_args *args);
+grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (StatusCheckArgs* args);
+grub_uint32_t EXPORT_FUNC(asm_tcg_passThroughToTPM) (PassThroughToTPMArgs* args);
+grub_uint32_t EXPORT_FUNC(asm_tcg_SetMemoryOverwriteRequestBit) (SetMemoryOverwriteRequestBitArgs* args);
 
 #endif
 /* End TCG Extension */
