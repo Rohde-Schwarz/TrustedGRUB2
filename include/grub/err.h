@@ -71,6 +71,7 @@ typedef enum
     GRUB_ERR_NET_NO_DOMAIN,
     GRUB_ERR_EOF,
     GRUB_ERR_BAD_SIGNATURE,
+    GRUB_ERR_TPM,   /* Errors from TPM functions */
   }
 grub_err_t;
 

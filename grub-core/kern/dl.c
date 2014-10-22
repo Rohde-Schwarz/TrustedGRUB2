@@ -740,7 +740,6 @@ grub_dl_load (const char *name)
 
   /* Begin TCG Extension */
   if( grub_errno == GRUB_ERR_NONE ) {
-	  /* TODO: Do something if measurement fails? */
 	  grub_TPM_measureFile( filename, TPM_GRUB_LOADED_MODULES_PCR );
   }
   /* End TCG Extension */

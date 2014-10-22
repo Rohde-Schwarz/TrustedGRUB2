@@ -12,10 +12,9 @@
 	#define DEBUG_PRINT( x )
 #endif
 
-#define CHECK_FOR_NULL_ARGUMENT( argument ) 						\
-			if( ! argument ) {										\
-				DEBUG_PRINT( ( "result argument is NULL.\n" ) );	\
-				return 0;											\
+#define CHECK_FOR_NULL_ARGUMENT( argument ) 						                    \
+			if( ! argument ) {										                    \
+				return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "argument is NULL" ) );   \
 			}
 
 #define SHA1_DIGEST_SIZE 20
@@ -93,16 +92,16 @@ grub_uint32_t EXPORT_FUNC(swap32) ( grub_uint32_t value );
 grub_uint32_t EXPORT_FUNC(grub_TPM_isAvailable) ( void );
 
 /* 	Measure string */
-grub_uint32_t EXPORT_FUNC(grub_TPM_measureString) ( const char *string );
+grub_err_t EXPORT_FUNC(grub_TPM_measureString) ( const char *string );
 /* 	Measure files */
-grub_uint32_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
+grub_err_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
 
 /* Invokes assembler function asm_tcg_statusCheck() */
-grub_uint32_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *minor,
+grub_err_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *minor,
 		grub_uint32_t *featureFlags, grub_uint32_t *eventLog, grub_uint32_t *edi );
 
 /* pass commands to TPM */
-grub_uint32_t EXPORT_FUNC(tcg_passThroughToTPM) ( const PassThroughToTPM_InputParamBlock* input,
+grub_err_t EXPORT_FUNC(tcg_passThroughToTPM) ( const PassThroughToTPM_InputParamBlock* input,
 		PassThroughToTPM_OutputParamBlock* output, grub_uint32_t* returnCode );
 
 /* Assembler exports: */

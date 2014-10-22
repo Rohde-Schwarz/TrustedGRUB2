@@ -352,7 +352,6 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
     }
   /* Begin TCG Extension */
   else {	/* file successfully loaded */
-	  /* TODO: Do something if measurement fails? */
 	  grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
   }
   /* End TCG Extension */
@@ -474,7 +473,6 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
   /* Begin TCG Extension */
   if( grub_errno == GRUB_ERR_NONE ) {
 	  for ( i = 0; i < nfiles; i++ ) {
-		  /* TODO: Do something if measurement fails? */
 		  grub_TPM_measureFile( argv[i], TPM_LOADED_FILES_PCR );
 	  }
   }

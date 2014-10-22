@@ -139,8 +139,12 @@ grub_cmd_ntldr (grub_command_t cmd __attribute__ ((unused)),
   grub_loader_set (grub_ntldr_boot, grub_ntldr_unload, 1);
 
   /* Begin TCG Extension */
-  /* TODO: Do something if measurement fails? */
-  grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
+  err = grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
+
+    if( err != GRUB_ERR_NONE ) {
+        goto fail;
+    }
+
   /* End TCG Extension */
 
   return GRUB_ERR_NONE;

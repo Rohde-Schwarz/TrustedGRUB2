@@ -28,10 +28,10 @@ typedef struct
 } sha1_context;
 
 /* Creates SHA1-Hash of a file and stores digest in result */
-grub_uint32_t sha1_hash_file( const grub_file_t file, void* result );
+grub_err_t sha1_hash_file( const grub_file_t file, void* result );
 
 /* Creates SHA1-Hash of a string and stores digest in result */
-grub_uint32_t sha1_hash_string( const char* string, void* result );
+grub_err_t sha1_hash_string( const char* string, void* result );
 
 #endif /* ! GRUB_SHA1_H */
 /* End TCG Extension */
