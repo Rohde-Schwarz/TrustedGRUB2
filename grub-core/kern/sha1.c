@@ -364,52 +364,63 @@ static int sha1_finish(sha1_context *ctx, t_U32 *sha1_hash)
   return 0;
 }
 
-grub_uint32_t
+/* file has to be opened before call
+
+    Returns on failure:
+     'GRUB_ERR_TPM'
+     'GRUB_ERR_OUT_OF_RANGE'
+*/
+grub_err_t
 sha1_hash_file( const grub_file_t file, void* result ) {
   sha1_context context;
   grub_uint8_t readbuf[4096];
 
   if( sha1_init( &context ) != 0 ) {
-	  return 0;
+      return grub_error (GRUB_ERR_TPM, N_("sha1_hash_file: hashing failed"));
   }
 
   while( 1 ) {
       grub_ssize_t r;
       r = grub_file_read( file, readbuf, sizeof( readbuf ) );
-      if( r < 0 ) {
-    	  return grub_errno;
+
+      if ( grub_errno ) {
+          return grub_errno;
       }
+
       if( r == 0 ) {
     	  break;
       }
-      if( sha1_update( &context, readbuf, r ) != 0 ) {
-    	  return 0;
+      if( sha1_update( &context, readbuf, (grub_uint32_t) r ) != 0 ) {
+          return grub_error (GRUB_ERR_TPM, N_("sha1_hash_file: hashing failed"));
       }
   }
   if( sha1_finish( &context, result ) != 0 ) {
-	  return 0;
+      return grub_error (GRUB_ERR_TPM, N_("sha1_hash_file: hashing failed"));
   }
 
-  return 1;
+  return GRUB_ERR_NONE;
 }
 
-grub_uint32_t
+/* Returns on failure:
+     'GRUB_ERR_TPM'
+*/
+grub_err_t
 sha1_hash_string( const char* string, void* result ) {
 	sha1_context context;
 
 	if( sha1_init( &context ) != 0 ) {
-		return 0;
+        return grub_error (GRUB_ERR_TPM, N_("sha1_hash_string: hashing failed"));
 	}
 
 	if( sha1_update( &context, (t_U8*)string, grub_strlen( string ) ) != 0 ) {
-		return 0;
+        return grub_error (GRUB_ERR_TPM, N_("sha1_hash_string: hashing failed"));
 	}
 
 	if( sha1_finish( &context, result ) != 0 ) {
-		return 0;
+        return grub_error (GRUB_ERR_TPM, N_("sha1_hash_string: hashing failed"));
 	}
 
-	return 1;
+	return GRUB_ERR_NONE;
 }
 
 /* End TCG Extension */
