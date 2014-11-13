@@ -23,6 +23,7 @@ The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.co
 * Measurement of all loaded GRUB2 modules
 * Measurement of all commands and their parameters entered in shell and scripts
 * New SHA1-implementation in GRUB2 kernel (necessary for doing the GRUB2 modules measurement as the crypto module isn't loaded at this stage)
+* Added LUKS keyfile support with additional parameter "-k KEYFILE" for cryptomount command
 * New commands:
   * readpcr PCRNUM
   * tcglog LOGINDEX
