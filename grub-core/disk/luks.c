@@ -26,6 +26,8 @@
 #include <grub/crypto.h>
 #include <grub/partition.h>
 #include <grub/i18n.h>
+#include <grub/file.h>
+#include <grub/env.h>
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
@@ -328,21 +330,62 @@ luks_recover_key (grub_disk_t source,
   if (!split_key)
     return grub_errno;
 
-  /* Get the passphrase from the user.  */
-  tmp = NULL;
-  if (source->partition)
-    tmp = grub_partition_get_name (source->partition);
-  grub_printf_ (N_("Enter passphrase for %s%s%s (%s): "), source->name,
-	       source->partition ? "," : "", tmp ? : "",
-	       dev->uuid);
-  grub_free (tmp);
-  if (!grub_password_get (passphrase, MAX_PASSPHRASE))
-    {
-      grub_free (split_key);
-      return grub_error (GRUB_ERR_BAD_ARGUMENT, "Passphrase not supplied");
-    }
+  /* read in keyfile if provided */
+  char* keyFileBuf = NULL;
+  char* secret = NULL;
+  grub_size_t secretSize = 0;
+  grub_file_t file = grub_file_open( grub_env_get ("keyfile" ) );
+  if( file ) {
+	  grub_size_t fileSize = file->size;
 
-  /* Try to recover master key from each active keyslot.  */
+	  keyFileBuf = grub_zalloc( fileSize );
+
+	  if ( ! keyFileBuf ) {
+		  grub_file_close (file);
+		  grub_free (split_key);
+		  return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "keyfile read: memory allocation failed" ) );
+	  }
+
+	  /* read file */
+	  if ( grub_file_read( file, keyFileBuf, fileSize ) != (grub_ssize_t) fileSize ) {
+		  grub_free( keyFileBuf );
+		  grub_free (split_key);
+		  grub_file_close (file);
+		  return grub_errno;
+	  }
+
+	  /*  TODO FREE keyFileBuf */
+
+	  grub_file_close( file );
+
+	  secret = keyFileBuf;
+	  secretSize = keysize;
+
+  } else {	/* only ask for passphrase if no keyfile specified */
+	  grub_errno = GRUB_ERR_NONE;
+
+	  /* Get the passphrase from the user. */
+	  tmp = NULL;
+
+	  if (source->partition)
+		  tmp = grub_partition_get_name (source->partition);
+
+	  grub_printf_ (N_("Enter passphrase for %s%s%s (%s): "), source->name,
+	  		   source->partition ? "," : "", tmp ? : "",
+	  		   dev->uuid);
+
+	  grub_free (tmp);
+	  if (!grub_password_get (passphrase, MAX_PASSPHRASE))
+	  {
+		  grub_free (split_key);
+		  return grub_error (GRUB_ERR_BAD_ARGUMENT, "Passphrase not supplied");
+	  }
+
+	  secret = passphrase;
+	  secretSize = grub_strlen( passphrase );
+  }
+
+  /* Try to recover master key from each active keyslot. */
   for (i = 0; i < ARRAY_SIZE (header.keyblock); i++)
     {
       gcry_err_code_t gcry_err;
@@ -355,9 +398,9 @@ luks_recover_key (grub_disk_t source,
 
       grub_dprintf ("luks", "Trying keyslot %d\n", i);
 
-      /* Calculate the PBKDF2 of the user supplied passphrase.  */
-      gcry_err = grub_crypto_pbkdf2 (dev->hash, (grub_uint8_t *) passphrase,
-				     grub_strlen (passphrase),
+      /* Calculate the PBKDF2 of the user supplied passphrase / keyfile.  */
+      gcry_err = grub_crypto_pbkdf2 (dev->hash, ( grub_uint8_t * ) secret,
+				     secretSize,
 				     header.keyblock[i].passwordSalt,
 				     sizeof (header.keyblock[i].passwordSalt),
 				     grub_be_to_cpu32 (header.keyblock[i].
@@ -366,9 +409,16 @@ luks_recover_key (grub_disk_t source,
 
       if (gcry_err)
 	{
+    	  if( keyFileBuf ) {
+    		  grub_free( keyFileBuf );
+    	  }
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
+
+      if( keyFileBuf ) {
+    	  grub_free( keyFileBuf );
+      }
 
       grub_dprintf ("luks", "PBKDF2 done\n");
 
