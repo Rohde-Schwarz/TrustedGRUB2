@@ -165,7 +165,7 @@ tcg_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, PassThrough
 	CHECK_FOR_NULL_ARGUMENT( output );
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+    	return GRUB_ERR_NO_TPM;
     }
 
 	if ( ! input->IPBLength || ! input->OPBLength ) {
@@ -217,7 +217,7 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	CHECK_FOR_NULL_ARGUMENT( inDigest );
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+    	return GRUB_ERR_NO_TPM;
     }
 
 	ExtendIncoming* extendInput;
@@ -304,6 +304,7 @@ grub_TPM_isAvailable( void ) {
         grubTPM_isAvailable = 1;
     } else {
         grubTPM_isAvailable = 0;
+        grub_errno = GRUB_ERR_NONE;
     }
 
 	grubTPM_AvailabilityAlreadyChecked = 1;
@@ -318,7 +319,7 @@ grub_TPM_measureString( const char* string ) {
 	CHECK_FOR_NULL_ARGUMENT( string )
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+		return GRUB_ERR_NO_TPM;
 	}
 
 	/* hash string */
@@ -363,7 +364,7 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 	CHECK_FOR_NULL_ARGUMENT( filename )
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+		return GRUB_ERR_NO_TPM;
 	}
 
 	/* open file */
