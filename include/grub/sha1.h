@@ -33,5 +33,8 @@ grub_err_t sha1_hash_file( const grub_file_t file, void* result );
 /* Creates SHA1-Hash of a string and stores digest in result */
 grub_err_t sha1_hash_string( const char* string, void* result );
 
+/* Creates SHA1-Hash of a buffer and stores digest in result */
+grub_err_t sha1_hash_buffer( const void* buffer, const grub_uint32_t bufferLen, void* result );
+
 #endif /* ! GRUB_SHA1_H */
 /* End TCG Extension */

@@ -29,6 +29,10 @@
 #include <grub/file.h>
 #include <grub/env.h>
 
+/* Begin TCG extension */
+#include <grub/machine/tpm.h>
+/* End TCG extension */
+
 GRUB_MOD_LICENSE ("GPLv3+");
 
 #define MAX_PASSPHRASE 256
@@ -318,6 +322,16 @@ luks_recover_key (grub_disk_t source,
   if (err)
     return err;
 
+  /* Begin TCG extension */
+
+  // measure luks header
+  if ( grub_strcmp( grub_env_get ("unsealmount" ), "true" ) ) {
+	  grub_TPM_measureBuffer( &header, sizeof( header ), TPM_LUKS_HEADER_MEASUREMENT_PCR );
+	  grub_TPM_isAvailable();
+  }
+
+  /* End TCG extension */
+
   grub_puts_ (N_("Attempting to decrypt master key..."));
   keysize = grub_be_to_cpu32 (header.keyBytes);
 
@@ -329,6 +343,8 @@ luks_recover_key (grub_disk_t source,
   split_key = grub_malloc (keysize * max_stripes);
   if (!split_key)
     return grub_errno;
+
+  /* Begin TCG extension */
 
   /* read in keyfile if provided */
   char* keyFileBuf = NULL;
@@ -353,8 +369,6 @@ luks_recover_key (grub_disk_t source,
 		  grub_file_close (file);
 		  return grub_errno;
 	  }
-
-	  /*  TODO FREE keyFileBuf */
 
 	  grub_file_close( file );
 
@@ -384,6 +398,7 @@ luks_recover_key (grub_disk_t source,
 	  secret = passphrase;
 	  secretSize = grub_strlen( passphrase );
   }
+  /* End TCG extension */
 
   /* Try to recover master key from each active keyslot. */
   for (i = 0; i < ARRAY_SIZE (header.keyblock); i++)
@@ -399,6 +414,7 @@ luks_recover_key (grub_disk_t source,
       grub_dprintf ("luks", "Trying keyslot %d\n", i);
 
       /* Calculate the PBKDF2 of the user supplied passphrase / keyfile.  */
+      /* Begin TCG extension */
       gcry_err = grub_crypto_pbkdf2 (dev->hash, ( grub_uint8_t * ) secret,
 				     secretSize,
 				     header.keyblock[i].passwordSalt,
@@ -406,7 +422,7 @@ luks_recover_key (grub_disk_t source,
 				     grub_be_to_cpu32 (header.keyblock[i].
 						       passwordIterations),
 				     digest, keysize);
-
+      /* End TCG extension */
       if (gcry_err)
 	{
     	  if( keyFileBuf ) {

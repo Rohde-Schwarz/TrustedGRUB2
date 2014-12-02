@@ -403,6 +403,29 @@ sha1_hash_file( const grub_file_t file, void* result ) {
 
 /* Returns on failure:
      'GRUB_ERR_TPM'
+     'GRUB_ERR_OUT_OF_RANGE'
+*/
+grub_err_t
+sha1_hash_buffer( const void* buffer, const grub_uint32_t bufferLen, void* result ) {
+  sha1_context context;
+
+  if( sha1_init( &context ) != 0 ) {
+      return grub_error (GRUB_ERR_TPM, N_("sha1_hash_buffer: hashing failed"));
+  }
+
+  if( sha1_update( &context, (t_U8*) buffer, bufferLen ) != 0 ) {
+	  return grub_error (GRUB_ERR_TPM, N_("sha1_hash_buffer: hashing failed"));
+  }
+
+  if( sha1_finish( &context, result ) != 0 ) {
+      return grub_error (GRUB_ERR_TPM, N_("sha1_hash_buffer: hashing failed"));
+  }
+
+  return GRUB_ERR_NONE;
+}
+
+/* Returns on failure:
+     'GRUB_ERR_TPM'
 */
 grub_err_t
 sha1_hash_string( const char* string, void* result ) {
