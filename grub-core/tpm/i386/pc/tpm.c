@@ -138,7 +138,7 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
     CHECK_FOR_NULL_ARGUMENT( result )
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	PassThroughToTPM_InputParamBlock *passThroughInput;
@@ -203,7 +203,7 @@ static grub_err_t
 grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	if ( argc == 0 ) {
@@ -239,7 +239,7 @@ static grub_err_t
 grub_TPM_read_tcglog( const unsigned long index ) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	grub_uint32_t returnCode, featureFlags, eventLog = 0, logAddr = 0, edi = 0;
@@ -319,7 +319,7 @@ static grub_err_t
 grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	if ( argc == 0 ) {
@@ -350,7 +350,7 @@ static grub_err_t
 grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	if ( argc != 2 ) {
@@ -385,7 +385,7 @@ tcg_SetMemoryOverwriteRequestBit( const SetMemoryOverwriteRequestBitInputParamBl
     CHECK_FOR_NULL_ARGUMENT( input )
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
     }
 
 	/* copy input buffer */
@@ -416,7 +416,7 @@ static grub_err_t
 grub_TPM_SetMOR_Bit( const unsigned long disableAutoDetect ) {
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
     }
 
 	SetMemoryOverwriteRequestBitInputParamBlock input;
@@ -449,7 +449,7 @@ static grub_err_t
 grub_cmd_setMOR( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	if ( argc == 0 ) {
@@ -487,7 +487,7 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 	CHECK_FOR_NULL_ARGUMENT( randomBytesRequested )
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	GetRandomIncoming* getRandomInput;
@@ -570,7 +570,7 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
     CHECK_FOR_NULL_ARGUMENT( nonceEven )
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	OIAP_Incoming* oiapInput;
@@ -639,7 +639,7 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
     CHECK_FOR_NULL_ARGUMENT( nonceEvenOSAP )
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	OSAP_Incoming* osapInput;
@@ -714,7 +714,7 @@ grub_TPM_calculate_osap_sharedSecret( const grub_uint8_t* nonceEvenOSAP, const g
 	CHECK_FOR_NULL_ARGUMENT( result )
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
     }
 
 	grub_size_t dataSize = TPM_NONCE_SIZE * 2;
@@ -749,7 +749,7 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
 	CHECK_FOR_NULL_ARGUMENT( result )
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
     }
 
 	grub_size_t dataSize = SHA1_DIGEST_SIZE /* hashed ordinal and inData */ +
@@ -791,7 +791,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 	CHECK_FOR_NULL_ARGUMENT( resultSize)
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	/* TPM_UNSEAL Incoming Operand */
@@ -1002,7 +1002,7 @@ static grub_err_t
 grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( !grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	if ( argc == 0 ) {
@@ -1066,7 +1066,7 @@ static grub_err_t
 grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	if ( argc == 0 ) {
@@ -1108,7 +1108,7 @@ static grub_err_t
 grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attribute__ ((unused)), char** args __attribute__ ((unused))) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	grub_uint32_t authHandle = 0;
@@ -1135,7 +1135,7 @@ static grub_err_t
 grub_cmd_openOSAP(grub_command_t cmd __attribute__ ((unused)), int argc __attribute__ ((unused)), char** args __attribute__ ((unused))) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_TPM, N_("TPM not available"));
+        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
 	}
 
 	/* get random for nonceOddOSAP */

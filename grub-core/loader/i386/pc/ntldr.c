@@ -141,6 +141,11 @@ grub_cmd_ntldr (grub_command_t cmd __attribute__ ((unused)),
   /* Begin TCG Extension */
   err = grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
 
+  // TrustedGRUB2 should work without TPM too, so ignore TPM error here
+  if( err == GRUB_ERR_NO_TPM ) {
+	  err = GRUB_ERR_NONE;
+  }
+
     if( err != GRUB_ERR_NONE ) {
         goto fail;
     }

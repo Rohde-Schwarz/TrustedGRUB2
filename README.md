@@ -18,7 +18,7 @@ The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.co
 ### 1.3 Features
 
 * Based on GRUB2 Release 2.00
-* TPM Support with TPM detection (TrustedGRUB2 does not work without TPM)
+* TPM Support with TPM detection
 * Measurement of GRUB2 kernel
 * Measurement of all loaded GRUB2 modules
 * Measurement of all commands and their parameters entered in shell and scripts

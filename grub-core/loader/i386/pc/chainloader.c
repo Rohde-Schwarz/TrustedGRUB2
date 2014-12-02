@@ -244,6 +244,11 @@ grub_chainloader_cmd (const char *filename, grub_chainloader_flags_t flags)
   /* Begin TCG Extension */
   grub_err_t err = grub_TPM_measureFile( (char*)filename, TPM_LOADED_FILES_PCR );
 
+  // TrustedGRUB2 should work without TPM too, so ignore TPM error here
+  if( err == GRUB_ERR_NO_TPM ) {
+	  err = GRUB_ERR_NONE;
+  }
+
     if( err != GRUB_ERR_NONE ) {
         goto fail;
     }
