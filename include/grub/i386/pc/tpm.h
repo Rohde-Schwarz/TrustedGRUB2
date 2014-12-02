@@ -21,9 +21,9 @@
 #define TCPA 0x41504354
 
 /* Measure into following PCRs */
-#define TPM_GRUB_LOADED_MODULES_PCR 11
-#define TPM_COMMAND_MEASUREMENT_PCR 12
-#define TPM_LOADED_FILES_PCR 14
+#define TPM_LOADED_FILES_PCR 10
+#define TPM_COMMAND_MEASUREMENT_PCR 11
+#define TPM_LUKS_HEADER_MEASUREMENT_PCR 12
 
 /* int1A return codes */
 #define TCG_PC_OK		0x0000
@@ -93,8 +93,10 @@ grub_uint32_t EXPORT_FUNC(grub_TPM_isAvailable) ( void );
 
 /* 	Measure string */
 grub_err_t EXPORT_FUNC(grub_TPM_measureString) ( const char *string );
-/* 	Measure files */
+/* 	Measure file */
 grub_err_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
+/* 	Measure buffer */
+grub_err_t EXPORT_FUNC(grub_TPM_measureBuffer) ( const void* buffer, grub_uint32_t bufferLen, const unsigned long index );
 
 /* Invokes assembler function asm_tcg_statusCheck() */
 grub_err_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *minor,

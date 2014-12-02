@@ -413,4 +413,47 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 	return GRUB_ERR_NONE;
 }
 
+grub_err_t
+grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const unsigned long index ) {
+
+	CHECK_FOR_NULL_ARGUMENT( buffer )
+
+	if( ! grub_TPM_isAvailable() ) {
+		return GRUB_ERR_NO_TPM;
+	}
+
+	/* hash buffer */
+	grub_uint32_t result[5];
+	grub_err_t err = sha1_hash_buffer( buffer, bufferLen, result );
+
+    if( err != GRUB_ERR_NONE ) {
+		return err;
+    }
+
+	/* convert from uint32_t to uint8_t */
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	int j, i = 0;
+	for( j = 0; j < 5; j++ ) {
+		convertedResult[i++] = ((result[j]>>24)&0xff);
+		convertedResult[i++] = ((result[j]>>16)&0xff);
+		convertedResult[i++] = ((result[j]>>8)&0xff);
+		convertedResult[i++] = (result[j]&0xff);
+	}
+
+#ifdef TGRUB_DEBUG
+    /* print hash */
+    print_sha1( convertedResult );
+    grub_printf( "  %s\n", filename );
+#endif
+
+	/* measure */
+	err = grub_TPM_measure( convertedResult, index );
+
+    if( err != GRUB_ERR_NONE ) {
+        return err;
+	}
+
+	return GRUB_ERR_NONE;
+}
+
 /* End TCG Extension */

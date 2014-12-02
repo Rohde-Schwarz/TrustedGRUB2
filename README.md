@@ -44,9 +44,11 @@ The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.co
 
 * PCR 8 First sector of TrustedGRUB2 kernel (diskboot.img)
 * PCR 9 TrustedGRUB2 kernel (core.img)
-* PCR 11 contains all grub2-modules loaded
-* PCR 12 contains all commandline arguments from scripts (e.g. grub.cfg) and those entered in the shell
-* PCR 14 contains all files which are actually loaded (e.g. Linux kernel, initrd, etc.)
+* PCR 10 Everything that is loaded from disk (grub2-modules, 
+Linux-kernel, initrd, ntldr, etc.) // TODO: fonts, themes, locales
+* PCR 11 contains all commandline arguments from scripts (e.g. grub.cfg) 
+and those entered in the shell
+* PCR 12 LUKS-header
 
 Kernel measurements are only implemented for diskboot so far (e.g. no cdboot or pxeboot measurement)
 
@@ -66,9 +68,9 @@ If you find any bugs, please contact the author Daniel Neus <d.neus@sirrix.com>
 PCR selection for module measurement, command measurement and loaded files measurement can be adjusted in tpm_kern.h:
 
 ```C++
-#define TPM_GRUB_LOADED_MODULES_PCR 11
-#define TPM_COMMAND_MEASUREMENT_PCR 12
-#define TPM_LOADED_FILES_PCR 14
+#define TPM_LOADED_FILES_PCR 10
+#define TPM_COMMAND_MEASUREMENT_PCR 11
+#define TPM_LUKS_HEADER_MEASUREMENT_PCR 12
 ```
 
 #### 1.7.2 Debug output
@@ -237,6 +239,8 @@ support to GRUB2.
 * grub-core/kern/i386/pc/tpm/tpm.S
 * grub-core/kern/i386/pc/tpm/tpm_kern.c
 * grub-core/kern/sha1.c
+* grub-core/disk/cryptodisk.c
+* grub-core/disk/luks.c
 * grub-core/loader/i386/linux.c
 * grub-core/loader/i386/pc/chainloader.c
 * grub-core/loader/i386/pc/linux.c
