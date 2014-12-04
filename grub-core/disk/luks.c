@@ -323,13 +323,16 @@ luks_recover_key (grub_disk_t source,
     return err;
 
   /* Begin TCG extension */
+  /* tpm functions not available in GRUB_UTIL */
+#ifndef GRUB_UTIL
 
   // measure luks header
   if ( grub_strcmp( grub_env_get ("unsealmount" ), "true" ) ) {
-	  grub_TPM_measureBuffer( &header, sizeof( header ), TPM_LUKS_HEADER_MEASUREMENT_PCR );
+	  //grub_TPM_measureBuffer( &header, sizeof( header ), TPM_LUKS_HEADER_MEASUREMENT_PCR );
 	  grub_TPM_isAvailable();
   }
 
+#endif
   /* End TCG extension */
 
   grub_puts_ (N_("Attempting to decrypt master key..."));
