@@ -46,7 +46,7 @@ static const struct grub_arg_option options[] =
     {"boot", 'b', 0, N_("Mount all volumes with `boot' flag set."), 0, 0},
 	/* Begin TCG extension */
 	{"keyfile", 'k', 0, N_("Keyfile to use for decrypting."), 0, 0},
-	{"unseal", 'u', 0, N_("Unseals the provided keyfile."), 0, 0},
+	{"unseal", 's', 0, N_("Unseals the provided keyfile."), 0, 0},
 	/* End TCG extension */
     {0, 0, 0, 0, 0, 0}
   };
@@ -990,7 +990,7 @@ GRUB_MOD_INIT (cryptodisk)
   grub_disk_dev_register (&grub_cryptodisk_dev);
   cmd = grub_register_extcmd ("cryptomount", grub_cmd_cryptomount, 0,
 		  /* Begin TCG extension */
-			      N_("SOURCE|-u UUID|-a|-b|-k KEYFILE|-u"),
+			      N_("SOURCE|-u UUID|-a|-b|-k KEYFILE|-s"),
 			      N_("Mount a crypto device."), options);
   	  	  /* End TCG extension */
 }

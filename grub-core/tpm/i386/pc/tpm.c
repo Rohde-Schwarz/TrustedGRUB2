@@ -784,7 +784,7 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
 	return GRUB_ERR_NONE;
 }
 
-static grub_err_t __attribute__ ((unused)) /* ATTENTION: remove attribute when used */
+grub_err_t
 grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t* result, grub_size_t* resultSize ) {
 
 	CHECK_FOR_NULL_ARGUMENT( sealedBuffer )
