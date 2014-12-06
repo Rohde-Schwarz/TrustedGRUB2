@@ -98,6 +98,8 @@ grub_err_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsig
 /* 	Measure buffer */
 grub_err_t EXPORT_FUNC(grub_TPM_measureBuffer) ( const void* buffer, grub_uint32_t bufferLen, const unsigned long index );
 
+grub_err_t grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t* result, grub_size_t* resultSize );
+
 /* Invokes assembler function asm_tcg_statusCheck() */
 grub_err_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *minor,
 		grub_uint32_t *featureFlags, grub_uint32_t *eventLog, grub_uint32_t *edi );
