@@ -785,7 +785,7 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
 }
 
 grub_err_t
-grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t* result, grub_size_t* resultSize ) {
+grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t** result, grub_size_t* resultSize ) {
 
 	CHECK_FOR_NULL_ARGUMENT( sealedBuffer )
 	CHECK_FOR_NULL_ARGUMENT( resultSize)
@@ -820,7 +820,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 		grub_uint32_t paramSize;
 		grub_uint32_t returnCode;
 		grub_uint32_t secretSize;
-		grub_uint8_t  unsealedData[inputSize + 256];		/* FIXME: what size to use here? */
+		grub_uint8_t  unsealedData[inputSize];		/* FIXME: what size to use here? */
 		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
 		grub_uint8_t  continueAuthSession;
 		grub_uint8_t  resAuth[TPM_AUTHDATA_SIZE];
@@ -984,14 +984,14 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 
 	/* return result */
 	*resultSize = swap32( unsealOutput->secretSize );
-	result = grub_zalloc( *resultSize );		/* caller has to clean up */
+	*result = grub_zalloc( *resultSize );		/* caller has to clean up */
 
-    if( ! result ) {
+    if( ! *result ) {
         grub_free( passThroughOutput );
         return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_unseal: memory allocation failed" ) );
     }
 
-	grub_memcpy( result, unsealOutput->unsealedData, *resultSize );
+	grub_memcpy( *result, &unsealOutput->unsealedData[0], *resultSize );
 
 	grub_free( passThroughOutput );
 	return GRUB_ERR_NONE;

@@ -327,7 +327,7 @@ luks_recover_key (grub_disk_t source,
 #ifndef GRUB_UTIL
 
   // measure luks header
-  if ( grub_strcmp( grub_env_get ("unsealmount" ), "true" ) ) {
+  if ( ! grub_strcmp( grub_env_get ("unsealmount" ), "true" ) ) {
 	  grub_TPM_measureBuffer( &header, sizeof( header ), TPM_LUKS_HEADER_MEASUREMENT_PCR );
   }
 
@@ -350,6 +350,7 @@ luks_recover_key (grub_disk_t source,
 
   /* read in keyfile if provided */
   grub_uint8_t* keyFileBuf = NULL;
+  grub_uint8_t* unsealedKeyFile = NULL;
   char* secret = NULL;
   grub_size_t secretSize = 0;
   grub_file_t file = grub_file_open( grub_env_get ("keyfile" ) );
@@ -378,16 +379,13 @@ luks_recover_key (grub_disk_t source,
 	  secretSize = keysize;
 
 #ifndef GRUB_UTIL
-	  grub_uint8_t* unsealedKeyFile = 0;
-	  grub_size_t unsealedKeyFileSize = 0;
+	  grub_size_t resultSize = 0;
 
 	  // unseal keyfile ?
-	  if ( grub_strcmp( grub_env_get ("unsealmount" ), "true" ) ) {
-		  grub_TPM_unseal( keyFileBuf, fileSize, unsealedKeyFile, &unsealedKeyFileSize );
+	  if ( ! grub_strcmp( grub_env_get ("unsealmount" ), "true" ) ) {
+		  grub_TPM_unseal( keyFileBuf, fileSize, &unsealedKeyFile, &resultSize );
+		  secret = (char*) unsealedKeyFile;
 	  }
-
-	  secret = (char*) unsealedKeyFile;
-
 #endif
 
   } else {	/* only ask for passphrase if no keyfile specified */
@@ -443,6 +441,11 @@ luks_recover_key (grub_disk_t source,
     	  if( keyFileBuf ) {
     		  grub_free( keyFileBuf );
     	  }
+
+    	  if( unsealedKeyFile ) {
+			  grub_free( unsealedKeyFile );
+		  }
+
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -450,6 +453,10 @@ luks_recover_key (grub_disk_t source,
       if( keyFileBuf ) {
     	  grub_free( keyFileBuf );
       }
+
+      if( unsealedKeyFile ) {
+		  grub_free( unsealedKeyFile );
+	  }
 
       grub_dprintf ("luks", "PBKDF2 done\n");
 
