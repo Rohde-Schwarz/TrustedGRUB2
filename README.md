@@ -125,8 +125,8 @@ Concretely, this looks like the following:
 
 |         Component							   |		measured by              |
 | -------------------------------------------  |  ----------------------------- |
-| BIOS                  					   | TCG extension 					|
-| TrustedGRUB2 MBR bootcode    				   | TCG extension					|
+| BIOS                  					   | CRTM					|
+| TrustedGRUB2 MBR bootcode    				   | BIOS					|
 | start of TrustedGRUB2 kernel (diskboot.img)  | TrustedGRUB2 MBR bootcode		|
 | rest of TrustedGRUB2 kernel (core.img)	   | start of TrustedGRUB2 kernel	|
 | Grub modules + OS (kernel and so on) 		   | TrustedGRUB2 kernel			|
