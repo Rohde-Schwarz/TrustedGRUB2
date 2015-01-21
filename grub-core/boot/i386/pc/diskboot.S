@@ -62,14 +62,14 @@ _start:
 	push %edx
 
 	/* 8(%di) = number of sectors to read */
-	movl	8(%di), %ebp
+	movw	8(%di), %ebp
 
 	/* Multiply number of sectors to read with 512 bytes */
-	movl	$0x200, %eax
+	movw	$0x200, %eax
 	mull	%ebp	/* ebp * eax = result in EDX:EAX */	/* TODO: Can the high part in edx savely be dropped? */
 
 	/* write result to number_of_bytes_to_measure var */
-	movl	%eax, number_of_bytes_to_measure
+	movw	%eax, number_of_bytes_to_measure
 
 	pop %edx
 /* END TCG EXTENSION */
