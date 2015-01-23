@@ -371,6 +371,7 @@ tcg_compacthashlogextendevent:
 	movw	%bx, %es
 
 	/* Rest of kernel starts at this address */
+	xorl	%edi, %edi
 	movw	$(GRUB_BOOT_MACHINE_KERNEL_ADDR + 0x200), %di
 
 	movl    $0x41504354, %ebx	/* EBX = "TCPA" */
