@@ -216,3 +216,5 @@ grub-core/gnulib/locale.h
 grub-core/gnulib/unitypes.h
 grub-core/gnulib/uniwidth.h
 build-aux/test-driver
+*.o
+*.a
