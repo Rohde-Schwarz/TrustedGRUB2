@@ -59,19 +59,19 @@ _start:
 	movw	$LOCAL(firstlist), %di
 
 /* BEGIN TCG EXTENSION */
-	push %edx
-
+	/* clear EAX to remove potential garbage in its high part since we only
+	 * store a word in EAX below */
+	xorl	%eax, %eax
 	/* 8(%di) = number of sectors to read */
-	movw	8(%di), %ebp
+	movw	8(%di), %eax
 
-	/* Multiply number of sectors to read with 512 bytes */
-	movw	$0x200, %eax
-	mull	%ebp	/* ebp * eax = result in EDX:EAX */	/* TODO: Can the high part in edx savely be dropped? */
+	/* Multiply number of sectors to read with 512 bytes. EAX is 32bit
+	 * which is large enough to hold values of up to 4GB. I doubt there
+	 * will ever be a core.img larger than that. ;-) */
+	shll	$9, %eax
 
 	/* write result to number_of_bytes_to_measure var */
-	movw	%eax, number_of_bytes_to_measure
-
-	pop %edx
+	movl	%eax, number_of_bytes_to_measure
 /* END TCG EXTENSION */
 
 	/* save the sector number of the second sector in %ebp */
