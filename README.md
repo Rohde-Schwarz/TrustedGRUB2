@@ -66,7 +66,7 @@ If you find any bugs, please contact the author Daniel Neus <d.neus@sirrix.com>
 ### 1.7 Configuring TrustedGRUB2 before installation
 
 #### 1.7.1 PCR selection
-PCR selection for module measurement, command measurement and loaded files measurement can be adjusted in tpm_kern.h:
+PCR selection for module measurement, command measurement and loaded files measurement can be adjusted in tpm.h:
 
 ```C++
 #define TPM_LOADED_FILES_PCR 10
@@ -82,7 +82,7 @@ To enable some debug output uncomment:
 /* #define TGRUB_DEBUG */
 ```
 
-in tpm_kern.h
+in tpm.h
 
 ### 1.8 Installation of TrustedGRUB2
 
