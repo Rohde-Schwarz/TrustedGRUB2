@@ -400,7 +400,6 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 #ifdef TGRUB_DEBUG
     /* print hash */
     print_sha1( convertedResult );
-    grub_printf( "  %s\n", filename );
 #endif
 
 	/* measure */

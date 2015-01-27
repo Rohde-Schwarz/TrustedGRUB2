@@ -1042,9 +1042,9 @@ grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
         return grub_errno;
     }
 
-	grub_uint8_t* result = 0;
+	grub_uint8_t* result = NULL;
 	grub_size_t resultSize = 0;
-	grub_err_t err = grub_TPM_unseal( buf, fileSize, result, &resultSize );
+	grub_err_t err = grub_TPM_unseal( buf, fileSize, &result, &resultSize );
 
     if( err != GRUB_ERR_NONE ) {
 		grub_free( buf );
