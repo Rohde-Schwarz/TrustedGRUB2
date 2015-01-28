@@ -57,9 +57,9 @@ Kernel measurements are only implemented for diskboot so far (e.g. no cdboot or 
 
 In order to use the TCG-enhanced TrustedGRUB2, you need a computer which has TCG enhancements according to TCG specs. v1.2, since SHA1-calculations are extended into PC-Registers of the TPM.
 
-### 1.6 Known Bugs
+### 1.6 Known Bugs / Limitations
 
-* On some HP notebooks, TrustedGRUB2 is not able to do the kernel measurements due to a missing / faulty implemented "TCG_CompactHashLogExtendEvent" inside the BIOS. This means PCR 8,9 contain bogus values
+* On some HP notebooks and workstations, TrustedGRUB2 is not able to do the kernel measurements due to a buggy BIOS. This means PCR 8,9 can contain bogus values. This seems to be especially the case if the core.img is bigger than 64KB.
 
 If you find any bugs, please contact the author Daniel Neus <d.neus@sirrix.com>
 
