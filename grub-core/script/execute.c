@@ -948,20 +948,26 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
 
   /* Begin TCG Extension */
 
-  /* Build string for measurement containing command + args */
-  char command[1024];
-  grub_strcpy( command, argv.args[0] );	/* copy command */
-  unsigned int i;
-  for( i = 1; i < argv.argc; i++  ) {
-	  grub_strcat( command, " " );
-	  grub_strcat( command, argv.args[i] ); /* append whitespace and args */
+  /* do not measure "menuentry" command */
+  /* it makes precomputation of the pcr value difficult and is unnecessary because each command within the menuentry is anyway measured */
+  if( grub_strncmp( argv.args[0], "menuentry", grub_strlen( "menuentry" ) ) != 0 ) {
+
+	  /* Build string for measurement containing command + args */
+	  char command[1024];
+	  grub_strcpy( command, argv.args[0] );	/* copy command */
+
+	  unsigned int i;
+	  for( i = 1; i < argv.argc; i++  ) {
+		  grub_strcat( command, " " );
+		  grub_strcat( command, argv.args[i] ); /* append whitespace and args */
+	  }
+
+	  /* make sure string is terminated */
+	  command[grub_strlen( command )] = '\0';
+
+	  /*  measure string */
+	  grub_TPM_measureString( command );
   }
-
-  /* make sure string is terminated */
-  command[grub_strlen( command )] = '\0';
-
-  /*  measure string */
-  grub_TPM_measureString( command );
   /* End TCG Extension */
 
   /* Free arguments.  */
