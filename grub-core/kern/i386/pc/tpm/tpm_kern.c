@@ -442,7 +442,6 @@ grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const
 #ifdef TGRUB_DEBUG
     /* print hash */
     print_sha1( convertedResult );
-    grub_printf( "  %s\n", filename );
 #endif
 
 	/* measure */
