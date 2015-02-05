@@ -35,6 +35,9 @@ The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.co
   * initrd / initrd16
   * chainloader
   * ntdlr
+* New cryptomount parameters:
+  * cryptomount -k KEYFILE
+  * cryptomount -k KEYFILE -s
 * Functionality added without own command:
   * TPM_Unseal
   * TPM_GetRandom
@@ -159,7 +162,7 @@ the entry point for the code which has to be checked is a address 0x8200 and tha
 ### 2.3 Measurement of GRUB2 modules
 
 Grub2 has a modular structure. GRUB2 dynamically loads needed modules which are not contained in kernel. Modifications in boot.S and diskboot.S are only measuring GRUB2 kernel.
-Therefore the GRUB2 module loader was modified to measure modules to PCR 11 before they are loaded. Changes can be found in dl.c .
+Therefore the GRUB2 module loader was modified to measure modules to PCR 10 before they are loaded. Changes can be found in dl.c .
 
 ### 2.4 New SHA1-implementation in GRUB2 kernel
 
@@ -168,7 +171,8 @@ GRUB2 already contains an SHA1-implementation in its crypto module, but this isn
 
 ### 2.5 Measurement of all commands and their parameters entered in shell and scripts
 
-All commands which are entered in shell or executed by scripts is measured to PCR 12. Therefore commands in grub.cfg are automatically measured. No need to measure grub.cfg separatly.
+All commands which are entered in shell or executed by scripts is measured to PCR 11. Therefore commands in grub.cfg are automatically measured. No need to measure grub.cfg separatly.
+One exception applies to this rule: The "menuentry" command is not measured because it makes precomputation of the pcr value difficult and is unnecessary because each command within the menuentry is anyway measured.
 
 ### 2.6 TrustedGRUB2 commands
 
@@ -230,7 +234,7 @@ All modifications have been commented with
 The following list presents the files that have been added / modified to add TCG
 support to GRUB2.
 
-* README-TGRUB2
+* README.md
 * grub-core/Makefile.am
 * grub-core/Makefile.core.def
 * grub-core/boot/i386/pc/boot.S
