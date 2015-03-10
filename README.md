@@ -259,4 +259,4 @@ support to GRUB2.
 
 ## 3. Thanks
 
-TrustedGrub1 and GRUB-IMA have done a lot of preparatory work in the field and were used for code examples. Some of the code is adapted from them.
+[TrustedGrub1](https://www.sirrix.com/content/pages/trustedgrub_en.htm) and GRUB-IMA have done a lot of preparatory work in the field and were used for code examples.
