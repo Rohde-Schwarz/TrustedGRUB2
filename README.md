@@ -4,7 +4,7 @@
 
 ### 1.1 Introduction
 
-This file describes the extensions made to transform a standard GRUB2 into a version that offers TCG (TPM) support for granting the integrity of the boot process (trusted boot). This project was highly inspired by the former projects TrustedGRUB and GRUB-IMA. However TrustedGRUB2 was completly written from scratch.
+This file describes the extensions made to transform a standard GRUB2 into a version that offers TCG (TPM) support for granting the integrity of the boot process (trusted boot). This project was highly inspired by the former projects [TrustedGrub1](https://www.sirrix.com/content/pages/trustedgrub_en.htm) and GRUB-IMA. However TrustedGRUB2 was completly written from scratch.
 
 TrustedGRUB2 is measuring all critical components during the boot process, i.e. GRUB2 kernel, GRUB2 modules, the OS kernel or OS modules and so on, together with their
 parameters. Please note that the TrustedGRUB2 MBR bootcode has not to be checked here (it wouldn't even be possible). The MBR bootcode has already been measured by the TPM itself.
@@ -13,7 +13,7 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 
 ### 1.2 Authors
 
-The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.com>, Sirrix AG security technologies, Bochum, Germany
+The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.com>, [Sirrix AG security technologies](https://www.sirrix.com), Bochum, Germany
 
 ### 1.3 Features
 
