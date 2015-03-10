@@ -1,0 +1,16 @@
+compiler: gcc
+language: c
+
+
+script: 
+  - "./autogen.sh"
+  - "./configure"
+  - "make"
+
+os:
+  - linux
+
+notifications:
+  email:
+    recipients:
+      - daniel@neus-online.eu
