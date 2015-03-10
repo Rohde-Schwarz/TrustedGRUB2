@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Trustedgrub2 : TPM enabled GRUB2 Bootloader">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Trustedgrub2</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/Sirrix-AG/TrustedGRUB2">View on GitHub</a>
+
+          <h1 id="project_title">Trustedgrub2</h1>
+          <h2 id="project_tagline">TPM enabled GRUB2 Bootloader</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/Sirrix-AG/TrustedGRUB2/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/Sirrix-AG/TrustedGRUB2/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="trustedgrub2" class="anchor" href="#trustedgrub2" aria-hidden="true"><span class="octicon octicon-link"></span></a>TrustedGRUB2</h1>
+
+<h2>
+<a id="1-general-information" class="anchor" href="#1-general-information" aria-hidden="true"><span class="octicon octicon-link"></span></a>1. General Information</h2>
+
+<h3>
+<a id="11-introduction" class="anchor" href="#11-introduction" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.1 Introduction</h3>
+
+<p>This file describes the extensions made to transform a standard GRUB2 into a version that offers TCG (TPM) support for granting the integrity of the boot process (trusted boot). This project was highly inspired by the former projects TrustedGRUB and GRUB-IMA. However TrustedGRUB2 was completly written from scratch.</p>
+
+<p>TrustedGRUB2 is measuring all critical components during the boot process, i.e. GRUB2 kernel, GRUB2 modules, the OS kernel or OS modules and so on, together with their
+parameters. Please note that the TrustedGRUB2 MBR bootcode has not to be checked here (it wouldn't even be possible). The MBR bootcode has already been measured by the TPM itself.
+Since the TPM is passive, it has no direct ability to check if the integrity of bootloader (and the OS kernel/modules and so on) actually is correct.
+This can only be done indirectly by using the seal/unseal functions of the TPM (for details on this topic, you should have a look at the TCG specifications or on other documents describing TCG/TPM abilities).</p>
+
+<h3>
+<a id="12-authors" class="anchor" href="#12-authors" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.2 Authors</h3>
+
+<p>The TrustedGRUB2 extensions have been performed by Daniel Neus <a href="mailto:d.neus@sirrix.com">d.neus@sirrix.com</a>, Sirrix AG security technologies, Bochum, Germany</p>
+
+<h3>
+<a id="13-features" class="anchor" href="#13-features" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.3 Features</h3>
+
+<ul>
+<li>Based on GRUB2 Release 2.00</li>
+<li>TPM Support with TPM detection</li>
+<li>Measurement of GRUB2 kernel</li>
+<li>Measurement of all loaded GRUB2 modules</li>
+<li>Measurement of all commands and their parameters entered in shell and scripts</li>
+<li>New SHA1-implementation in GRUB2 kernel (necessary for doing the GRUB2 modules measurement as the crypto module isn't loaded at this stage)</li>
+<li>Added LUKS keyfile support with additional parameter "-k KEYFILE" for cryptomount command</li>
+<li>Added supported for unsealing LUKS keyfile with additional "-s" parameter for cryptomount command. LUKS-header is measured before unsealing into PCR 12.</li>
+<li>New commands:
+
+<ul>
+<li>readpcr PCRNUM</li>
+<li>tcglog LOGINDEX</li>
+<li>measure FILE PCRNUM</li>
+<li>setmor DISABLEAUTODETECT</li>
+</ul>
+</li>
+<li>Loader measurements:
+
+<ul>
+<li>linux / linux16</li>
+<li>initrd / initrd16</li>
+<li>chainloader</li>
+<li>ntdlr</li>
+</ul>
+</li>
+<li>New cryptomount parameters:
+
+<ul>
+<li>cryptomount -k KEYFILE</li>
+<li>cryptomount -k KEYFILE -s</li>
+</ul>
+</li>
+<li>Functionality added without own command:
+
+<ul>
+<li>TPM_Unseal</li>
+<li>TPM_GetRandom</li>
+<li>TPM_OIAP</li>
+<li>TPM_OSAP</li>
+</ul>
+</li>
+</ul>
+
+<h3>
+<a id="14-measurements-in-short" class="anchor" href="#14-measurements-in-short" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.4 Measurements (in short)</h3>
+
+<ul>
+<li>PCR 8 First sector of TrustedGRUB2 kernel (diskboot.img)</li>
+<li>PCR 9 TrustedGRUB2 kernel (core.img)</li>
+<li>PCR 10 Everything that is loaded from disk (grub2-modules,
+Linux-kernel, initrd, ntldr, etc.) // TODO: fonts, themes, locales</li>
+<li>PCR 11 contains all commandline arguments from scripts (e.g. grub.cfg)
+and those entered in the shell</li>
+<li>PCR 12 LUKS-header</li>
+</ul>
+
+<p>Kernel measurements are only implemented for diskboot so far (e.g. no cdboot or pxeboot measurement)</p>
+
+<h3>
+<a id="15-requirements" class="anchor" href="#15-requirements" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.5 Requirements</h3>
+
+<p>In order to use the TCG-enhanced TrustedGRUB2, you need a computer which has TCG enhancements according to TCG specs. v1.2, since SHA1-calculations are extended into PC-Registers of the TPM.</p>
+
+<h3>
+<a id="16-known-bugs--limitations" class="anchor" href="#16-known-bugs--limitations" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.6 Known Bugs / Limitations</h3>
+
+<ul>
+<li>On some HP notebooks and workstations, TrustedGRUB2 is not able to do the kernel measurements due to a buggy BIOS. This means PCR 8,9 can contain bogus values. This seems to be especially the case if the core.img is bigger than 64KB.</li>
+</ul>
+
+<p>If you find any bugs, please contact the author Daniel Neus <a href="mailto:d.neus@sirrix.com">d.neus@sirrix.com</a></p>
+
+<h3>
+<a id="17-configuring-trustedgrub2-before-installation" class="anchor" href="#17-configuring-trustedgrub2-before-installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.7 Configuring TrustedGRUB2 before installation</h3>
+
+<h4>
+<a id="171-pcr-selection" class="anchor" href="#171-pcr-selection" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.7.1 PCR selection</h4>
+
+<p>PCR selection for module measurement, command measurement and loaded files measurement can be adjusted in tpm.h:</p>
+
+<div class="highlight highlight-C++"><pre>#<span class="pl-k">define</span> <span class="pl-en">TPM_LOADED_FILES_PCR</span> <span class="pl-c1">10</span>
+#<span class="pl-k">define</span> <span class="pl-en">TPM_COMMAND_MEASUREMENT_PCR</span> <span class="pl-c1">11</span>
+#<span class="pl-k">define</span> <span class="pl-en">TPM_LUKS_HEADER_MEASUREMENT_PCR</span> <span class="pl-c1">12</span></pre></div>
+
+<h4>
+<a id="172-debug-output" class="anchor" href="#172-debug-output" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.7.2 Debug output</h4>
+
+<p>To enable some debug output uncomment:</p>
+
+<div class="highlight highlight-C++"><pre><span class="pl-c">/* #define TGRUB_DEBUG */</span></pre></div>
+
+<p>in tpm.h</p>
+
+<h3>
+<a id="18-installation-of-trustedgrub2" class="anchor" href="#18-installation-of-trustedgrub2" aria-hidden="true"><span class="octicon octicon-link"></span></a>1.8 Installation of TrustedGRUB2</h3>
+
+<p>Required Packages for compiling:</p>
+
+<ul>
+<li>autogen</li>
+<li>autoconf</li>
+<li>bison</li>
+<li>flex</li>
+</ul>
+
+<p>To compile and install TrustedGRUB2, please run</p>
+
+<div class="highlight highlight-bash"><pre>./autogen.sh
+./configure --prefix=INSTALLDIR
+make
+make install</pre></div>
+
+<p>Installing to device:</p>
+
+<div class="highlight highlight-bash"><pre>./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc /dev/sda</pre></div>
+
+<p>[WARNING]
+if installing over an old GRUB2 install you probably have to adjust your grub.cfg</p>
+
+<p>For usb-devices this command can be used (assuming /dev/sdb/ is your usb-device):</p>
+
+<div class="highlight highlight-bash"><pre>./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc --root-directory=/mnt/sdb1 /dev/sdb</pre></div>
+
+<h2>
+<a id="2-technical-details" class="anchor" href="#2-technical-details" aria-hidden="true"><span class="octicon octicon-link"></span></a>2. Technical Details</h2>
+
+<h3>
+<a id="21-general-view-on-how-trustedgrub2-works" class="anchor" href="#21-general-view-on-how-trustedgrub2-works" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.1 General view on how TrustedGRUB2 works</h3>
+
+<p>The goal of TrustedGRUB2 is to accomplish a chain of trust, i.e. every component measures the integrity of the succeeding component.
+Concretely, this looks like the following:</p>
+
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>measured by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BIOS</td>
+<td>CRTM</td>
+</tr>
+<tr>
+<td>TrustedGRUB2 MBR bootcode</td>
+<td>BIOS</td>
+</tr>
+<tr>
+<td>start of TrustedGRUB2 kernel (diskboot.img)</td>
+<td>TrustedGRUB2 MBR bootcode</td>
+</tr>
+<tr>
+<td>rest of TrustedGRUB2 kernel (core.img)</td>
+<td>start of TrustedGRUB2 kernel</td>
+</tr>
+<tr>
+<td>Grub modules + OS (kernel and so on)</td>
+<td>TrustedGRUB2 kernel</td>
+</tr>
+</tbody>
+</table>
+
+<p>This chain of trust can be extended by using the newly added "measure" command to measure the integrity of arbitrary files.</p>
+
+<h3>
+<a id="22-measurement-of-grub2-kernel" class="anchor" href="#22-measurement-of-grub2-kernel" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.2 Measurement of GRUB2 kernel</h3>
+
+<h4>
+<a id="221-modifications-in-boots-mbr-bootcode" class="anchor" href="#221-modifications-in-boots-mbr-bootcode" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.2.1 Modifications in boot.S (MBR bootcode)</h4>
+
+<p>GRUB2 MBR bootcode is already measured by the TPM. The MBR bootcode has the task to load first sector of TrustedGRUB2 kernel (diskboot.img). Diskboot.img itself loads the rest of GRUB2 kernel.
+Therefore GRUB2 MBR code is extended to measure diskboot.img before jumping to it:</p>
+
+<ol>
+<li>Diskboot.img is hashed with a SHA-1 algorithm. Diskboot.img ist loaded at address 0x8000, its length is 512 bytes.</li>
+<li>The resulting hash value is written to PCR (Platform Configuration Register) 8. More precisely, the former content of this register (which actually is 0) is concatenated to the new value, then hashed with SHA1 and finally written again to PCR 8</li>
+</ol>
+
+<p>Due to the PC architecture, the size of the MBR (where TrustedGRUB2 boot.S is
+located) is limited to 512 bytes. But the original GRUB2 MBR bootcode is already very
+close to this limit, leaving very few space for the TCG extensions. Because
+of this, it was necessary (in the current version of TrustedGRUB2) to eliminate the CHS-code.
+This results in the problem that we support only LBA-discs now. FDD boot is not possible.</p>
+
+<h4>
+<a id="222-modifications-in-diskboots" class="anchor" href="#222-modifications-in-diskboots" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.2.2 Modifications in diskboot.S</h4>
+
+<p>boot.S contains the code for loading the first sector of TrustedGRUB2 kernel (diskboot.img). Its only task
+is the load the rest of TrustedGRUB2 kernel. Therefore, the TCG extension now has to measure the rest of TrustedGRUB2 kernel
+The changes here are widely the same as in TrustedGRUB2 bootcode, with the differences that
+the entry point for the code which has to be checked is a address 0x8200 and that the result is written into PCR 9.</p>
+
+<h3>
+<a id="23-measurement-of-grub2-modules" class="anchor" href="#23-measurement-of-grub2-modules" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.3 Measurement of GRUB2 modules</h3>
+
+<p>Grub2 has a modular structure. GRUB2 dynamically loads needed modules which are not contained in kernel. Modifications in boot.S and diskboot.S are only measuring GRUB2 kernel.
+Therefore the GRUB2 module loader was modified to measure modules to PCR 10 before they are loaded. Changes can be found in dl.c .</p>
+
+<h3>
+<a id="24-new-sha1-implementation-in-grub2-kernel" class="anchor" href="#24-new-sha1-implementation-in-grub2-kernel" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.4 New SHA1-implementation in GRUB2 kernel</h3>
+
+<p>In order to make GRUB2 modules measurement possible, a SHA1-implementation had to be added to the kernel.
+GRUB2 already contains an SHA1-implementation in its crypto module, but this isn't loaded at this stage.</p>
+
+<h3>
+<a id="25-measurement-of-all-commands-and-their-parameters-entered-in-shell-and-scripts" class="anchor" href="#25-measurement-of-all-commands-and-their-parameters-entered-in-shell-and-scripts" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.5 Measurement of all commands and their parameters entered in shell and scripts</h3>
+
+<p>All commands which are entered in shell or executed by scripts is measured to PCR 11. Therefore commands in grub.cfg are automatically measured. No need to measure grub.cfg separatly.
+One exception applies to this rule: The "menuentry" command is not measured because it makes precomputation of the pcr value difficult and is unnecessary because each command within the menuentry is anyway measured.</p>
+
+<h3>
+<a id="26-trustedgrub2-commands" class="anchor" href="#26-trustedgrub2-commands" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.6 TrustedGRUB2 commands</h3>
+
+<h4>
+<a id="261-new-commands" class="anchor" href="#261-new-commands" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.6.1 new commands</h4>
+
+<pre><code>readpcr PCRNUM
+</code></pre>
+
+<p>Display current value of the PCR (Platform Configuration Register) within TPM (Trusted Platform Module) at index, <code>PCRNUM</code>.<br>
+<br><br>
+<br>  </p>
+
+<pre><code>tcglog LOGINDEX
+</code></pre>
+
+<p>Displays TCG event log entry at position, <code>LOGINDEX</code>. Type in "0" for all entries.<br>
+<br><br>
+<br>  </p>
+
+<pre><code>measure FILE PCRNUM
+</code></pre>
+
+<p>Perform TCG measurement operation with the file <code>FILE</code> and with PCR( <code>PCRNUM</code> ).<br>
+<br><br>
+<br>  </p>
+
+<pre><code>setmor DISABLEAUTODETECT
+</code></pre>
+
+<p>Sets Memory Overwrite Request (MOR) Bit. <code>DISABLEAUTODETECT</code> specifies if bios should auto detect unscheduled reboots.<br>
+<br><br>
+<br>  </p>
+
+<h4>
+<a id="262-modified-existing-grub2-commands" class="anchor" href="#262-modified-existing-grub2-commands" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.6.2 Modified existing GRUB2 commands</h4>
+
+<ul>
+<li>
+<code>linux</code> / <code>linux16</code><br>
+</li>
+<li>
+<code>initrd</code> / <code>initrd16</code><br>
+</li>
+<li>
+<code>chainloader</code><br>
+</li>
+<li>
+<code>ntdlr</code><br>
+</li>
+</ul>
+
+<p>These commands are modified to measure before loading. PCR 14 is extended.</p>
+
+<h3>
+<a id="27-other-modifications" class="anchor" href="#27-other-modifications" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.7 Other modifications</h3>
+
+<p>All modifications have been commented with</p>
+
+<div class="highlight highlight-C++"><pre><span class="pl-c">/* BEGIN TCG EXTENSION */</span>
+
+<span class="pl-c">/* END TCG EXTENSION */</span></pre></div>
+
+<h3>
+<a id="28-file-list" class="anchor" href="#28-file-list" aria-hidden="true"><span class="octicon octicon-link"></span></a>2.8 File list</h3>
+
+<p>The following list presents the files that have been added / modified to add TCG
+support to GRUB2.</p>
+
+<ul>
+<li>README.md</li>
+<li>grub-core/Makefile.am</li>
+<li>grub-core/Makefile.core.def</li>
+<li>grub-core/boot/i386/pc/boot.S</li>
+<li>grub-core/boot/i386/pc/diskboot.S</li>
+<li>grub-core/kern/dl.c</li>
+<li>grub-core/kern/i386/pc/startup.S</li>
+<li>grub-core/kern/i386/pc/tpm/tpm.S</li>
+<li>grub-core/kern/i386/pc/tpm/tpm_kern.c</li>
+<li>grub-core/kern/sha1.c</li>
+<li>grub-core/disk/cryptodisk.c</li>
+<li>grub-core/disk/luks.c</li>
+<li>grub-core/loader/i386/linux.c</li>
+<li>grub-core/loader/i386/pc/chainloader.c</li>
+<li>grub-core/loader/i386/pc/linux.c</li>
+<li>grub-core/loader/i386/pc/ntldr.c</li>
+<li>grub-core/normal/main.c</li>
+<li>grub-core/script/execute.c</li>
+<li>grub-core/tpm/i386/pc/tpm.c</li>
+<li>include/grub/i386/pc/boot.h</li>
+<li>include/grub/i386/pc/tpm.h</li>
+<li>include/grub/sha1.h</li>
+</ul>
+
+<h2>
+<a id="3-thanks" class="anchor" href="#3-thanks" aria-hidden="true"><span class="octicon octicon-link"></span></a>3. Thanks</h2>
+
+<p>TrustedGrub1 and GRUB-IMA have done a lot of preparatory work in the field and were used for code examples. Some of the code is adapted from them.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Trustedgrub2 maintained by <a href="https://github.com/Sirrix-AG">Sirrix-AG</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
