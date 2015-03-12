@@ -13,11 +13,7 @@ parameters. Please note that the TrustedGRUB2 MBR bootcode has not to be checked
 Since the TPM is passive, it has no direct ability to check if the integrity of bootloader (and the OS kernel/modules and so on) actually is correct.
 This can only be done indirectly by using the seal/unseal functions of the TPM (for details on this topic, you should have a look at the TCG specifications or on other documents describing TCG/TPM abilities).
 
-### 1.2 Authors
-
-The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.com>, [Sirrix AG security technologies](https://www.sirrix.com), Bochum, Germany
-
-### 1.3 Features
+### 1.2 Features
 
 * Based on GRUB2 Release 2.00
 * TPM Support with TPM detection
@@ -46,7 +42,7 @@ The TrustedGRUB2 extensions have been performed by Daniel Neus <d.neus@sirrix.co
   * TPM_OIAP
   * TPM_OSAP
 
-### 1.4 Measurements (in short)
+### 1.3 Measurements (in short)
 
 * PCR 8 First sector of TrustedGRUB2 kernel (diskboot.img)
 * PCR 9 TrustedGRUB2 kernel (core.img)
@@ -58,19 +54,19 @@ and those entered in the shell
 
 Kernel measurements are only implemented for diskboot so far (e.g. no cdboot or pxeboot measurement)
 
-### 1.5 Requirements
+### 1.4 Requirements
 
 In order to use the TCG-enhanced TrustedGRUB2, you need a computer which has TCG enhancements according to TCG specs. v1.2, since SHA1-calculations are extended into PC-Registers of the TPM.
 
-### 1.6 Known Bugs / Limitations
+### 1.5 Known Bugs / Limitations
 
 * On some HP notebooks and workstations, TrustedGRUB2 is not able to do the kernel measurements due to a buggy BIOS. This means PCR 8,9 can contain bogus values. This seems to be especially the case if the core.img is bigger than 64KB.
 
-If you find any bugs, please contact the author Daniel Neus <d.neus@sirrix.com>
+If you find any bugs, create an issue or send a mail to trustedgrub@sirrix.com
 
-### 1.7 Configuring TrustedGRUB2 before installation
+### 1.6 Configuring TrustedGRUB2 before installation
 
-#### 1.7.1 PCR selection
+#### 1.6.1 PCR selection
 PCR selection for module measurement, command measurement and loaded files measurement can be adjusted in tpm.h:
 
 ```C++
@@ -79,7 +75,7 @@ PCR selection for module measurement, command measurement and loaded files measu
 #define TPM_LUKS_HEADER_MEASUREMENT_PCR 12
 ```
 
-#### 1.7.2 Debug output
+#### 1.6.2 Debug output
 
 To enable some debug output uncomment:
 
@@ -89,7 +85,7 @@ To enable some debug output uncomment:
 
 in tpm.h
 
-### 1.8 Installation of TrustedGRUB2
+### 1.7 Installation of TrustedGRUB2
 
 Required Packages for compiling:
 * autogen
