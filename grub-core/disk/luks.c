@@ -435,34 +435,39 @@ luks_recover_key (grub_disk_t source,
 				     grub_be_to_cpu32 (header.keyblock[i].
 						       passwordIterations),
 				     digest, keysize);
+
       /* End TCG extension */
       if (gcry_err)
 	{
-    	  if( keyFileBuf ) {
+    	  if( keyFileBuf )
+    	  {
     		  grub_free( keyFileBuf );
     	  }
 
-    	  if( unsealedKeyFile ) {
-			  grub_free( unsealedKeyFile );
-		  }
+    	  if( unsealedKeyFile )
+    	  {
+    		  grub_free( unsealedKeyFile );
+    	  }
 
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
-
-      if( keyFileBuf ) {
-    	  grub_free( keyFileBuf );
-      }
-
-      if( unsealedKeyFile ) {
-		  grub_free( unsealedKeyFile );
-	  }
 
       grub_dprintf ("luks", "PBKDF2 done\n");
 
       gcry_err = grub_cryptodisk_setkey (dev, digest, keysize); 
       if (gcry_err)
 	{
+    	  if( keyFileBuf )
+		  {
+			  grub_free( keyFileBuf );
+		  }
+
+		  if( unsealedKeyFile )
+		  {
+			  grub_free( unsealedKeyFile );
+		  }
+
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -476,6 +481,16 @@ luks_recover_key (grub_disk_t source,
 			    length, split_key);
       if (err)
 	{
+    	  if( keyFileBuf )
+		  {
+			  grub_free( keyFileBuf );
+		  }
+
+		  if( unsealedKeyFile )
+		  {
+			  grub_free( unsealedKeyFile );
+		  }
+
 	  grub_free (split_key);
 	  return err;
 	}
@@ -483,6 +498,15 @@ luks_recover_key (grub_disk_t source,
       gcry_err = grub_cryptodisk_decrypt (dev, split_key, length, 0);
       if (gcry_err)
 	{
+		  if( keyFileBuf )
+		  {
+			  grub_free( keyFileBuf );
+		  }
+
+		  if( unsealedKeyFile )
+		  {
+			  grub_free( unsealedKeyFile );
+		  }
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -492,6 +516,15 @@ luks_recover_key (grub_disk_t source,
 			   grub_be_to_cpu32 (header.keyblock[i].stripes));
       if (gcry_err)
 	{
+    	  if( keyFileBuf )
+		  {
+			  grub_free( keyFileBuf );
+		  }
+
+		  if( unsealedKeyFile )
+		  {
+			  grub_free( unsealedKeyFile );
+		  }
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -509,6 +542,15 @@ luks_recover_key (grub_disk_t source,
 				     sizeof (candidate_digest));
       if (gcry_err)
 	{
+    	  if( keyFileBuf )
+		  {
+			  grub_free( keyFileBuf );
+		  }
+
+		  if( unsealedKeyFile )
+		  {
+			  grub_free( unsealedKeyFile );
+		  }
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -530,9 +572,28 @@ luks_recover_key (grub_disk_t source,
       gcry_err = grub_cryptodisk_setkey (dev, candidate_key, keysize); 
       if (gcry_err)
 	{
+    	  if( keyFileBuf )
+		  {
+			  grub_free( keyFileBuf );
+		  }
+
+		  if( unsealedKeyFile )
+		  {
+			  grub_free( unsealedKeyFile );
+		  }
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
+
+      if( keyFileBuf )
+	  {
+		  grub_free( keyFileBuf );
+	  }
+
+	  if( unsealedKeyFile )
+	  {
+		  grub_free( unsealedKeyFile );
+	  }
 
       grub_free (split_key);
 
