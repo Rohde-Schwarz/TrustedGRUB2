@@ -303,6 +303,7 @@ configure_ciphers (grub_disk_t disk, const char *check_uuid,
   return newdev;
 }
 
+/* Begin TCG extension */
 static grub_err_t
 luks_recover_key (grub_disk_t source,
 		  grub_cryptodisk_t dev)
@@ -319,10 +320,13 @@ luks_recover_key (grub_disk_t source,
   char *tmp;
 
   err = grub_disk_read (source, 0, 0, sizeof (header), &header);
-  if (err)
-    return err;
 
-  /* Begin TCG extension */
+  if (err) {
+	  grub_env_set ("unsealmount", "" );
+	  grub_env_set ("keyfile", "" );
+	  return err;
+  }
+
   /* tpm functions not available in GRUB_UTIL */
 #ifndef GRUB_UTIL
 
@@ -332,7 +336,6 @@ luks_recover_key (grub_disk_t source,
   }
 
 #endif
-  /* End TCG extension */
 
   grub_puts_ (N_("Attempting to decrypt master key..."));
   keysize = grub_be_to_cpu32 (header.keyBytes);
@@ -344,22 +347,33 @@ luks_recover_key (grub_disk_t source,
 
   split_key = grub_malloc (keysize * max_stripes);
   if (!split_key)
+	grub_env_set ("unsealmount", "" );
+    grub_env_set ("keyfile", "" );
     return grub_errno;
-
-  /* Begin TCG extension */
 
   /* read in keyfile if provided */
   grub_uint8_t* keyFileBuf = NULL;
   grub_uint8_t* unsealedKeyFile = NULL;
   char* secret = NULL;
   grub_size_t secretSize = 0;
-  grub_file_t file = grub_file_open( grub_env_get ("keyfile" ) );
-  if( file ) {
+
+  if ( grub_strcmp( grub_env_get ("keyfile" ), "" ) ) {
+	  grub_file_t file = grub_file_open( grub_env_get ("keyfile" ) );
+
+	  if( !file ) {
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
+		  grub_free (split_key);
+		  return grub_errno;
+	  }
+
 	  grub_size_t fileSize = file->size;
 
 	  keyFileBuf = grub_zalloc( fileSize );
 
 	  if ( ! keyFileBuf ) {
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 		  grub_file_close (file);
 		  grub_free (split_key);
 		  return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "keyfile read: memory allocation failed" ) );
@@ -367,6 +381,8 @@ luks_recover_key (grub_disk_t source,
 
 	  /* read file */
 	  if ( grub_file_read( file, keyFileBuf, fileSize ) != (grub_ssize_t) fileSize ) {
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 		  grub_free( keyFileBuf );
 		  grub_free (split_key);
 		  grub_file_close (file);
@@ -404,6 +420,8 @@ luks_recover_key (grub_disk_t source,
 	  grub_free (tmp);
 	  if (!grub_password_get (passphrase, MAX_PASSPHRASE))
 	  {
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 		  grub_free (split_key);
 		  return grub_error (GRUB_ERR_BAD_ARGUMENT, "Passphrase not supplied");
 	  }
@@ -411,7 +429,6 @@ luks_recover_key (grub_disk_t source,
 	  secret = passphrase;
 	  secretSize = grub_strlen( passphrase );
   }
-  /* End TCG extension */
 
   /* Try to recover master key from each active keyslot. */
   for (i = 0; i < ARRAY_SIZE (header.keyblock); i++)
@@ -427,7 +444,6 @@ luks_recover_key (grub_disk_t source,
       grub_dprintf ("luks", "Trying keyslot %d\n", i);
 
       /* Calculate the PBKDF2 of the user supplied passphrase / keyfile.  */
-      /* Begin TCG extension */
       gcry_err = grub_crypto_pbkdf2 (dev->hash, ( grub_uint8_t * ) secret,
 				     secretSize,
 				     header.keyblock[i].passwordSalt,
@@ -436,7 +452,6 @@ luks_recover_key (grub_disk_t source,
 						       passwordIterations),
 				     digest, keysize);
 
-      /* End TCG extension */
       if (gcry_err)
 	{
     	  if( keyFileBuf )
@@ -448,7 +463,8 @@ luks_recover_key (grub_disk_t source,
     	  {
     		  grub_free( unsealedKeyFile );
     	  }
-
+      grub_env_set ("unsealmount", "" );
+      grub_env_set ("keyfile", "" );
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -467,6 +483,9 @@ luks_recover_key (grub_disk_t source,
 		  {
 			  grub_free( unsealedKeyFile );
 		  }
+
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
@@ -491,6 +510,8 @@ luks_recover_key (grub_disk_t source,
 			  grub_free( unsealedKeyFile );
 		  }
 
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 	  grub_free (split_key);
 	  return err;
 	}
@@ -507,6 +528,8 @@ luks_recover_key (grub_disk_t source,
 		  {
 			  grub_free( unsealedKeyFile );
 		  }
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -525,6 +548,8 @@ luks_recover_key (grub_disk_t source,
 		  {
 			  grub_free( unsealedKeyFile );
 		  }
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -551,6 +576,8 @@ luks_recover_key (grub_disk_t source,
 		  {
 			  grub_free( unsealedKeyFile );
 		  }
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -581,6 +608,8 @@ luks_recover_key (grub_disk_t source,
 		  {
 			  grub_free( unsealedKeyFile );
 		  }
+		  grub_env_set ("unsealmount", "" );
+		  grub_env_set ("keyfile", "" );
 	  grub_free (split_key);
 	  return grub_crypto_gcry_error (gcry_err);
 	}
@@ -597,11 +626,29 @@ luks_recover_key (grub_disk_t source,
 
       grub_free (split_key);
 
+      grub_env_set ("unsealmount", "" );
+      grub_env_set ("keyfile", "" );
+
       return GRUB_ERR_NONE;
     }
 
+  grub_free (split_key);
+  if( keyFileBuf )
+  {
+	  grub_free( keyFileBuf );
+  }
+
+  if( unsealedKeyFile )
+  {
+	  grub_free( unsealedKeyFile );
+  }
+
+  grub_env_set ("unsealmount", "" );
+  grub_env_set ("keyfile", "" );
+
   return GRUB_ACCESS_DENIED;
 }
+/* End TCG extension */
 
 struct grub_cryptodisk_dev luks_crypto = {
   .scan = configure_ciphers,
