@@ -14,7 +14,7 @@
 
 #define CHECK_FOR_NULL_ARGUMENT( argument ) 						                    \
 			if( ! argument ) {										                    \
-				return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "argument is NULL" ) );   \
+				grub_fatal( "BAD_ARGUMENT: argument is NULL" );   				\
 			}
 
 #define SHA1_DIGEST_SIZE 20
@@ -92,21 +92,21 @@ grub_uint32_t EXPORT_FUNC(swap32) ( grub_uint32_t value );
 grub_uint32_t EXPORT_FUNC(grub_TPM_isAvailable) ( void );
 
 /* 	Measure string */
-grub_err_t EXPORT_FUNC(grub_TPM_measureString) ( const char *string );
+void EXPORT_FUNC(grub_TPM_measureString) ( const char *string );
 /* 	Measure file */
-grub_err_t EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
+void EXPORT_FUNC(grub_TPM_measureFile) ( const char* filename, const unsigned long index );
 /* 	Measure buffer */
-grub_err_t EXPORT_FUNC(grub_TPM_measureBuffer) ( const void* buffer, grub_uint32_t bufferLen, const unsigned long index );
+void EXPORT_FUNC(grub_TPM_measureBuffer) ( const void* buffer, grub_uint32_t bufferLen, const unsigned long index );
 
-grub_err_t grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t** result, grub_size_t* resultSize );
+void grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t** result, grub_size_t* resultSize );
 
 /* Invokes assembler function asm_tcg_statusCheck() */
 grub_err_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint8_t *major, grub_uint8_t *minor,
 		grub_uint32_t *featureFlags, grub_uint32_t *eventLog, grub_uint32_t *edi );
 
 /* pass commands to TPM */
-grub_err_t EXPORT_FUNC(tcg_passThroughToTPM) ( const PassThroughToTPM_InputParamBlock* input,
-		PassThroughToTPM_OutputParamBlock* output, grub_uint32_t* returnCode );
+void EXPORT_FUNC(tcg_passThroughToTPM) ( const PassThroughToTPM_InputParamBlock* input,
+		PassThroughToTPM_OutputParamBlock* output );
 
 /* Assembler exports: */
 grub_uint32_t EXPORT_FUNC(asm_tcg_statusCheck) (StatusCheckArgs* args);

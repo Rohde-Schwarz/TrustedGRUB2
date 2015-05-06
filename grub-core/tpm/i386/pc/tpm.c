@@ -131,14 +131,14 @@ typedef struct tdTCG_PCClientPCREventStruc {
 	grub_uint8_t event[1];
 } __attribute__ ((packed)) TCG_PCClientPCREvent;
 
-
-static grub_err_t
+/* grub_fatal() on error */
+static void
 grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 
     CHECK_FOR_NULL_ARGUMENT( result )
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+        grub_fatal( "TPM not available" );
 	}
 
 	PassThroughToTPM_InputParamBlock *passThroughInput;
@@ -152,7 +152,7 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "readpcr: memory allocation failed" ) );
+        grub_fatal( "readpcr: memory allocation failed" );
 	}
 
 	passThroughInput->IPBLength = inputlen;
@@ -167,17 +167,10 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 	passThroughOutput = grub_zalloc( outputlen );
 	if( ! passThroughOutput ) {
 		grub_free( passThroughInput );
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "readpcr: memory allocation failed" ) );
+        grub_fatal( "readpcr: memory allocation failed" );
 	}
 
-	grub_uint32_t passThroughTo_TPM_ReturnCode;
-	grub_err_t err = tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode );
-
-    if( err != GRUB_ERR_NONE ) {
-		grub_free( passThroughInput );
-		grub_free( passThroughOutput );
-        return err;
-	}
+	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
 	grub_free( passThroughInput );
 
 	pcrReadOutgoing = (void *)passThroughOutput->TPMOperandOut;
@@ -187,46 +180,41 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 		grub_free( passThroughOutput );
 
 		if( tpm_PCRreadReturnCode == TPM_BADINDEX ) {
-            return grub_error( GRUB_ERR_TPM, N_( "readpcr: bad pcr index" ) );
+            grub_fatal( "readpcr: bad pcr index" );
 		}
 
-        return grub_error( GRUB_ERR_TPM, N_( "readpcr: tpm_PCRreadReturnCode: %x" ), tpm_PCRreadReturnCode );
+        grub_fatal( "readpcr: tpm_PCRreadReturnCode: %x", tpm_PCRreadReturnCode );
 	}
 
 	grub_memcpy( result, pcrReadOutgoing->pcr_value, SHA1_DIGEST_SIZE );
-
 	grub_free( passThroughOutput );
-	return GRUB_ERR_NONE;
 }
 
+/* grub_fatal() on error */
 static grub_err_t
 grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+        grub_fatal( "TPM not available" );
 	}
 
 	if ( argc == 0 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "index expected" ) );
+		grub_fatal( "grub_cmd_readpcr: index expected" );
 	}
 
 	if ( argc > 1 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Too many arguments" ) );
+		grub_fatal( "grub_cmd_readpcr: Too many arguments" );
 	}
 
 	unsigned long index = grub_strtoul( args[0], NULL, 10 );
 
 	/* if index is invalid */
 	if( grub_errno != GRUB_ERR_NONE ) {
-        return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "invalid format for index" ) );
+        grub_fatal( "grub_cmd_readpcr: invalid format for index" );
 	}
 
 	grub_uint8_t result[SHA1_DIGEST_SIZE];
-    grub_err_t err = grub_TPM_readpcr( index, &result[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-    }
+    grub_TPM_readpcr( index, &result[0] );
 
 	grub_printf( "PCR[%lu]=", index );
 	print_sha1( result );
@@ -235,11 +223,12 @@ grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 	return GRUB_ERR_NONE;
 }
 
-static grub_err_t
+/* grub_fatal() on error */
+static void
 grub_TPM_read_tcglog( const unsigned long index ) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+        grub_fatal( "TPM not available" );
 	}
 
 	grub_uint32_t returnCode, featureFlags, eventLog = 0, logAddr = 0, edi = 0;
@@ -249,12 +238,12 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 	grub_err_t err = tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
 
     if( err != GRUB_ERR_NONE ) {
-        return err;
+    	grub_fatal( "grub_TPM_read_tcglog: tcg_statusCheck failed" );
     }
 
 	/* edi = 0 means event log is empty */
 	if( edi == 0 ) {
-        return grub_error (GRUB_ERR_TPM, N_("Event log is empty"));
+        grub_fatal( "Event log is empty" );
 	}
 
 	logAddr = eventLog;
@@ -300,7 +289,7 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 			logAddr += TCG_PCR_EVENT_SIZE + event->eventDataSize;
 
 			if( logAddr > edi ) { /* index not valid.  */
-                return grub_error (GRUB_ERR_TPM, N_("No entry at specified index"));
+                grub_fatal( "No entry at specified index" );
 			}
 		}
 
@@ -311,81 +300,72 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 		print_sha1( event->digest );
 		grub_printf( "\n\n" );
 	}
-
-  return GRUB_ERR_NONE;
 }
 
+/* grub_fatal() on error */
 static grub_err_t
 grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+        grub_fatal( "TPM not available" );
 	}
 
 	if ( argc == 0 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "index expected" ) );
+		grub_fatal( "grub_cmd_tcglog: index expected" );
 	}
 
 	if ( argc > 1 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Too many arguments" ) );
+		grub_fatal( "grub_cmd_tcglog: Too many arguments" );
 	}
 
 	unsigned long index = grub_strtoul( args[0], NULL, 10 );
 
     /* if index is invalid */
     if( grub_errno != GRUB_ERR_NONE ) {
-        return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "invalid format for index" ) );
+        grub_fatal( "grub_cmd_tcglog: invalid format for index" );
     }
 
-	grub_err_t err = grub_TPM_read_tcglog( index ) ;
-
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-    }
+	grub_TPM_read_tcglog( index ) ;
 
 	return GRUB_ERR_NONE;
 }
 
+/* grub_fatal() on error */
 static grub_err_t
 grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+        grub_fatal( "TPM not available" );
 	}
 
 	if ( argc != 2 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Wrong number of arguments" ) );
+		grub_fatal( "Wrong number of arguments" );
 	}
 
 	unsigned long index = grub_strtoul( args[1], NULL, 10 );
 
     /* if index is invalid */
     if( grub_errno != GRUB_ERR_NONE ) {
-        return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "invalid format for index" ) );
+        grub_fatal( "invalid format for index" );
     }
 
-	grub_err_t err = grub_TPM_measureFile( args[0], index );
+	grub_TPM_measureFile( args[0], index );
 
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-	}
-
-  return GRUB_ERR_NONE;
+	return GRUB_ERR_NONE;
 }
 
 /* Invokes assembler function asm_tcg_SetMemoryOverwriteRequestBit()
 
-   Return value = 1 if function successfully completes
-   On error see returncode;
+   grub_fatal() on error
    Page 12 TCG Platform Reset Attack Mitigation Specification V 1.0.0
  */
-static grub_err_t
+static void
 tcg_SetMemoryOverwriteRequestBit( const SetMemoryOverwriteRequestBitInputParamBlock* input ) {
 
     CHECK_FOR_NULL_ARGUMENT( input )
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+    	grub_fatal( "TPM not available" );
     }
 
 	/* copy input buffer */
@@ -405,18 +385,17 @@ tcg_SetMemoryOverwriteRequestBit( const SetMemoryOverwriteRequestBitInputParamBl
 	asm_tcg_SetMemoryOverwriteRequestBit( &args );
 
 	if ( args.out_eax != TCG_PC_OK ) {
-        return grub_error( GRUB_ERR_TPM, N_( "tcg_SetMemoryOverwriteRequestBit: asm_tcg_SetMemoryOverwriteRequestBit failed: %x" ), args.out_eax );
+        grub_fatal( "tcg_SetMemoryOverwriteRequestBit: asm_tcg_SetMemoryOverwriteRequestBit failed: %x", args.out_eax );
 	}
-
-	return GRUB_ERR_NONE;
 }
 
 /* Sets Memory Overwrite Request bit */
-static grub_err_t
+/* grub_fatal() on error */
+static void
 grub_TPM_SetMOR_Bit( const unsigned long disableAutoDetect ) {
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+    	grub_fatal( "TPM not available" );
     }
 
 	SetMemoryOverwriteRequestBitInputParamBlock input;
@@ -436,58 +415,49 @@ grub_TPM_SetMOR_Bit( const unsigned long disableAutoDetect ) {
 		input.memoryOverwriteActionBitValue = 0x01;
 	}
 
-	grub_err_t err = tcg_SetMemoryOverwriteRequestBit( &input );
-
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-	}
-
-	return GRUB_ERR_NONE;
+	tcg_SetMemoryOverwriteRequestBit( &input );
 }
 
+/* grub_fatal() on error */
 static grub_err_t
 grub_cmd_setMOR( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+		grub_fatal( "TPM not available" );
 	}
 
 	if ( argc == 0 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "value expected" ) );
+		grub_fatal( "setMOR: BAD_ARGUMENT: value expected" );
 	}
 
 	if ( argc > 1 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Too many arguments" ) );
+		grub_fatal( "setMOR: Too many arguments" );
 	}
 
 	unsigned long disableAutoDetect = grub_strtoul( args[0], NULL, 10 );
 
 	/* if disableAutoDetect is invalid */
     if( grub_errno != GRUB_ERR_NONE ) {
-        return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "invalid format for 'disableAutoDetect' " ) );
+        grub_fatal( "setMOR: BAD_ARGUMENT: invalid format for 'disableAutoDetect' " );
     }
 
 	if( disableAutoDetect > 1 ) {
-		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Value must be 0 or 1" ) );
+		grub_fatal( "setMOR: BAD_ARGUMENT: Value must be 0 or 1" );
 	}
 
-	grub_err_t err = grub_TPM_SetMOR_Bit( disableAutoDetect );
-
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-	}
-
+	grub_TPM_SetMOR_Bit( disableAutoDetect );
 	return GRUB_ERR_NONE;
 }
 
-static grub_err_t
+/* grub_fatal() on error */
+static void
 grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* result ) {
 
 	CHECK_FOR_NULL_ARGUMENT( result )
 	CHECK_FOR_NULL_ARGUMENT( randomBytesRequested )
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+		grub_fatal( "TPM not available" );
 	}
 
 	GetRandomIncoming* getRandomInput;
@@ -510,7 +480,7 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_getRandom: memory allocation failed" ) );
+		grub_fatal( "grub_TPM_getRandom: memory allocation failed" );
 	}
 
 	passThroughInput->IPBLength = inputlen;
@@ -525,20 +495,11 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 	passThroughOutput = grub_zalloc( outputlen );
 	if( ! passThroughOutput ) {
 		grub_free( passThroughInput );
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_getRandom: memory allocation failed" ) );
+		grub_fatal( "grub_TPM_getRandom: memory allocation failed" );
 	}
 
-	grub_uint32_t passThroughTo_TPM_ReturnCode;
-	grub_err_t err = tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode );
-
-    if( err != GRUB_ERR_NONE ) {
-		grub_free( passThroughInput );
-		grub_free( passThroughOutput );
-
-        return err;
-	}
-
-	grub_free( passThroughInput );
+	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
+    grub_free( passThroughInput );
 
 	getRandomOutput = (void *)passThroughOutput->TPMOperandOut;
 	grub_uint32_t tpm_getRandomReturnCode = swap32( getRandomOutput->returnCode );
@@ -546,7 +507,7 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 	if( tpm_getRandomReturnCode != TPM_SUCCESS ) {
 		grub_free( passThroughOutput );
 
-        return grub_error( GRUB_ERR_TPM, N_( "grub_TPM_getRandom: tpm_getRandomReturnCode: %x" ), tpm_getRandomReturnCode );
+        grub_fatal( "grub_TPM_getRandom: tpm_getRandomReturnCode: %x", tpm_getRandomReturnCode );
 	}
 
 	if( swap32( getRandomOutput->randomBytesSize ) != randomBytesRequested ) {
@@ -554,23 +515,23 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 		DEBUG_PRINT( ( "tpmOutput->randomBytesSize != randomBytesRequested\n" ) );
 		DEBUG_PRINT( ( "tpmOutput->randomBytesSize = %x \n", swap32( getRandomOutput->randomBytesSize ) ) );
 		DEBUG_PRINT( ( "randomBytesRequested = %lu \n", randomBytesRequested ) );
-        return grub_error( GRUB_ERR_TPM, N_( "grub_TPM_getRandom: tpmOutput->randomBytesSize != randomBytesRequested" ) );
+        grub_fatal( "grub_TPM_getRandom: tpmOutput->randomBytesSize != randomBytesRequested" );
 	}
 
 	grub_memcpy( result, getRandomOutput->randomBytes, (grub_uint32_t) randomBytesRequested );
 
 	grub_free( passThroughOutput );
-	return GRUB_ERR_NONE;
 }
 
-static grub_err_t
+/* grub_fatal() on error */
+static void
 grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) {
 
     CHECK_FOR_NULL_ARGUMENT( authHandle )
     CHECK_FOR_NULL_ARGUMENT( nonceEven )
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+    	grub_fatal( "TPM not available" );
 	}
 
 	OIAP_Incoming* oiapInput;
@@ -584,7 +545,7 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_openOIAP_Session: memory allocation failed" ) );
+        grub_fatal( "grub_TPM_openOIAP_Session: memory allocation failed");
 	}
 
 	passThroughInput->IPBLength = inputlen;
@@ -598,19 +559,10 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
 	passThroughOutput = grub_zalloc( outputlen );
 	if( ! passThroughOutput ) {
 		grub_free( passThroughOutput );
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_openOIAP_Session: memory allocation failed" ) );
+        grub_fatal( "grub_TPM_openOIAP_Session: memory allocation failed");
 	}
 
-	grub_uint32_t passThroughTo_TPM_ReturnCode;
-	grub_err_t err = tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode );
-
-    if( err != GRUB_ERR_NONE ) {
-		grub_free( passThroughInput );
-		grub_free( passThroughOutput );
-
-        return err;
-	}
-
+	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
 	grub_free( passThroughInput );
 
 	oiapOutput = (void *)passThroughOutput->TPMOperandOut;
@@ -618,8 +570,7 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
 
 	if( tpm_OIAP_ReturnCode != TPM_SUCCESS ) {
 		grub_free( passThroughOutput );
-
-        return grub_error( GRUB_ERR_TPM, N_( "grub_TPM_openOIAP_Session: tpm_OIAP_ReturnCode: %x" ), tpm_OIAP_ReturnCode );
+        grub_fatal( "grub_TPM_openOIAP_Session: tpm_OIAP_ReturnCode: %x", tpm_OIAP_ReturnCode );
 	}
 
 	*authHandle = swap32( oiapOutput->authHandle );
@@ -627,10 +578,10 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
     grub_memcpy( nonceEven, oiapOutput->nonceEven, TPM_NONCE_SIZE );
 
 	grub_free( passThroughOutput );
-	return GRUB_ERR_NONE;
 }
 
-static grub_err_t
+/* grub_fatal() on error */
+static void
 grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t entityValue, const grub_uint8_t* nonceOddOSAP,
 		grub_uint32_t* authHandle, grub_uint8_t* nonceEven, grub_uint8_t* nonceEvenOSAP ) {
 
@@ -639,7 +590,7 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
     CHECK_FOR_NULL_ARGUMENT( nonceEvenOSAP )
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+		grub_fatal( "TPM not available" );
 	}
 
 	OSAP_Incoming* osapInput;
@@ -653,7 +604,7 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_openOSAP_Session: memory allocation failed" ) );
+        grub_fatal( "grub_TPM_openOSAP_Session: memory allocation failed" );
 	}
 
 	passThroughInput->IPBLength = inputlen;
@@ -671,19 +622,10 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
 	passThroughOutput = grub_zalloc( outputlen );
 	if( ! passThroughOutput ) {
 		grub_free( passThroughInput );
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_openOSAP_Session: memory allocation failed" ) );
+        grub_fatal( "grub_TPM_openOSAP_Session: memory allocation failed" );
 	}
 
-	grub_uint32_t passThroughTo_TPM_ReturnCode;
-	grub_err_t err = tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode );
-
-    if( err != GRUB_ERR_NONE ) {
-		grub_free( passThroughInput );
-		grub_free( passThroughOutput );
-
-        return err;
-	}
-
+	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
 	grub_free( passThroughInput );
 
 	osapOutput = (void *)passThroughOutput->TPMOperandOut;
@@ -691,8 +633,7 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
 
 	if( tpm_OSAP_ReturnCode != TPM_SUCCESS ) {
 		grub_free( passThroughOutput );
-
-        return grub_error( GRUB_ERR_TPM, N_( "grub_TPM_openOSAP_Session: tpm_OSAP_ReturnCode: %x" ), tpm_OSAP_ReturnCode );
+        grub_fatal( "grub_TPM_openOSAP_Session: tpm_OSAP_ReturnCode: %x", tpm_OSAP_ReturnCode );
 	}
 
 	*authHandle = swap32( osapOutput->authHandle );
@@ -701,12 +642,11 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
 	grub_memcpy( nonceEvenOSAP, osapOutput->nonceEvenOSAP, TPM_NONCE_SIZE );
 
 	grub_free( passThroughOutput );
-
-	return GRUB_ERR_NONE;
 }
 
 /* calculate shared-secret = HMAC( srkAuthData, nonceEvenOSAP || nonceOddOSAP ) */
-static grub_err_t
+/* grub_fatal() on error */
+static void
 grub_TPM_calculate_osap_sharedSecret( const grub_uint8_t* nonceEvenOSAP, const grub_uint8_t* nonceOddOSAP, grub_uint8_t* result ) {
 
     CHECK_FOR_NULL_ARGUMENT( nonceEvenOSAP )
@@ -714,7 +654,7 @@ grub_TPM_calculate_osap_sharedSecret( const grub_uint8_t* nonceEvenOSAP, const g
 	CHECK_FOR_NULL_ARGUMENT( result )
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+    	grub_fatal( "TPM not available" );
     }
 
 	grub_size_t dataSize = TPM_NONCE_SIZE * 2;
@@ -732,13 +672,12 @@ grub_TPM_calculate_osap_sharedSecret( const grub_uint8_t* nonceEvenOSAP, const g
 				dataSize, result );
 
 	if( hmacErrorCode ) {
-        return grub_error( GRUB_ERR_TPM, N_( "grub_TPM_calculate_osap_sharedSecre failedt: hmacErrorCode: %x" ), hmacErrorCode );
+        grub_fatal( "grub_TPM_calculate_osap_sharedSecre failed: hmacErrorCode: %x", hmacErrorCode );
 	}
-
-	return GRUB_ERR_NONE;
 }
 
-static grub_err_t
+/* grub_fatal() on error */
+static void
 grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* digest, const grub_uint8_t* nonceEven, const grub_uint8_t* nonceOdd,
 		const grub_uint8_t continueSession, grub_uint8_t* result ) {
 
@@ -749,7 +688,7 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
 	CHECK_FOR_NULL_ARGUMENT( result )
 
     if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+    	grub_fatal( "TPM not available" );
     }
 
 	grub_size_t dataSize = SHA1_DIGEST_SIZE /* hashed ordinal and inData */ +
@@ -778,20 +717,19 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
 			dataSize, result );
 
 	if( hmacErrorCode ) {
-        return grub_error( GRUB_ERR_TPM, N_( "grub_TPM_calculate_Auth failedt: hmacErrorCode: %x" ), hmacErrorCode );
+        grub_fatal( "grub_TPM_calculate_Auth failed: hmacErrorCode: %x", hmacErrorCode );
 	}
-
-	return GRUB_ERR_NONE;
 }
 
-grub_err_t
+/* grub_fatal() on error */
+void
 grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t** result, grub_size_t* resultSize ) {
 
 	CHECK_FOR_NULL_ARGUMENT( sealedBuffer )
 	CHECK_FOR_NULL_ARGUMENT( resultSize)
 
 	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
+		grub_fatal( "TPM not available" );
 	}
 
 	/* TPM_UNSEAL Incoming Operand */
@@ -835,7 +773,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_unseal: memory allocation failed" ) );
+        grub_fatal( "grub_TPM_unseal: memory allocation failed" );
 	}
 
 	passThroughInput->IPBLength = inputlen;
@@ -853,41 +791,22 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 
 	/* get random for nonceOddOSAP */
 	grub_uint8_t nonceOddOSAP[TPM_NONCE_SIZE];
-	grub_err_t err = grub_TPM_getRandom( TPM_NONCE_SIZE, &nonceOddOSAP[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-	}
+	grub_TPM_getRandom( TPM_NONCE_SIZE, &nonceOddOSAP[0] );
 
 	grub_uint32_t authHandle = 0;
 	grub_uint8_t authLastNonceEven[TPM_NONCE_SIZE];
 	grub_uint8_t nonceEvenOSAP[TPM_NONCE_SIZE];
-	err = grub_TPM_openOSAP_Session( TPM_ET_SRK, TPM_KH_SRK, &nonceOddOSAP[0], &authHandle, &authLastNonceEven[0], &nonceEvenOSAP[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-        grub_free( passThroughInput );
-		return err;
-	}
+	grub_TPM_openOSAP_Session( TPM_ET_SRK, TPM_KH_SRK, &nonceOddOSAP[0], &authHandle, &authLastNonceEven[0], &nonceEvenOSAP[0] );
 
 	unsealInput->authHandle = swap32( authHandle );
 
 	grub_uint8_t sharedSecret[SHA1_DIGEST_SIZE];
-	err = grub_TPM_calculate_osap_sharedSecret( &nonceEvenOSAP[0], &nonceOddOSAP[0], &sharedSecret[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-		grub_free( passThroughInput );
-		return err;
-	}
+	grub_TPM_calculate_osap_sharedSecret( &nonceEvenOSAP[0], &nonceOddOSAP[0], &sharedSecret[0] );
 
 	/* open OIAP Session */
 	grub_uint8_t dataLastNonceEven[TPM_NONCE_SIZE];
 	grub_uint32_t dataAuthHandle = 0;
-	err = grub_TPM_openOIAP_Session( &dataAuthHandle, &dataLastNonceEven[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-        grub_free( passThroughInput );
-		return err;
-	}
+	grub_TPM_openOIAP_Session( &dataAuthHandle, &dataLastNonceEven[0] );
 
 	unsealInput->dataAuthHandle = swap32( dataAuthHandle );
 
@@ -899,7 +818,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 	grub_uint8_t* dataToHash = grub_zalloc( dataToHashSize );
 	if( ! dataToHash ) {
 		grub_free( passThroughInput );
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_unseal: memory allocation failed" ) );
+        grub_fatal( "grub_TPM_unseal: memory allocation failed" );
 	}
 
 	/* copy ordinal */
@@ -917,54 +836,28 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 	/* HMAC( sharedSecret, SHA1( ordinal, inData ) || authLastNonceEven || nonceOdd || continueAuthSession ) */
 
 	/* get random for nonceOdd */
-	err = grub_TPM_getRandom( TPM_NONCE_SIZE, unsealInput->nonceOdd );
-	if( err != GRUB_ERR_NONE ) {
-        grub_free( passThroughInput );
-	    return err;
-	}
+	grub_TPM_getRandom( TPM_NONCE_SIZE, unsealInput->nonceOdd );
 
 	unsealInput->continueAuthSession = 0;
-	err =  grub_TPM_calculate_Auth( &sharedSecret[0], &hashResult[0], &authLastNonceEven[0], unsealInput->nonceOdd, unsealInput->continueAuthSession, unsealInput->parentAuth );
-
-    if ( err != GRUB_ERR_NONE ) {
-        grub_free( passThroughInput );
-		return err;
-	}
+	grub_TPM_calculate_Auth( &sharedSecret[0], &hashResult[0], &authLastNonceEven[0], unsealInput->nonceOdd, unsealInput->continueAuthSession, unsealInput->parentAuth );
 
 	/* calc dataAuth */
 
 	/* HMAC( entity.usageAuth, SHA1( ordinal, inData ) || dataLastNonceEven || dataNonceOdd || continueDataSession ) */
 
 	/* get random for dataNonceOdd */
-	err = grub_TPM_getRandom( TPM_NONCE_SIZE, unsealInput->dataNonceOdd );
-
-    if( err != GRUB_ERR_NONE ) {
-        grub_free( passThroughInput );
-		return err;
-	}
+	grub_TPM_getRandom( TPM_NONCE_SIZE, unsealInput->dataNonceOdd );
 
 	unsealInput->continueDataSession = 0;
-	err = grub_TPM_calculate_Auth( blobAuthData, &hashResult[0], &dataLastNonceEven[0], unsealInput->dataNonceOdd, unsealInput->continueDataSession, unsealInput->dataAuth );
-
-    if( err != GRUB_ERR_NONE ) {
-        grub_free( passThroughInput );
-		return err;
-	}
+	grub_TPM_calculate_Auth( blobAuthData, &hashResult[0], &dataLastNonceEven[0], unsealInput->dataNonceOdd, unsealInput->continueDataSession, unsealInput->dataAuth );
 
 	passThroughOutput = grub_zalloc( outputlen );
 	if( ! passThroughOutput ) {
 		grub_free( passThroughInput );
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_unseal: memory allocation failed" ) );
+        grub_fatal( "grub_TPM_unseal: memory allocation failed" );
 	}
 
-	grub_uint32_t passThroughTo_TPM_ReturnCode;
-	err = tcg_passThroughToTPM( passThroughInput, passThroughOutput, &passThroughTo_TPM_ReturnCode );
-
-    if( err != GRUB_ERR_NONE ) {
-		grub_free( passThroughInput );
-		grub_free( passThroughOutput );
-        return err;
-	}
+	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
 	grub_free( passThroughInput );
 
 	unsealOutput = (void *)passThroughOutput->TPMOperandOut;
@@ -974,10 +867,10 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 		grub_free( passThroughOutput );
 
 		if( tpm_UnsealReturnCode == TPM_AUTHFAIL ) {
-            return grub_error( GRUB_ERR_TPM, N_( "grub_TPM_unseal: Authentication failed" ) );
+            grub_fatal( "grub_TPM_unseal: Authentication failed" );
 		}
 
-        return grub_error( GRUB_ERR_TPM, N_( "grub_TPM_unseal: Unsealing failed: %x" ), tpm_UnsealReturnCode );
+        grub_fatal( "grub_TPM_unseal: Unsealing failed: %x", tpm_UnsealReturnCode );
 	}
 
 	/* skip check for returned AuthData */
@@ -988,13 +881,12 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 
     if( ! *result ) {
         grub_free( passThroughOutput );
-        return grub_error( GRUB_ERR_OUT_OF_MEMORY, N_( "grub_TPM_unseal: memory allocation failed" ) );
+        grub_fatal( "grub_TPM_unseal: memory allocation failed" );
     }
 
 	grub_memcpy( *result, &unsealOutput->unsealedData[0], *resultSize );
 
 	grub_free( passThroughOutput );
-	return GRUB_ERR_NONE;
 }
 
 #ifdef TGRUB_DEBUG
@@ -1044,17 +936,7 @@ grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 
 	grub_uint8_t* result = NULL;
 	grub_size_t resultSize = 0;
-	grub_err_t err = grub_TPM_unseal( buf, fileSize, &result, &resultSize );
-
-    if( err != GRUB_ERR_NONE ) {
-		grub_free( buf );
-
-		if( result ) {
-			grub_free( result );
-		}
-
-		return err;
-	}
+	grub_TPM_unseal( buf, fileSize, &result, &resultSize );
 
 	grub_free( buf );
 	grub_free( result );
@@ -1090,11 +972,7 @@ grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char 
 
 	grub_uint8_t random[randomBytesRequested];
 
-	grub_err_t err = grub_TPM_getRandom( randomBytesRequested, &random[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-    	return err;
-	}
+	grub_TPM_getRandom( randomBytesRequested, &random[0] );
 
 	unsigned int j;
 	for( j = 0; j < randomBytesRequested; ++j ) {
@@ -1114,11 +992,7 @@ grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 	grub_uint32_t authHandle = 0;
 	grub_uint8_t nonceEven[TPM_NONCE_SIZE];
 
-	grub_err_t err = grub_TPM_openOIAP_Session( &authHandle, &nonceEven[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-	}
+	grub_TPM_openOIAP_Session( &authHandle, &nonceEven[0] );
 
 	grub_printf( "authHandle: %x \n", authHandle );
 
@@ -1140,21 +1014,13 @@ grub_cmd_openOSAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 
 	/* get random for nonceOddOSAP */
 	grub_uint8_t nonceOddOSAP[TPM_NONCE_SIZE];
-	grub_err_t err = grub_TPM_getRandom( TPM_NONCE_SIZE, &nonceOddOSAP[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-	}
+	grub_TPM_getRandom( TPM_NONCE_SIZE, &nonceOddOSAP[0] );
 
 	grub_uint32_t authHandle = 0;
 	grub_uint8_t nonceEven[TPM_NONCE_SIZE];
 	grub_uint8_t nonceEvenOSAP[TPM_NONCE_SIZE];
 
-	err = grub_TPM_openOSAP_Session( TPM_ET_SRK, TPM_KH_SRK, &nonceOddOSAP[0], &authHandle, &nonceEven[0], &nonceEvenOSAP[0] );
-
-    if( err != GRUB_ERR_NONE ) {
-        return err;
-	}
+	grub_TPM_openOSAP_Session( TPM_ET_SRK, TPM_KH_SRK, &nonceOddOSAP[0], &authHandle, &nonceEven[0], &nonceEvenOSAP[0] );
 
 	grub_printf( "authHandle: %x \n", authHandle );
 
@@ -1222,5 +1088,4 @@ GRUB_MOD_FINI(tpm)
 #endif
 
 }
-
 /* End TCG extension */
