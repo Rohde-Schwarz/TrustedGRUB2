@@ -322,26 +322,6 @@ LOCAL(bootit):
 
 	/* hash and measure 512 bytes at the beginning of kernel_address */
 
-	/* Check for TPM availability */
-	/* TODO: Propably not necessary */
-/*
- * BIOS call "INT 1Ah, (AH)=BBh,(AL)=00h" TCG_StatusCheck
- *	Call with	%ah = 0xBB
- *				%al = 0x00
- *
- *	Return:	%eax = TCG_STATUS == 0 if the system supports the TCG BIOS calls.
- *			%ebx = 'TCPA'
- *
- * Ref:
- *  TCG PC Client Specific Implementation Specification for Conventional BIOS v1.21,
- *  Section 13.7 (page 115)
- */
-tcg_statuscheck:
-	movw    $0xBB00, %ax		/* TCG_StatusCheck */
-	int     $0x1A
-	test	%eax, %eax
-	jnz	tcg_end			/* if eax != 0 */
-
 /*
  * BIOS call "INT 1Ah, (AH)=BBh, (AL)=07h" TCG_CompactHashLogExtendEvent
  *
@@ -389,6 +369,7 @@ tcg_compacthashlogextendevent:
 	test	%eax, %eax
 	jz		tcg_end				/* if eax != 0 */
 	MSG(tcg_error_string)
+	jmp	LOCAL(general_error)
 
 tcg_end:
 	popa
@@ -428,7 +409,7 @@ read_error_string:	.asciz "Read"
 general_error_string:	.asciz " Error"
 
 #ifdef ENABLE_TGRUB2
-tcg_error_string:	.string "TCGERR "
+tcg_error_string:	.string "TPM "
 number_of_bytes_to_measure: .long 0
 #endif /* ENABLE_TGRUB2 */
 
