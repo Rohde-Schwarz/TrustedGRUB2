@@ -36,7 +36,7 @@
 /* BEGIN TCG EXTENSION */
 #include <grub/machine/tpm.h>
 
-#define TGRUB_VERSION "1.01"
+#define TGRUB_VERSION "1.02"
 /* END TCG EXTENSION */
 
 
