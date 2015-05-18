@@ -375,7 +375,6 @@ LOCAL(copy_buffer):
 	/* hash and measure 512 bytes at the beginning of kernel_address (diskboot.img) */
 
 	/* Check for TPM availability */
-	/* TODO: Propably not necessary */
 /*
  * BIOS call "INT 1Ah, (AH)=BBh,(AL)=00h" TCG_StatusCheck
  *	Call with	%ah = 0xBB
@@ -392,7 +391,9 @@ tcg_statuscheck:
 	movw    $0xBB00, %ax		/* TCG_StatusCheck */
 	int     $0x1A
 	test	%eax, %eax
-	jnz	tcg_end			/* if eax != 0 */
+	jz	tcg_compacthashlogextendevent			/* if eax == 0 */
+	MSG(noTPM_error_string)
+	jmp	LOCAL(general_error)
 
 /*
  * BIOS call "INT 1Ah, (AH)=BBh, (AL)=07h" TCG_CompactHashLogExtendEvent
@@ -431,6 +432,7 @@ tcg_compacthashlogextendevent:
 	test	%eax, %eax
 	jz		tcg_end				/* if eax != 0 */
 	MSG(tcg_error_string)
+	jmp	LOCAL(general_error)
 
 tcg_end:
 	popa
@@ -474,7 +476,8 @@ general_error_string:	.asciz " Error\r\n"
 /* BEGIN TCG_Extension */
 #ifdef ENABLE_TGRUB2
 chs_no_support_string:	.string "CHSNA"
-tcg_error_string:	.string "TCGERR "
+tcg_error_string:	.string "TPM "
+noTPM_error_string:	.string "No TPM found"
 #endif /* ENABLE_TGRUB2 */
 /* END TCG Extension */
 
