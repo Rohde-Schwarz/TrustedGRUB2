@@ -386,7 +386,7 @@ static grub_err_t luks_recover_key(grub_disk_t source, grub_cryptodisk_t dev) {
 		grub_file_close(file);
 
 		secret = (char*) keyFileBuf;
-		secretSize = keysize;
+		secretSize = fileSize;
 
 #ifndef GRUB_UTIL
 		grub_size_t resultSize = 0;
@@ -396,6 +396,7 @@ static grub_err_t luks_recover_key(grub_disk_t source, grub_cryptodisk_t dev) {
 			grub_TPM_unseal(keyFileBuf, fileSize, &unsealedKeyFile,
 					&resultSize);
 			secret = (char*) unsealedKeyFile;
+			secretSize = resultSize;
 		}
 #endif
 
