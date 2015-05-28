@@ -183,7 +183,7 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
             grub_fatal( "readpcr: bad pcr index" );
 		}
 
-        grub_fatal( "readpcr: tpm_PCRreadReturnCode: %x", tpm_PCRreadReturnCode );
+        grub_fatal( "readpcr: tpm_PCRreadReturnCode: %u", tpm_PCRreadReturnCode );
 	}
 
 	grub_memcpy( result, pcrReadOutgoing->pcr_value, SHA1_DIGEST_SIZE );
@@ -256,15 +256,15 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 
 		/* If there is exactly one entry */
 		if( edi == eventLog ) {
-			grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-			grub_printf( "eventType: %x \n", event->eventType );
+			grub_printf( "pcrIndex: %u \n", event->pcrIndex );
+			grub_printf( "eventType: %u \n", event->eventType );
 			grub_printf( "digest: " );
 			print_sha1( event->digest );
 			grub_printf( "\n\n" );
 		} else {	/* If there is more than one entry */
 			do {
-				grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-				grub_printf( "eventType: %x \n", event->eventType );
+				grub_printf( "pcrIndex: %u \n", event->pcrIndex );
+				grub_printf( "eventType: %u \n", event->eventType );
 				grub_printf( "digest: " );
 				print_sha1( event->digest );
 				grub_printf( "\n\n" );
@@ -274,8 +274,8 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 			} while( logAddr != edi );
 
 			/* print the last one */
-			grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-			grub_printf( "eventType: %x \n", event->eventType );
+			grub_printf( "pcrIndex: %u \n", event->pcrIndex );
+			grub_printf( "eventType: %u \n", event->eventType );
 			grub_printf( "digest: " );
 			print_sha1( event->digest );
 			grub_printf( "\n\n" );
@@ -294,8 +294,8 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 		}
 
 		event = (TCG_PCClientPCREvent *)logAddr;
-		grub_printf( "pcrIndex: %x \n", event->pcrIndex );
-		grub_printf( "eventType: %x \n", event->eventType );
+		grub_printf( "pcrIndex: %u \n", event->pcrIndex );
+		grub_printf( "eventType: %u \n", event->eventType );
 		grub_printf( "digest: " );
 		print_sha1( event->digest );
 		grub_printf( "\n\n" );
@@ -385,7 +385,7 @@ tcg_SetMemoryOverwriteRequestBit( const SetMemoryOverwriteRequestBitInputParamBl
 	asm_tcg_SetMemoryOverwriteRequestBit( &args );
 
 	if ( args.out_eax != TCG_PC_OK ) {
-        grub_fatal( "tcg_SetMemoryOverwriteRequestBit: asm_tcg_SetMemoryOverwriteRequestBit failed: %x", args.out_eax );
+        grub_fatal( "tcg_SetMemoryOverwriteRequestBit: asm_tcg_SetMemoryOverwriteRequestBit failed: 0x%x", args.out_eax );
 	}
 }
 
@@ -507,13 +507,13 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 	if( tpm_getRandomReturnCode != TPM_SUCCESS ) {
 		grub_free( passThroughOutput );
 
-        grub_fatal( "grub_TPM_getRandom: tpm_getRandomReturnCode: %x", tpm_getRandomReturnCode );
+        grub_fatal( "grub_TPM_getRandom: tpm_getRandomReturnCode: %u", tpm_getRandomReturnCode );
 	}
 
 	if( swap32( getRandomOutput->randomBytesSize ) != randomBytesRequested ) {
 		grub_free( passThroughOutput );
 		DEBUG_PRINT( ( "tpmOutput->randomBytesSize != randomBytesRequested\n" ) );
-		DEBUG_PRINT( ( "tpmOutput->randomBytesSize = %x \n", swap32( getRandomOutput->randomBytesSize ) ) );
+		DEBUG_PRINT( ( "tpmOutput->randomBytesSize = %u \n", swap32( getRandomOutput->randomBytesSize ) ) );
 		DEBUG_PRINT( ( "randomBytesRequested = %lu \n", randomBytesRequested ) );
         grub_fatal( "grub_TPM_getRandom: tpmOutput->randomBytesSize != randomBytesRequested" );
 	}
@@ -570,7 +570,7 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
 
 	if( tpm_OIAP_ReturnCode != TPM_SUCCESS ) {
 		grub_free( passThroughOutput );
-        grub_fatal( "grub_TPM_openOIAP_Session: tpm_OIAP_ReturnCode: %x", tpm_OIAP_ReturnCode );
+        grub_fatal( "grub_TPM_openOIAP_Session: tpm_OIAP_ReturnCode: %u", tpm_OIAP_ReturnCode );
 	}
 
 	*authHandle = swap32( oiapOutput->authHandle );
@@ -633,7 +633,7 @@ grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t e
 
 	if( tpm_OSAP_ReturnCode != TPM_SUCCESS ) {
 		grub_free( passThroughOutput );
-        grub_fatal( "grub_TPM_openOSAP_Session: tpm_OSAP_ReturnCode: %x", tpm_OSAP_ReturnCode );
+        grub_fatal( "grub_TPM_openOSAP_Session: tpm_OSAP_ReturnCode: %u", tpm_OSAP_ReturnCode );
 	}
 
 	*authHandle = swap32( osapOutput->authHandle );
@@ -672,7 +672,7 @@ grub_TPM_calculate_osap_sharedSecret( const grub_uint8_t* nonceEvenOSAP, const g
 				dataSize, result );
 
 	if( hmacErrorCode ) {
-        grub_fatal( "grub_TPM_calculate_osap_sharedSecre failed: hmacErrorCode: %x", hmacErrorCode );
+        grub_fatal( "grub_TPM_calculate_osap_sharedSecre failed: hmacErrorCode: %u", hmacErrorCode );
 	}
 }
 
@@ -717,7 +717,7 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
 			dataSize, result );
 
 	if( hmacErrorCode ) {
-        grub_fatal( "grub_TPM_calculate_Auth failed: hmacErrorCode: %x", hmacErrorCode );
+        grub_fatal( "grub_TPM_calculate_Auth failed: hmacErrorCode: %u", hmacErrorCode );
 	}
 }
 
@@ -870,7 +870,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
             grub_fatal( "grub_TPM_unseal: Authentication failed" );
 		}
 
-        grub_fatal( "grub_TPM_unseal: Unsealing failed: %x", tpm_UnsealReturnCode );
+        grub_fatal( "grub_TPM_unseal: Unsealing failed: %u", tpm_UnsealReturnCode );
 	}
 
 	/* skip check for returned AuthData */
@@ -994,7 +994,7 @@ grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 
 	grub_TPM_openOIAP_Session( &authHandle, &nonceEven[0] );
 
-	grub_printf( "authHandle: %x \n", authHandle );
+	grub_printf( "authHandle: 0x%x \n", authHandle );
 
 	grub_printf( "nonceEven: " );
 	unsigned int j;
@@ -1022,7 +1022,7 @@ grub_cmd_openOSAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 
 	grub_TPM_openOSAP_Session( TPM_ET_SRK, TPM_KH_SRK, &nonceOddOSAP[0], &authHandle, &nonceEven[0], &nonceEvenOSAP[0] );
 
-	grub_printf( "authHandle: %x \n", authHandle );
+	grub_printf( "authHandle: 0x%x \n", authHandle );
 
 	grub_printf( "nonceEven: " );
 	unsigned int j;
