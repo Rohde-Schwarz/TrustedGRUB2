@@ -136,7 +136,7 @@ tcg_statusCheck( grub_uint32_t* returnCode, grub_uint8_t* major, grub_uint8_t* m
 	*returnCode = args.out_eax;
 
 	if( *returnCode != TCG_PC_OK ) {
-		return grub_error( GRUB_ERR_TPM, N_( "tcg_statusCheck: asm_tcg_statusCheck failed: %x" ), *returnCode );
+		return grub_error( GRUB_ERR_TPM, N_( "tcg_statusCheck: asm_tcg_statusCheck failed: 0x%x" ), *returnCode );
 	}
 
 	if( args.out_ebx != TCPA ) {
@@ -190,7 +190,7 @@ tcg_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, PassThrough
 	asm_tcg_passThroughToTPM( &args );
 
 	if ( args.out_eax != TCG_PC_OK ) {
-        grub_fatal( "tcg_passThroughToTPM: asm_tcg_passThroughToTPM failed: %x", args.out_eax );
+        grub_fatal( "tcg_passThroughToTPM: asm_tcg_passThroughToTPM failed: 0x%x", args.out_eax );
 	}
 
 	/* copy output_buffer */
@@ -259,7 +259,7 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 		if( tpmExtendReturnCode == TPM_BADINDEX ) {
             grub_fatal( "grub_TPM_measure: bad pcr index" );
 		}
-        grub_fatal( "grub_TPM_measure: tpmExtendReturnCode: %x", tpmExtendReturnCode );
+        grub_fatal( "grub_TPM_measure: tpmExtendReturnCode: %u", tpmExtendReturnCode );
 	}
 
 #ifdef TGRUB_DEBUG
