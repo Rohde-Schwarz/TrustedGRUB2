@@ -99,7 +99,7 @@ To compile and install TrustedGRUB2, please run
 
 ```bash
 ./autogen.sh
-./configure --prefix=INSTALLDIR --target=i386 -with-platform=pc
+./configure --prefix=INSTALLDIR --target=i386 -with-platform=pc --disable-werror
 make
 make install
 ```
