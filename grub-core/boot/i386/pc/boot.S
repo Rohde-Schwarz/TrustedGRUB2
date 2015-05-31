@@ -122,7 +122,7 @@ boot_drive_check:
 	/* Ignore %dl different from 0-0x0f and 0x80-0x8f.  */
 	testb   $0x70, %dl
 	jz      1f
-2:	
+2:
         movb    $0x80, %dl
 1:
 	/*
@@ -390,8 +390,15 @@ LOCAL(copy_buffer):
 tcg_statuscheck:
 	movw    $0xBB00, %ax		/* TCG_StatusCheck */
 	int     $0x1A
-	test	%eax, %eax
+  test	%eax, %eax
 	jz	tcg_compacthashlogextendevent			/* if eax == 0 */
+	cmpb 	$0x24, %al   /* TCG_PC_TPM_DEACTIVATED */
+  jne  error_no_tpm
+
+error_tpm_deactivated:
+  MSG(deactivatedTPM_error_string)
+  jmp	LOCAL(general_error)
+error_no_tpm:
 	MSG(noTPM_error_string)
 	jmp	LOCAL(general_error)
 
@@ -463,7 +470,7 @@ LOCAL(general_error):
 
 /* go here when you need to stop the machine hard after an error condition */
         /* tell the BIOS a boot failure, which may result in no effect */
-        int	$0x18
+        /* int	$0x18 */
 LOCAL(stop):
 	jmp	LOCAL(stop)
 
@@ -478,6 +485,7 @@ general_error_string:	.asciz " Error\r\n"
 chs_no_support_string:	.string "CHSNA"
 tcg_error_string:	.string "TPM "
 noTPM_error_string:	.string "No TPM found"
+deactivatedTPM_error_string: .string "TPM deactivated"
 #endif /* ENABLE_TGRUB2 */
 /* END TCG Extension */
 

@@ -137,10 +137,6 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 
     CHECK_FOR_NULL_ARGUMENT( result )
 
-	if( ! grub_TPM_isAvailable() ) {
-        grub_fatal( "TPM not available" );
-	}
-
 	PassThroughToTPM_InputParamBlock *passThroughInput;
 	PCRReadIncoming* pcrReadIncoming;
     grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *pcrReadIncoming );
@@ -194,10 +190,6 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 static grub_err_t
 grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
-	if( ! grub_TPM_isAvailable() ) {
-        grub_fatal( "TPM not available" );
-	}
-
 	if ( argc == 0 ) {
 		grub_fatal( "grub_cmd_readpcr: index expected" );
 	}
@@ -226,10 +218,6 @@ grub_cmd_readpcr( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 /* grub_fatal() on error */
 static void
 grub_TPM_read_tcglog( const unsigned long index ) {
-
-	if( ! grub_TPM_isAvailable() ) {
-        grub_fatal( "TPM not available" );
-	}
 
 	grub_uint32_t returnCode, featureFlags, eventLog = 0, logAddr = 0, edi = 0;
 	grub_uint8_t major, minor;
@@ -306,10 +294,6 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 static grub_err_t
 grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
-	if( ! grub_TPM_isAvailable() ) {
-        grub_fatal( "TPM not available" );
-	}
-
 	if ( argc == 0 ) {
 		grub_fatal( "grub_cmd_tcglog: index expected" );
 	}
@@ -333,10 +317,6 @@ grub_cmd_tcglog( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 /* grub_fatal() on error */
 static grub_err_t
 grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
-
-	if( ! grub_TPM_isAvailable() ) {
-        grub_fatal( "TPM not available" );
-	}
 
 	if ( argc != 2 ) {
 		grub_fatal( "Wrong number of arguments" );
@@ -364,10 +344,6 @@ tcg_SetMemoryOverwriteRequestBit( const SetMemoryOverwriteRequestBitInputParamBl
 
     CHECK_FOR_NULL_ARGUMENT( input )
 
-    if( ! grub_TPM_isAvailable() ) {
-    	grub_fatal( "TPM not available" );
-    }
-
 	/* copy input buffer */
 	void* p = grub_map_memory( INPUT_PARAM_BLK_ADDR, input->iPBLength );
 
@@ -394,10 +370,6 @@ tcg_SetMemoryOverwriteRequestBit( const SetMemoryOverwriteRequestBitInputParamBl
 static void
 grub_TPM_SetMOR_Bit( const unsigned long disableAutoDetect ) {
 
-    if( ! grub_TPM_isAvailable() ) {
-    	grub_fatal( "TPM not available" );
-    }
-
 	SetMemoryOverwriteRequestBitInputParamBlock input;
 	input.iPBLength = 5;
 	input.reserved = 0;
@@ -421,10 +393,6 @@ grub_TPM_SetMOR_Bit( const unsigned long disableAutoDetect ) {
 /* grub_fatal() on error */
 static grub_err_t
 grub_cmd_setMOR( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
-
-	if( ! grub_TPM_isAvailable() ) {
-		grub_fatal( "TPM not available" );
-	}
 
 	if ( argc == 0 ) {
 		grub_fatal( "setMOR: BAD_ARGUMENT: value expected" );
@@ -455,10 +423,6 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 
 	CHECK_FOR_NULL_ARGUMENT( result )
 	CHECK_FOR_NULL_ARGUMENT( randomBytesRequested )
-
-	if( ! grub_TPM_isAvailable() ) {
-		grub_fatal( "TPM not available" );
-	}
 
 	GetRandomIncoming* getRandomInput;
 	PassThroughToTPM_InputParamBlock* passThroughInput;
@@ -530,10 +494,6 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
     CHECK_FOR_NULL_ARGUMENT( authHandle )
     CHECK_FOR_NULL_ARGUMENT( nonceEven )
 
-    if( ! grub_TPM_isAvailable() ) {
-    	grub_fatal( "TPM not available" );
-	}
-
 	OIAP_Incoming* oiapInput;
 	PassThroughToTPM_InputParamBlock* passThroughInput;
 	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *oiapInput );
@@ -588,10 +548,6 @@ grub_TPM_openOSAP_Session( const grub_uint16_t entityType, const grub_uint32_t e
     CHECK_FOR_NULL_ARGUMENT( authHandle )
     CHECK_FOR_NULL_ARGUMENT( nonceEven )
     CHECK_FOR_NULL_ARGUMENT( nonceEvenOSAP )
-
-	if( ! grub_TPM_isAvailable() ) {
-		grub_fatal( "TPM not available" );
-	}
 
 	OSAP_Incoming* osapInput;
 	PassThroughToTPM_InputParamBlock* passThroughInput;
@@ -653,10 +609,6 @@ grub_TPM_calculate_osap_sharedSecret( const grub_uint8_t* nonceEvenOSAP, const g
 	CHECK_FOR_NULL_ARGUMENT( nonceOddOSAP )
 	CHECK_FOR_NULL_ARGUMENT( result )
 
-    if( ! grub_TPM_isAvailable() ) {
-    	grub_fatal( "TPM not available" );
-    }
-
 	grub_size_t dataSize = TPM_NONCE_SIZE * 2;
 
 	grub_uint8_t data[dataSize];
@@ -686,10 +638,6 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
 	CHECK_FOR_NULL_ARGUMENT( nonceEven )
 	CHECK_FOR_NULL_ARGUMENT( nonceOdd )
 	CHECK_FOR_NULL_ARGUMENT( result )
-
-    if( ! grub_TPM_isAvailable() ) {
-    	grub_fatal( "TPM not available" );
-    }
 
 	grub_size_t dataSize = SHA1_DIGEST_SIZE /* hashed ordinal and inData */ +
 				TPM_NONCE_SIZE /* authLastNonceEven */ +
@@ -727,10 +675,6 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 
 	CHECK_FOR_NULL_ARGUMENT( sealedBuffer )
 	CHECK_FOR_NULL_ARGUMENT( resultSize)
-
-	if( ! grub_TPM_isAvailable() ) {
-		grub_fatal( "TPM not available" );
-	}
 
 	/* TPM_UNSEAL Incoming Operand */
 	struct {

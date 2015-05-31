@@ -27,6 +27,7 @@
 
 #include <grub/machine/tpm.h>
 #include <grub/machine/memory.h>
+#include <grub/machine/int.h>
 
 
 /* Ordinals */
@@ -105,7 +106,7 @@ print_sha1( grub_uint8_t *inDigest ) {
 	}
 }
 
-/* Invokes assembler function asm_tcg_statusCheck()
+/* Invokes TCG_StatusCheck Int1A interrupt
 
    Returns:
    returnCode: int1A return codes
@@ -128,26 +129,28 @@ tcg_statusCheck( grub_uint32_t* returnCode, grub_uint8_t* major, grub_uint8_t* m
 	CHECK_FOR_NULL_ARGUMENT( eventLog )
 	CHECK_FOR_NULL_ARGUMENT( edi )
 
-	StatusCheckArgs args;
+	struct grub_bios_int_registers regs;
+	regs.eax = 0xBB00;
+	regs.flags = GRUB_CPU_INT_FLAGS_DEFAULT;
 
 	/* invoke assembler func */
-	asm_tcg_statusCheck( &args );
+	grub_bios_interrupt (0x1A, &regs);
 
-	*returnCode = args.out_eax;
+	*returnCode = regs.eax;
 
 	if( *returnCode != TCG_PC_OK ) {
-		return grub_error( GRUB_ERR_TPM, N_( "tcg_statusCheck: asm_tcg_statusCheck failed: 0x%x" ), *returnCode );
+		grub_fatal( "TCG_StatusCheck failed: 0x%x", *returnCode );
 	}
 
-	if( args.out_ebx != TCPA ) {
-        grub_fatal( "tcg_statusCheck: asm_tcg_statusCheck failed: args.out_ebx != TCPA" );
+	if( regs.ebx != TCPA ) {
+        grub_fatal( "TCG_StatusCheck failed: ebx != TCPA" );
 	}
 
-	*major = (grub_uint8_t) (args.out_ecx >> 8);
-	*minor = (grub_uint8_t) args.out_ecx;
-	*featureFlags = args.out_edx;
-	*eventLog = args.out_esi;
-	*edi = args.out_edi;
+	*major = (grub_uint8_t) (regs.ecx >> 8);
+	*minor = (grub_uint8_t) regs.ecx;
+	*featureFlags = regs.edx;
+	*eventLog = regs.esi;
+	*edi = regs.edi;
 
 	return GRUB_ERR_NONE;
 }
@@ -162,10 +165,6 @@ tcg_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, PassThrough
 
 	CHECK_FOR_NULL_ARGUMENT( input );
 	CHECK_FOR_NULL_ARGUMENT( output );
-
-    if( ! grub_TPM_isAvailable() ) {
-    	grub_fatal( "tpm not available" );
-    }
 
 	if ( ! input->IPBLength || ! input->OPBLength ) {
         grub_fatal( "tcg_passThroughToTPM: ! input->IPBLength || ! input->OPBLength" );
@@ -211,10 +210,6 @@ static void
 grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 
 	CHECK_FOR_NULL_ARGUMENT( inDigest );
-
-    if( ! grub_TPM_isAvailable() ) {
-    	grub_fatal( "tpm not available" );
-    }
 
 	ExtendIncoming* extendInput;
 	PassThroughToTPM_InputParamBlock* passThroughInput;
@@ -271,44 +266,11 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	grub_free( passThroughOutput );
 }
 
-static unsigned int grubTPM_AvailabilityAlreadyChecked = 0;
-static unsigned int grubTPM_isAvailable = 0;
-
-/* Returns 1 if TPM is available, 0 otherwise . */
-grub_uint32_t
-grub_TPM_isAvailable( void ) {
-
-	/* Checking for availability takes a while. so its useful to check this only once */
-	if( grubTPM_AvailabilityAlreadyChecked ) {
-		return grubTPM_isAvailable;
-	}
-
-	grub_uint32_t returnCode, featureFlags, eventLog, edi;
-	grub_uint8_t major, minor;
-
-	grub_err_t err = tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
-
-    if( err == GRUB_ERR_NONE ) {
-        grubTPM_isAvailable = 1;
-    } else {
-        grubTPM_isAvailable = 0;
-        grub_errno = GRUB_ERR_NONE;
-    }
-
-	grubTPM_AvailabilityAlreadyChecked = 1;
-
-	return grubTPM_isAvailable;
-}
-
 /* grub_fatal() on error */
 void
 grub_TPM_measureString( const char* string ) {
 
 	CHECK_FOR_NULL_ARGUMENT( string )
-
-	if( ! grub_TPM_isAvailable() ) {
-		grub_fatal( "tpm not available" );
-	}
 
 	/* hash string */
 	grub_uint32_t result[5];
@@ -345,10 +307,6 @@ void
 grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 
 	CHECK_FOR_NULL_ARGUMENT( filename )
-
-	if( ! grub_TPM_isAvailable() ) {
-		grub_fatal( "tpm not available." );
-	}
 
 	/* open file */
 	grub_file_t file = grub_file_open( filename );
@@ -394,10 +352,6 @@ void
 grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const unsigned long index ) {
 
 	CHECK_FOR_NULL_ARGUMENT( buffer )
-
-	if( ! grub_TPM_isAvailable() ) {
-		grub_fatal( "tpm not available." );
-	}
 
 	/* hash buffer */
 	grub_uint32_t result[5];
