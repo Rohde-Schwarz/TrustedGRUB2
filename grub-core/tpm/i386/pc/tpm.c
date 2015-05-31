@@ -224,11 +224,7 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 	grub_uint8_t major, minor;
 
 	/* get event log pointer */
-	grub_err_t err = tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
-
-    if( err != GRUB_ERR_NONE ) {
-    	grub_fatal( "grub_TPM_read_tcglog: tcg_statusCheck failed" );
-    }
+	tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
 
 	/* edi = 0 means event log is empty */
 	if( edi == 0 ) {
