@@ -29,6 +29,7 @@
 #include <grub/machine/tpm.h>
 #include <grub/machine/boot.h>
 #include <grub/machine/memory.h>
+#include <grub/machine/int.h>
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
@@ -334,7 +335,7 @@ grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **
 	return GRUB_ERR_NONE;
 }
 
-/* Invokes assembler function asm_tcg_SetMemoryOverwriteRequestBit()
+/* Invokes TCG_SetMemoryOverwriteRequestBit
 
    grub_fatal() on error
    Page 12 TCG Platform Reset Attack Mitigation Specification V 1.0.0
@@ -351,17 +352,21 @@ tcg_SetMemoryOverwriteRequestBit( const SetMemoryOverwriteRequestBitInputParamBl
 
 	grub_unmap_memory( p, input->iPBLength );
 
-	SetMemoryOverwriteRequestBitArgs args;
-	args.in_ebx = TCPA;
-	args.in_ecx = 0;
-	args.in_edx = 0;
-	args.in_edi = INPUT_PARAM_BLK_ADDR & 0xF;
-	args.in_es  = INPUT_PARAM_BLK_ADDR >> 4;
+	struct grub_bios_int_registers regs;
+	regs.eax = 0xBB08;
+	regs.flags = GRUB_CPU_INT_FLAGS_DEFAULT;
 
-	asm_tcg_SetMemoryOverwriteRequestBit( &args );
+	regs.ebx = TCPA;
+	regs.ecx = 0;
+	regs.edx = 0;
+	regs.edi = INPUT_PARAM_BLK_ADDR & 0xF;
+	regs.es  = INPUT_PARAM_BLK_ADDR >> 4;
 
-	if ( args.out_eax != TCG_PC_OK ) {
-        grub_fatal( "tcg_SetMemoryOverwriteRequestBit: asm_tcg_SetMemoryOverwriteRequestBit failed: 0x%x", args.out_eax );
+	/* invoke assembler func */
+	grub_bios_interrupt (0x1A, &regs);
+
+	if ( regs.eax != TCG_PC_OK ) {
+        grub_fatal( "TCG_SetMemoryOverwriteRequestBit failed: 0x%x", regs.eax );
 	}
 }
 
