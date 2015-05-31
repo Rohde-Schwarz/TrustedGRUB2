@@ -6,7 +6,7 @@
 
 ### 1.1 Introduction
 
-This file describes the extensions made to transform a standard GRUB2 into a version that offers TCG (TPM) support for granting the integrity of the boot process (trusted boot). This project was highly inspired by the former projects [TrustedGrub1](https://www.sirrix.com/content/pages/trustedgrub_en.htm) and GRUB-IMA. However TrustedGRUB2 was completly written from scratch.
+This file describes the extensions made to transform a standard GRUB2 into a version that offers TCG (TPM) support for granting the integrity of the boot process (trusted boot). This project was highly inspired by the former projects [TrustedGrub1](https://www.sirrix.com/content/pages/trustedgrub_en.htm) and GRUB-IMA. However TrustedGRUB2 was completely written from scratch.
 
 TrustedGRUB2 is measuring all critical components during the boot process, i.e. GRUB2 kernel, GRUB2 modules, the OS kernel or OS modules and so on, together with their
 parameters. Please note that the TrustedGRUB2 MBR bootcode has not to be checked here (it wouldn't even be possible). The MBR bootcode has already been measured by the TPM itself.
@@ -90,6 +90,8 @@ in tpm.h
 Required Packages for compiling:
 * autogen
 * autoconf
+* automake
+* gcc
 * bison
 * flex
 
@@ -97,7 +99,7 @@ To compile and install TrustedGRUB2, please run
 
 ```bash
 ./autogen.sh
-./configure --prefix=INSTALLDIR
+./configure --prefix=INSTALLDIR --target=i386 -with-platform=pc
 make
 make install
 ```
@@ -141,7 +143,7 @@ This chain of trust can be extended by using the newly added "measure" command t
 GRUB2 MBR bootcode is already measured by the TPM. The MBR bootcode has the task to load first sector of TrustedGRUB2 kernel (diskboot.img). Diskboot.img itself loads the rest of GRUB2 kernel.
 Therefore GRUB2 MBR code is extended to measure diskboot.img before jumping to it:
 
-1. Diskboot.img is hashed with a SHA-1 algorithm. Diskboot.img ist loaded at address 0x8000, its length is 512 bytes.
+1. Diskboot.img is hashed with a SHA-1 algorithm. Diskboot.img is loaded at address 0x8000, its length is 512 bytes.
 2. The resulting hash value is written to PCR (Platform Configuration Register) 8. More precisely, the former content of this register (which actually is 0) is concatenated to the new value, then hashed with SHA1 and finally written again to PCR 8
 
 Due to the PC architecture, the size of the MBR (where TrustedGRUB2 boot.S is
@@ -169,8 +171,8 @@ GRUB2 already contains an SHA1-implementation in its crypto module, but this isn
 
 ### 2.5 Measurement of all commands and their parameters entered in shell and scripts
 
-All commands which are entered in shell or executed by scripts is measured to PCR 11. Therefore commands in grub.cfg are automatically measured. No need to measure grub.cfg separatly.
-One exception applies to this rule: The "menuentry" command is not measured because it makes precomputation of the pcr value difficult and is unnecessary because each command within the menuentry is anyway measured.
+All commands which are entered in shell or executed by scripts is measured to PCR 11. Therefore commands in grub.cfg are automatically measured. No need to measure grub.cfg separately.
+One exception applies to this rule: The "menuentry" command is not measured because it makes precomputation of the PCR value difficult and is unnecessary because each command within the menuentry is anyway measured.
 
 ### 2.6 TrustedGRUB2 commands
 
@@ -204,7 +206,7 @@ Perform TCG measurement operation with the file `FILE` and with PCR( `PCRNUM` ).
 setmor DISABLEAUTODETECT
 ```
 
-Sets Memory Overwrite Request (MOR) Bit. `DISABLEAUTODETECT` specifies if bios should auto detect unscheduled reboots.  
+Sets Memory Overwrite Request (MOR) Bit. `DISABLEAUTODETECT` specifies if BIOS should auto detect unscheduled reboots.  
 <br>  
 <br>  
 
