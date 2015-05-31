@@ -66,11 +66,6 @@ typedef struct {
 	grub_uint8_t TPMOperandOut[1];
 } __attribute__ ((packed)) PassThroughToTPM_OutputParamBlock;
 
-typedef struct {
-	grub_uint32_t out_eax;
-	grub_uint32_t in_ebx, in_ecx, in_edx, in_edi, in_es;
-} __attribute__ ((packed)) SetMemoryOverwriteRequestBitArgs;
-
 /* print SHA1 hash of input */
 void EXPORT_FUNC(print_sha1) ( grub_uint8_t *inDigest );
 
@@ -99,7 +94,6 @@ void EXPORT_FUNC(tcg_passThroughToTPM) ( const PassThroughToTPM_InputParamBlock*
 
 /* Assembler exports: */
 grub_uint32_t EXPORT_FUNC(asm_tcg_passThroughToTPM) (PassThroughToTPMArgs* args);
-grub_uint32_t EXPORT_FUNC(asm_tcg_SetMemoryOverwriteRequestBit) (SetMemoryOverwriteRequestBitArgs* args);
 
 #endif
 /* End TCG Extension */
