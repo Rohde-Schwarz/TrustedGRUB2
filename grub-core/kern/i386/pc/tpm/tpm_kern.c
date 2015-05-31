@@ -155,7 +155,7 @@ tcg_statusCheck( grub_uint32_t* returnCode, grub_uint8_t* major, grub_uint8_t* m
 	return GRUB_ERR_NONE;
 }
 
-/* Invokes assembler function asm_tcg_passThroughToTPM()
+/* Invokes assembler function TCG_PassThroughToTPM
 
    grub_fatal() on error
    Page 112 TCG_PCClientImplementation_1-21_1_00
@@ -177,19 +177,22 @@ tcg_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, PassThrough
 
 	grub_unmap_memory( p, input->IPBLength );
 
-	PassThroughToTPMArgs args;
-	args.in_ebx = TCPA;
-	args.in_ecx = 0;
-	args.in_edx = 0;
-	args.in_esi = OUTPUT_PARAM_BLK_ADDR & 0xF;
-	args.in_ds = OUTPUT_PARAM_BLK_ADDR >> 4;
-	args.in_edi = INPUT_PARAM_BLK_ADDR & 0xF;
-	args.in_es = INPUT_PARAM_BLK_ADDR >> 4;
+	struct grub_bios_int_registers regs;
+	regs.eax = 0xBB02;
+	regs.ebx = TCPA;
+	regs.ecx = 0;
+	regs.edx = 0;
+	regs.esi = OUTPUT_PARAM_BLK_ADDR & 0xF;
+	regs.ds = OUTPUT_PARAM_BLK_ADDR >> 4;
+	regs.edi = INPUT_PARAM_BLK_ADDR & 0xF;
+	regs.es = INPUT_PARAM_BLK_ADDR >> 4;
+	regs.flags = GRUB_CPU_INT_FLAGS_DEFAULT;
 
-	asm_tcg_passThroughToTPM( &args );
+	/* invoke assembler func */
+	grub_bios_interrupt (0x1A, &regs);
 
-	if ( args.out_eax != TCG_PC_OK ) {
-        grub_fatal( "tcg_passThroughToTPM: asm_tcg_passThroughToTPM failed: 0x%x", args.out_eax );
+	if ( regs.eax != TCG_PC_OK ) {
+        grub_fatal( "TCG_PassThroughToTPM failed: 0x%x", regs.eax );
 	}
 
 	/* copy output_buffer */

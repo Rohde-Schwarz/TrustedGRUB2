@@ -45,11 +45,6 @@
 
 #define TPM_TAG_RQU_COMMAND 0x00C1
 
-typedef struct {
-	grub_uint32_t out_eax;
-	grub_uint32_t in_ebx, in_ecx, in_edx, in_esi, in_edi, in_es, in_ds;
-} __attribute__ ((packed)) PassThroughToTPMArgs;
-
 /* TCG_PassThroughToTPM Input Parameter Block */
 typedef struct {
 	grub_uint16_t IPBLength;
@@ -91,9 +86,6 @@ grub_err_t EXPORT_FUNC(tcg_statusCheck)( grub_uint32_t *returnCode, grub_uint8_t
 /* pass commands to TPM */
 void EXPORT_FUNC(tcg_passThroughToTPM) ( const PassThroughToTPM_InputParamBlock* input,
 		PassThroughToTPM_OutputParamBlock* output );
-
-/* Assembler exports: */
-grub_uint32_t EXPORT_FUNC(asm_tcg_passThroughToTPM) (PassThroughToTPMArgs* args);
 
 #endif
 /* End TCG Extension */
