@@ -582,7 +582,7 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
 
 /* grub_fatal() on error */
 static void
-grub_TPM_openOSAP_Session( const grub_uint32_t entityType, const grub_uint16_t entityValue, const grub_uint8_t* nonceOddOSAP,
+grub_TPM_openOSAP_Session( const grub_uint16_t entityType, const grub_uint32_t entityValue, const grub_uint8_t* nonceOddOSAP,
 		grub_uint32_t* authHandle, grub_uint8_t* nonceEven, grub_uint8_t* nonceEvenOSAP ) {
 
     CHECK_FOR_NULL_ARGUMENT( authHandle )
