@@ -188,9 +188,9 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	passThroughInput->OPBLength = outputlen;
 
 	extendInput = (void *)passThroughInput->TPMOperandIn;
-	extendInput->tag = grub_swap_bytes16( TPM_TAG_RQU_COMMAND );
+	extendInput->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
 	extendInput->paramSize = grub_swap_bytes32( sizeof( *extendInput ) );
-	extendInput->ordinal = grub_swap_bytes32( TPM_ORD_Extend );
+	extendInput->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_Extend );
 	extendInput->pcrNum = grub_swap_bytes32( (grub_uint32_t) index );
 
 	grub_memcpy( extendInput->inDigest, inDigest, SHA1_DIGEST_SIZE);

@@ -156,9 +156,9 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 	passThroughInput->OPBLength = outputlen;
 
 	pcrReadIncoming = (void *)passThroughInput->TPMOperandIn;
-	pcrReadIncoming->tag = grub_swap_bytes16( TPM_TAG_RQU_COMMAND );
+	pcrReadIncoming->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
 	pcrReadIncoming->paramSize = grub_swap_bytes32( sizeof( *pcrReadIncoming ) );
-	pcrReadIncoming->ordinal = grub_swap_bytes32( TPM_ORD_PcrRead );
+	pcrReadIncoming->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_PcrRead );
 	pcrReadIncoming->pcrIndex = grub_swap_bytes32( (grub_uint32_t) index);
 
 	passThroughOutput = grub_zalloc( outputlen );
@@ -452,9 +452,9 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 	passThroughInput->OPBLength = outputlen;
 
 	getRandomInput = (void *)passThroughInput->TPMOperandIn;
-	getRandomInput->tag = grub_swap_bytes16( TPM_TAG_RQU_COMMAND );
+	getRandomInput->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
 	getRandomInput->paramSize = grub_swap_bytes32( sizeof( *getRandomInput ) );
-	getRandomInput->ordinal = grub_swap_bytes32( TPM_ORD_GetRandom );
+	getRandomInput->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_GetRandom );
 	getRandomInput->bytesRequested = grub_swap_bytes32( (grub_uint32_t) randomBytesRequested );
 
 	passThroughOutput = grub_zalloc( outputlen );
@@ -513,9 +513,9 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
 	passThroughInput->OPBLength = outputlen;
 
 	oiapInput = (void *)passThroughInput->TPMOperandIn;
-	oiapInput->tag = grub_swap_bytes16( TPM_TAG_RQU_COMMAND );
+	oiapInput->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
 	oiapInput->paramSize = grub_swap_bytes32( sizeof( *oiapInput ) );
-	oiapInput->ordinal = grub_swap_bytes32( TPM_ORD_OIAP );
+	oiapInput->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_OIAP );
 
 	passThroughOutput = grub_zalloc( outputlen );
 	if( ! passThroughOutput ) {
@@ -568,9 +568,9 @@ grub_TPM_openOSAP_Session( const grub_uint16_t entityType, const grub_uint32_t e
 	passThroughInput->OPBLength = outputlen;
 
 	osapInput = (void *)passThroughInput->TPMOperandIn;
-	osapInput->tag = grub_swap_bytes16( TPM_TAG_RQU_COMMAND );
+	osapInput->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
 	osapInput->paramSize = grub_swap_bytes32( sizeof( *osapInput ) );
-	osapInput->ordinal = grub_swap_bytes32( TPM_ORD_OSAP );
+	osapInput->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_OSAP );
 	osapInput->entityType = grub_swap_bytes16( entityType );
 	osapInput->entityValue = grub_swap_bytes32( entityValue );
 
@@ -725,10 +725,10 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 	passThroughInput->OPBLength = outputlen;
 
 	unsealInput = (void*) passThroughInput->TPMOperandIn;
-	unsealInput->tag = grub_swap_bytes16( TPM_TAG_RQU_AUTH2_COMMAND );
+	unsealInput->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_AUTH2_COMMAND );
 	unsealInput->paramSize = grub_swap_bytes32( sizeof( *unsealInput ) );
-	unsealInput->ordinal = grub_swap_bytes32( TPM_ORD_Unseal );
-	unsealInput->parentHandle = grub_swap_bytes32( TPM_KH_SRK );
+	unsealInput->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_Unseal );
+	unsealInput->parentHandle = grub_swap_bytes32_compile_time( TPM_KH_SRK );
 
 	grub_memcpy ( unsealInput->sealedData, sealedBuffer, inputSize );
 
