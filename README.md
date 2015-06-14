@@ -18,7 +18,7 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 
 ### 1.2 Features
 
-* Based on GRUB2 Release 2.00
+* Based on GRUB2 (master branch, last merge: 14.06.2015)
 * TPM Support with TPM detection (only legacy/mbr mode, UEFI is not supported at the moment)
 * Measurement of GRUB2 kernel
 * Measurement of all loaded GRUB2 modules
@@ -243,12 +243,11 @@ support to GRUB2.
 * grub-core/boot/i386/pc/boot.S
 * grub-core/boot/i386/pc/diskboot.S
 * grub-core/kern/dl.c
-* grub-core/kern/i386/pc/startup.S
-* grub-core/kern/i386/pc/tpm/tpm.S
 * grub-core/kern/i386/pc/tpm/tpm_kern.c
 * grub-core/kern/sha1.c
 * grub-core/disk/cryptodisk.c
 * grub-core/disk/luks.c
+* grub-core/loader/linux.c
 * grub-core/loader/i386/linux.c
 * grub-core/loader/i386/pc/chainloader.c
 * grub-core/loader/i386/pc/linux.c
