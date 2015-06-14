@@ -32,7 +32,7 @@ grub_pci_make_address (grub_pci_device_t dev, int reg)
 }
 
 void
-grub_pci_iterate (grub_pci_iteratefunc_t hook)
+grub_pci_iterate (grub_pci_iteratefunc_t hook, void *hook_data)
 {
   struct pci_device_iterator *iter;
   struct pci_slot_match slot;
@@ -43,7 +43,7 @@ grub_pci_iterate (grub_pci_iteratefunc_t hook)
   slot.func = PCI_MATCH_ANY;
   iter = pci_slot_match_iterator_create (&slot);
   while ((dev = pci_device_next (iter)))
-    hook (dev, dev->vendor_id | (dev->device_id << 16));
+    hook (dev, dev->vendor_id | (dev->device_id << 16), hook_data);
   pci_iterator_destroy (iter);
 }
 
@@ -55,7 +55,8 @@ grub_pci_device_map_range (grub_pci_device_t dev, grub_addr_t base,
   int err;
   err = pci_device_map_range (dev, base, size, PCI_DEV_MAP_FLAG_WRITABLE, &addr);
   if (err)
-    grub_util_error ("mapping 0x%x failed (error %d)\n", base, err);
+    grub_util_error ("mapping 0x%llx failed (error %d)",
+		     (unsigned long long) base, err);
   return addr;
 }
 
@@ -66,12 +67,12 @@ grub_pci_device_unmap_range (grub_pci_device_t dev, void *mem,
   pci_device_unmap_range (dev, mem, size);
 }
 
-GRUB_MOD_INIT (pci)
+GRUB_MOD_INIT (emupci)
 {
   pci_system_init ();
 }
 
-GRUB_MOD_FINI (pci)
+GRUB_MOD_FINI (emupci)
 {
   pci_system_cleanup ();
 }

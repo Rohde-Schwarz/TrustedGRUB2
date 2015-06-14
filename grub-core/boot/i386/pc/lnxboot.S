@@ -41,7 +41,7 @@ data_start:
 	xorl	%ebp, %ebp
 	jmp	LOCAL(linux_next)
 
-	. = data_start + 0x1F1
+	.org 0x1F1
 
 setup_sects:
 	.byte	CODE_SECTORS
@@ -207,6 +207,10 @@ real_code_2:
 2:
 	call	LOCAL(move_memory)
 
+	movb	%dh, %ss:(DATA_ADDR + GRUB_DECOMPRESSOR_I386_PC_BOOT_DEVICE + 2)
+	movb	(reg_edx + 2 - start), %dh
+	movb	%dh, %ss:(DATA_ADDR + GRUB_DECOMPRESSOR_I386_PC_BOOT_DEVICE + 1)
+
 	movb	$0xFF, %dh
 
 	ljmp	$(DATA_ADDR >> 4), $0
@@ -288,4 +292,4 @@ LOCAL(fail):
 err_int15_msg:
 	.ascii	"move memory fails\0"
 
-	. = _start + CODE_SECTORS * 512
+	.org (CODE_SECTORS * 512 + 512)
