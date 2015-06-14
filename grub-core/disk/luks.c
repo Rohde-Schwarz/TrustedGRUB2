@@ -26,6 +26,12 @@
 #include <grub/crypto.h>
 #include <grub/partition.h>
 #include <grub/i18n.h>
+#include <grub/file.h>
+#include <grub/env.h>
+
+/* Begin TCG extension */
+#include <grub/machine/tpm.h>
+/* End TCG extension */
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
@@ -297,162 +303,306 @@ configure_ciphers (grub_disk_t disk, const char *check_uuid,
   return newdev;
 }
 
-static grub_err_t
-luks_recover_key (grub_disk_t source,
-		  grub_cryptodisk_t dev)
-{
-  struct grub_luks_phdr header;
-  grub_size_t keysize;
-  grub_uint8_t *split_key = NULL;
-  char passphrase[MAX_PASSPHRASE] = "";
-  grub_uint8_t candidate_digest[sizeof (header.mkDigest)];
-  unsigned i;
-  grub_size_t length;
-  grub_err_t err;
-  grub_size_t max_stripes = 1;
-  char *tmp;
+/* Begin TCG extension */
+static grub_err_t luks_recover_key(grub_disk_t source, grub_cryptodisk_t dev) {
+	struct grub_luks_phdr header;
+	grub_size_t keysize;
+	grub_uint8_t *split_key = NULL;
+	char passphrase[MAX_PASSPHRASE] = "";
+	grub_uint8_t candidate_digest[sizeof(header.mkDigest)];
+	unsigned i;
+	grub_size_t length;
+	grub_err_t err;
+	grub_size_t max_stripes = 1;
+	char *tmp;
 
-  err = grub_disk_read (source, 0, 0, sizeof (header), &header);
-  if (err)
-    return err;
+	err = grub_disk_read(source, 0, 0, sizeof(header), &header);
 
-  grub_puts_ (N_("Attempting to decrypt master key..."));
-  keysize = grub_be_to_cpu32 (header.keyBytes);
-
-  for (i = 0; i < ARRAY_SIZE (header.keyblock); i++)
-    if (grub_be_to_cpu32 (header.keyblock[i].active) == LUKS_KEY_ENABLED
-	&& grub_be_to_cpu32 (header.keyblock[i].stripes) > max_stripes)
-      max_stripes = grub_be_to_cpu32 (header.keyblock[i].stripes);
-
-  split_key = grub_malloc (keysize * max_stripes);
-  if (!split_key)
-    return grub_errno;
-
-  /* Get the passphrase from the user.  */
-  tmp = NULL;
-  if (source->partition)
-    tmp = grub_partition_get_name (source->partition);
-  grub_printf_ (N_("Enter passphrase for %s%s%s (%s): "), source->name,
-	       source->partition ? "," : "", tmp ? : "",
-	       dev->uuid);
-  grub_free (tmp);
-  if (!grub_password_get (passphrase, MAX_PASSPHRASE))
-    {
-      grub_free (split_key);
-      return grub_error (GRUB_ERR_BAD_ARGUMENT, "Passphrase not supplied");
-    }
-
-  /* Try to recover master key from each active keyslot.  */
-  for (i = 0; i < ARRAY_SIZE (header.keyblock); i++)
-    {
-      gcry_err_code_t gcry_err;
-      grub_uint8_t candidate_key[keysize];
-      grub_uint8_t digest[keysize];
-
-      /* Check if keyslot is enabled.  */
-      if (grub_be_to_cpu32 (header.keyblock[i].active) != LUKS_KEY_ENABLED)
-	continue;
-
-      grub_dprintf ("luks", "Trying keyslot %d\n", i);
-
-      /* Calculate the PBKDF2 of the user supplied passphrase.  */
-      gcry_err = grub_crypto_pbkdf2 (dev->hash, (grub_uint8_t *) passphrase,
-				     grub_strlen (passphrase),
-				     header.keyblock[i].passwordSalt,
-				     sizeof (header.keyblock[i].passwordSalt),
-				     grub_be_to_cpu32 (header.keyblock[i].
-						       passwordIterations),
-				     digest, keysize);
-
-      if (gcry_err)
-	{
-	  grub_free (split_key);
-	  return grub_crypto_gcry_error (gcry_err);
+	if (err) {
+		grub_print_error();
+		grub_fatal("luks_recover_key failed.");
 	}
 
-      grub_dprintf ("luks", "PBKDF2 done\n");
+	/* tpm functions not available in GRUB_UTIL */
+#ifndef GRUB_UTIL
 
-      gcry_err = grub_cryptodisk_setkey (dev, digest, keysize); 
-      if (gcry_err)
-	{
-	  grub_free (split_key);
-	  return grub_crypto_gcry_error (gcry_err);
+	// measure luks header
+	if (!grub_strcmp(grub_env_get("unsealmount"), "true")) {
+		grub_TPM_measureBuffer(&header, sizeof(header),
+				TPM_LUKS_HEADER_MEASUREMENT_PCR);
 	}
 
-      length = (keysize * grub_be_to_cpu32 (header.keyblock[i].stripes));
+#endif
 
-      /* Read and decrypt the key material from the disk.  */
-      err = grub_disk_read (source,
-			    grub_be_to_cpu32 (header.keyblock
-					      [i].keyMaterialOffset), 0,
-			    length, split_key);
-      if (err)
-	{
-	  grub_free (split_key);
-	  return err;
+	grub_puts_(N_("Attempting to decrypt master key..."));
+	keysize = grub_be_to_cpu32(header.keyBytes);
+
+	for (i = 0; i < ARRAY_SIZE(header.keyblock); i++)
+		if (grub_be_to_cpu32 (header.keyblock[i].active) == LUKS_KEY_ENABLED
+				&& grub_be_to_cpu32 (header.keyblock[i].stripes) > max_stripes)
+			max_stripes = grub_be_to_cpu32(header.keyblock[i].stripes);
+
+	split_key = grub_malloc(keysize * max_stripes);
+	if (!split_key) {
+		grub_print_error();
+		grub_fatal("luks_recover_key failed.");
 	}
 
-      gcry_err = grub_cryptodisk_decrypt (dev, split_key, length, 0);
-      if (gcry_err)
-	{
-	  grub_free (split_key);
-	  return grub_crypto_gcry_error (gcry_err);
+	/* read in keyfile if provided */
+	grub_uint8_t* keyFileBuf = NULL;
+	grub_uint8_t* unsealedKeyFile = NULL;
+	char* secret = NULL;
+	grub_size_t secretSize = 0;
+
+	if (grub_env_get("keyfile") != 0) {
+		grub_file_t file = grub_file_open(grub_env_get("keyfile"));
+
+		if (!file) {
+			grub_free(split_key);
+			grub_print_error();
+			grub_fatal("luks_recover_key failed.");
+		}
+
+		grub_size_t fileSize = file->size;
+
+		keyFileBuf = grub_zalloc(fileSize);
+
+		if (!keyFileBuf) {
+			grub_file_close(file);
+			grub_free(split_key);
+			grub_fatal("keyfile read: memory allocation failed");
+		}
+
+		/* read file */
+		if (grub_file_read(file, keyFileBuf, fileSize)
+				!= (grub_ssize_t) fileSize) {
+			grub_free(keyFileBuf);
+			grub_free(split_key);
+			grub_file_close(file);
+			grub_print_error();
+			grub_fatal("luks_recover_key failed.");
+		}
+
+		grub_file_close(file);
+
+		secret = (char*) keyFileBuf;
+		secretSize = fileSize;
+
+#ifndef GRUB_UTIL
+		grub_size_t resultSize = 0;
+
+		// unseal keyfile ?
+		if (!grub_strcmp(grub_env_get("unsealmount"), "true")) {
+			grub_TPM_unseal(keyFileBuf, fileSize, &unsealedKeyFile,
+					&resultSize);
+			secret = (char*) unsealedKeyFile;
+			secretSize = resultSize;
+		}
+#endif
+
+	} else { /* only ask for passphrase if no keyfile specified */
+		grub_errno = GRUB_ERR_NONE;
+
+		/* Get the passphrase from the user. */
+		tmp = NULL;
+
+		if (source->partition)
+			tmp = grub_partition_get_name(source->partition);
+
+		grub_printf_(N_("Enter passphrase for %s%s%s (%s): "), source->name,
+				source->partition ? "," : "", tmp ? : "", dev->uuid);
+
+		grub_free(tmp);
+		if (!grub_password_get(passphrase, MAX_PASSPHRASE)) {
+			grub_free(split_key);
+			grub_fatal("Passphrase not supplied");
+		}
+
+		secret = passphrase;
+		secretSize = grub_strlen(passphrase);
 	}
 
-      /* Merge the decrypted key material to get the candidate master key.  */
-      gcry_err = AF_merge (dev->hash, split_key, candidate_key, keysize,
-			   grub_be_to_cpu32 (header.keyblock[i].stripes));
-      if (gcry_err)
-	{
-	  grub_free (split_key);
-	  return grub_crypto_gcry_error (gcry_err);
+	/* Try to recover master key from each active keyslot. */
+	for (i = 0; i < ARRAY_SIZE(header.keyblock); i++) {
+		gcry_err_code_t gcry_err;
+		grub_uint8_t candidate_key[keysize];
+		grub_uint8_t digest[keysize];
+
+		/* Check if keyslot is enabled.  */
+		if (grub_be_to_cpu32 (header.keyblock[i].active) != LUKS_KEY_ENABLED)
+			continue;
+
+		grub_dprintf("luks", "Trying keyslot %d\n", i);
+
+		/* Calculate the PBKDF2 of the user supplied passphrase / keyfile.  */
+		gcry_err = grub_crypto_pbkdf2(dev->hash, (grub_uint8_t *) secret,
+				secretSize, header.keyblock[i].passwordSalt,
+				sizeof(header.keyblock[i].passwordSalt),
+				grub_be_to_cpu32(header.keyblock[i].passwordIterations), digest,
+				keysize);
+
+		if (gcry_err) {
+			if (keyFileBuf) {
+				grub_free(keyFileBuf);
+			}
+
+			if (unsealedKeyFile) {
+				grub_free(unsealedKeyFile);
+			}
+
+			grub_free(split_key);
+			grub_fatal("luks_recover_key failed.");
+			//return grub_crypto_gcry_error(gcry_err);
+		}
+
+		grub_dprintf("luks", "PBKDF2 done\n");
+
+		gcry_err = grub_cryptodisk_setkey(dev, digest, keysize);
+		if (gcry_err) {
+			if (keyFileBuf) {
+				grub_free(keyFileBuf);
+			}
+
+			if (unsealedKeyFile) {
+				grub_free(unsealedKeyFile);
+			}
+
+			grub_free(split_key);
+			grub_fatal("luks_recover_key failed.");
+			//return grub_crypto_gcry_error(gcry_err);
+		}
+
+		length = (keysize * grub_be_to_cpu32(header.keyblock[i].stripes));
+
+		/* Read and decrypt the key material from the disk.  */
+		err = grub_disk_read(source,
+				grub_be_to_cpu32(header.keyblock[i].keyMaterialOffset), 0,
+				length, split_key);
+		if (err) {
+			if (keyFileBuf) {
+				grub_free(keyFileBuf);
+			}
+
+			if (unsealedKeyFile) {
+				grub_free(unsealedKeyFile);
+			}
+
+			grub_free(split_key);
+			grub_print_error();
+			grub_fatal("luks_recover_key failed.");
+		}
+
+		gcry_err = grub_cryptodisk_decrypt(dev, split_key, length, 0);
+		if (gcry_err) {
+			if (keyFileBuf) {
+				grub_free(keyFileBuf);
+			}
+
+			if (unsealedKeyFile) {
+				grub_free(unsealedKeyFile);
+			}
+
+			grub_free(split_key);
+			grub_fatal("luks_recover_key failed.");
+			//return grub_crypto_gcry_error(gcry_err);
+		}
+
+		/* Merge the decrypted key material to get the candidate master key.  */
+		gcry_err = AF_merge(dev->hash, split_key, candidate_key, keysize,
+				grub_be_to_cpu32(header.keyblock[i].stripes));
+		if (gcry_err) {
+			if (keyFileBuf) {
+				grub_free(keyFileBuf);
+			}
+
+			if (unsealedKeyFile) {
+				grub_free(unsealedKeyFile);
+			}
+
+			grub_free(split_key);
+			grub_fatal("luks_recover_key failed.");
+			//return grub_crypto_gcry_error(gcry_err);
+		}
+
+		grub_dprintf("luks", "candidate key recovered\n");
+
+		/* Calculate the PBKDF2 of the candidate master key.  */
+		gcry_err = grub_crypto_pbkdf2(dev->hash, candidate_key,
+				grub_be_to_cpu32(header.keyBytes), header.mkDigestSalt,
+				sizeof(header.mkDigestSalt),
+				grub_be_to_cpu32(header.mkDigestIterations), candidate_digest,
+				sizeof(candidate_digest));
+		if (gcry_err) {
+			if (keyFileBuf) {
+				grub_free(keyFileBuf);
+			}
+
+			if (unsealedKeyFile) {
+				grub_free(unsealedKeyFile);
+			}
+
+			grub_free(split_key);
+			grub_fatal("luks_recover_key failed.");
+			//return grub_crypto_gcry_error(gcry_err);
+		}
+
+		/* Compare the calculated PBKDF2 to the digest stored
+		 in the header to see if it's correct.  */
+		if (grub_memcmp(candidate_digest, header.mkDigest,
+				sizeof(header.mkDigest)) != 0) {
+			grub_dprintf("luks", "bad digest\n");
+			continue;
+		}
+
+		/* TRANSLATORS: It's a cryptographic key slot: one element of an array
+		 where each element is either empty or holds a key.  */
+		grub_printf_(N_("Slot %d opened\n"), i);
+
+		/* Set the master key.  */
+		gcry_err = grub_cryptodisk_setkey(dev, candidate_key, keysize);
+		if (gcry_err) {
+			if (keyFileBuf) {
+				grub_free(keyFileBuf);
+			}
+
+			if (unsealedKeyFile) {
+				grub_free(unsealedKeyFile);
+			}
+
+			grub_free(split_key);
+			grub_fatal("luks_recover_key failed.");
+			//return grub_crypto_gcry_error(gcry_err);
+		}
+
+		if (keyFileBuf) {
+			grub_free(keyFileBuf);
+		}
+
+		if (unsealedKeyFile) {
+			grub_free(unsealedKeyFile);
+		}
+
+		grub_free(split_key);
+
+		grub_env_unset("unsealmount");
+		grub_env_unset("keyfile");
+
+		return GRUB_ERR_NONE;
 	}
 
-      grub_dprintf ("luks", "candidate key recovered\n");
-
-      /* Calculate the PBKDF2 of the candidate master key.  */
-      gcry_err = grub_crypto_pbkdf2 (dev->hash, candidate_key,
-				     grub_be_to_cpu32 (header.keyBytes),
-				     header.mkDigestSalt,
-				     sizeof (header.mkDigestSalt),
-				     grub_be_to_cpu32
-				     (header.mkDigestIterations),
-				     candidate_digest,
-				     sizeof (candidate_digest));
-      if (gcry_err)
-	{
-	  grub_free (split_key);
-	  return grub_crypto_gcry_error (gcry_err);
+	grub_free(split_key);
+	if (keyFileBuf) {
+		grub_free(keyFileBuf);
 	}
 
-      /* Compare the calculated PBKDF2 to the digest stored
-         in the header to see if it's correct.  */
-      if (grub_memcmp (candidate_digest, header.mkDigest,
-		       sizeof (header.mkDigest)) != 0)
-	{
-	  grub_dprintf ("luks", "bad digest\n");
-	  continue;
+	if (unsealedKeyFile) {
+		grub_free(unsealedKeyFile);
 	}
 
-      /* TRANSLATORS: It's a cryptographic key slot: one element of an array
-	 where each element is either empty or holds a key.  */
-      grub_printf_ (N_("Slot %d opened\n"), i);
-
-      /* Set the master key.  */
-      gcry_err = grub_cryptodisk_setkey (dev, candidate_key, keysize); 
-      if (gcry_err)
-	{
-	  grub_free (split_key);
-	  return grub_crypto_gcry_error (gcry_err);
-	}
-
-      grub_free (split_key);
-
-      return GRUB_ERR_NONE;
-    }
-
-  return GRUB_ACCESS_DENIED;
+	grub_fatal("luks_recover_key failed.");
+	//return GRUB_ACCESS_DENIED;
 }
+/* End TCG extension */
 
 struct grub_cryptodisk_dev luks_crypto = {
   .scan = configure_ciphers,

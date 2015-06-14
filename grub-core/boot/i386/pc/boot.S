@@ -24,6 +24,10 @@
  *  defines for the code go here
  */
 
+/* BEGIN TCG_Extension */
+	/* Changes particularly adapted from trustedgrub and GRUB-IMA */
+/* END TCG_Extension */
+
 	/* Print message string */
 #define MSG(x)	movw $x, %si; call LOCAL(message)
 #define ERR(x)	movw $x, %si; jmp LOCAL(error_message)
@@ -118,7 +122,7 @@ boot_drive_check:
 	/* Ignore %dl different from 0-0x0f and 0x80-0x8f.  */
 	testb   $0x70, %dl
 	jz      1f
-2:	
+2:
         movb    $0x80, %dl
 1:
 	/*
@@ -156,6 +160,8 @@ real_start:
 	/* set %si to the disk address packet */
 	movw	$disk_address_packet, %si
 
+/* BEGIN TCG_Extension */
+#ifndef ENABLE_TGRUB2
 	/* check if LBA is supported */
 	movb	$0x41, %ah
 	movw	$0x55aa, %bx
@@ -175,6 +181,8 @@ real_start:
 
 	andw	$1, %cx
 	jz	LOCAL(chs_mode)
+#endif /* ! ENABLE_TGRUB2 */
+/* END TCG Extension */
 
 lba_mode:
 	xorw	%ax, %ax
@@ -218,6 +226,12 @@ lba_mode:
 	jmp	LOCAL(copy_buffer)
 
 LOCAL(chs_mode):
+/* BEGIN TCG_Extension */
+#ifdef ENABLE_TGRUB2
+	MSG(chs_no_support_string)
+	jmp     LOCAL(general_error)
+#else /* ! ENABLE_TGRUB2 */
+/* END TCG Extension */
 	/*
 	 *  Determine the hard disk geometry from the BIOS!
 	 *  We do this first, so that LS-120 IDE floppies work correctly.
@@ -328,8 +342,10 @@ setup_sectors:
 	jc	LOCAL(read_error)
 
 	movw	%es, %bx
-
+#endif /* ! ENABLE_TGRUB2 */
+/* End TCG Extension */
 LOCAL(copy_buffer):
+
 	/*
 	 * We need to save %cx and %si because the startup code in
 	 * kernel uses them without initializing them.
@@ -350,6 +366,86 @@ LOCAL(copy_buffer):
 
 	popw	%ds
 	popa
+
+
+/* BEGIN TCG Extension */
+#ifdef ENABLE_TGRUB2
+	pusha
+
+	/* hash and measure 512 bytes at the beginning of kernel_address (diskboot.img) */
+
+	/* Check for TPM availability */
+/*
+ * BIOS call "INT 1Ah, (AH)=BBh,(AL)=00h" TCG_StatusCheck
+ *	Call with	%ah = 0xBB
+ *				%al = 0x00
+ *
+ *	Return:	%eax = TCG_STATUS == 0 if the system supports the TCG BIOS calls.
+ *			%ebx = 'TCPA'
+ *
+ * Ref:
+ *  TCG PC Client Specific Implementation Specification for Conventional BIOS v1.21,
+ *  Section 13.7 (page 115)
+ */
+tcg_statuscheck:
+	movw    $0xBB00, %ax		/* TCG_StatusCheck */
+	int     $0x1A
+  test	%eax, %eax
+	jz	tcg_compacthashlogextendevent			/* if eax == 0 */
+	cmpb 	$0x24, %al   /* TCG_PC_TPM_DEACTIVATED */
+  jne  error_no_tpm
+
+error_tpm_deactivated:
+  MSG(deactivatedTPM_error_string)
+  jmp	LOCAL(general_error)
+error_no_tpm:
+	MSG(noTPM_error_string)
+	jmp	LOCAL(general_error)
+
+/*
+ * BIOS call "INT 1Ah, (AH)=BBh, (AL)=07h" TCG_CompactHashLogExtendEvent
+ *
+ * Performs hashing of the event or the event data, extends the event to a PCR, and then
+ * places the resulting TCG_PCClientPCREventStruc into the event log
+ *
+ * Call with	%ah = 0xBB
+ *				%al = 0x07
+ *				%es:%di = segment:offset of the pointer to the start of the data buffer to be hashed
+ *				%esi = The informative value to be placed into the event field
+ *				%ebx = 'TCPA'
+ *				%ecx = The length, in bytes, of the buffer referenced by ES:DI
+ *				%edx = The PCR number (PCRIndex) to which the hashed result is to be extended
+ *
+ * Return:		%eax = TCG_STATUS
+ *				%edx = Event number of the event that was logged
+ *
+ * Ref:
+ *  TCG PC Client Specific Implementation Specification for Conventional BIOS v1.21,
+ *  Section 13.14 (page 126)
+ */
+tcg_compacthashlogextendevent:
+
+	movw    $0xBB07, %ax			/* TCG_CompactHashLogExtendEvent */
+	movw	$GRUB_BOOT_MACHINE_KERNEL_ADDR, %di
+
+	/* FIXME: is it correct to set esi to zero? */
+	xorl	%esi, %esi
+
+	movl    $0x41504354, %ebx	/* EBX = "TCPA" */
+	movl 	$0x200, %ecx		/* Length = 512 Byte */
+	movl	$0x8, %edx			/* PCR 8 */
+
+	int     $0x1A
+	test	%eax, %eax
+	jz		tcg_end				/* if eax != 0 */
+	MSG(tcg_error_string)
+	jmp	LOCAL(general_error)
+
+tcg_end:
+	popa
+
+#endif /* ENABLE_TGRUB2 */
+/* END TCG Extension */
 
 	/* boot kernel */
 	jmp	*(kernel_address)
@@ -374,15 +470,24 @@ LOCAL(general_error):
 
 /* go here when you need to stop the machine hard after an error condition */
         /* tell the BIOS a boot failure, which may result in no effect */
-        int	$0x18
+        /* int	$0x18 */
 LOCAL(stop):
 	jmp	LOCAL(stop)
 
-notification_string:	.asciz "GRUB "
+notification_string:	.asciz "TrustedGRUB2 "
 geometry_error_string:	.asciz "Geom"
 hd_probe_error_string:	.asciz "Hard Disk"
 read_error_string:	.asciz "Read"
 general_error_string:	.asciz " Error\r\n"
+
+/* BEGIN TCG_Extension */
+#ifdef ENABLE_TGRUB2
+chs_no_support_string:	.string "CHSNA"
+tcg_error_string:	.string "TPM "
+noTPM_error_string:	.string "No TPM found"
+deactivatedTPM_error_string: .string "TPM deactivated"
+#endif /* ENABLE_TGRUB2 */
+/* END TCG Extension */
 
 /*
  * message: write the string pointed to by %si
@@ -424,6 +529,8 @@ nt_magic:
 	. = _start + GRUB_BOOT_MACHINE_PART_START
 part_start:
 
+/* BEGIN TCG_Extension */
+#ifndef ENABLE_TGRUB2
 probe_values:
 	.byte	36, 18, 15, 9, 0
 
@@ -473,6 +580,8 @@ fd_probe_error_string:	.asciz "Floppy"
 	movb	$79, %ch
 
 	jmp	LOCAL(final_init)
+#endif /* ! ENABLE_TGRUB2 */
+/* END TCG Extension */
 
 	. = _start + GRUB_BOOT_MACHINE_PART_END
 

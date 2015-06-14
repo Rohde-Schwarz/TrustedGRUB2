@@ -22,6 +22,7 @@
 #include <grub/dl.h>
 #include <grub/extcmd.h>
 #include <grub/i18n.h>
+#include <grub/env.h>
 
 #ifdef GRUB_UTIL
 #include <errno.h>
@@ -43,6 +44,10 @@ static const struct grub_arg_option options[] =
     /* TRANSLATORS: It's still restricted to cryptodisks only.  */
     {"all", 'a', 0, N_("Mount all."), 0, 0},
     {"boot", 'b', 0, N_("Mount all volumes with `boot' flag set."), 0, 0},
+	/* Begin TCG extension */
+	{"keyfile", 'k', 0, N_("Keyfile to use for decrypting."), 0, 0},
+	{"unseal", 's', 0, N_("Unseals the provided keyfile."), 0, 0},
+	/* End TCG extension */
     {0, 0, 0, 0, 0, 0}
   };
 
@@ -893,6 +898,19 @@ grub_cmd_cryptomount (grub_extcmd_context_t ctxt, int argc, char **args)
   if (argc < 1 && !state[1].set && !state[2].set)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "device name required");
 
+  /* Begin TCG extension */
+  /* keyFile path */
+  if( state[3].set ) {
+	  grub_env_set ("keyfile", args[1] );
+
+	  if( state[4].set ) {
+		  grub_env_set ("unsealmount", "true" );
+	  } else {
+		  grub_env_set ("unsealmount", "false" );
+	  }
+  }
+  /* End TCG extension */
+
   have_it = 0;
   if (state[0].set)
     {
@@ -971,8 +989,10 @@ GRUB_MOD_INIT (cryptodisk)
 {
   grub_disk_dev_register (&grub_cryptodisk_dev);
   cmd = grub_register_extcmd ("cryptomount", grub_cmd_cryptomount, 0,
-			      N_("SOURCE|-u UUID|-a|-b"),
+		  /* Begin TCG extension */
+			      N_("SOURCE|-u UUID|-a|-b|-k KEYFILE|-s"),
 			      N_("Mount a crypto device."), options);
+  	  	  /* End TCG extension */
 }
 
 GRUB_MOD_FINI (cryptodisk)

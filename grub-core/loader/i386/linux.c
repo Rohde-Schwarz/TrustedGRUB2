@@ -35,6 +35,10 @@
 #include <grub/i18n.h>
 #include <grub/lib/cmdline.h>
 
+/* Begin TCG Extension */
+#include <grub/machine/tpm.h>
+/* End TCG Extension */
+
 GRUB_MOD_LICENSE ("GPLv3+");
 
 #ifdef GRUB_MACHINE_PCBIOS
@@ -1030,6 +1034,11 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       grub_dl_unref (my_mod);
       loaded = 0;
     }
+  /* Begin TCG Extension */
+  else {	/* file successfully loaded */
+	  grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
+  }
+  /* End TCG Extension */
 
   return grub_errno;
 }
@@ -1149,6 +1158,14 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
   for (i = 0; i < nfiles; i++)
     grub_file_close (files[i]);
   grub_free (files);
+
+  /* Begin TCG Extension */
+  if( grub_errno == GRUB_ERR_NONE ) {
+	  for( i = 0; i < nfiles; i++ ) {
+		  grub_TPM_measureFile( argv[i], TPM_LOADED_FILES_PCR );
+	  }
+  }
+  /* End TCG Extension */
 
   return grub_errno;
 }

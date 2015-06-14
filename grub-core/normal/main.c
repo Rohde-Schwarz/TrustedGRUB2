@@ -33,6 +33,13 @@
 #include <grub/charset.h>
 #include <grub/script_sh.h>
 
+/* BEGIN TCG EXTENSION */
+#include <grub/machine/tpm.h>
+
+#define TGRUB_VERSION "1.10"
+/* END TCG EXTENSION */
+
+
 GRUB_MOD_LICENSE ("GPLv3+");
 
 #define GRUB_DEFAULT_HISTORY_SIZE	50
@@ -224,36 +231,54 @@ read_config_file (const char *config)
 void
 grub_normal_init_page (struct grub_term_output *term)
 {
-  grub_ssize_t msg_len;
-  int posx;
-  const char *msg = _("GNU GRUB  version %s");
-  char *msg_formatted;
-  grub_uint32_t *unicode_msg;
-  grub_uint32_t *last_position;
- 
-  grub_term_cls (term);
+	/* BEGIN TCG EXTENSION */
+	grub_ssize_t msg_len, tpm_msg_len;
+	int posx, posx2;
 
-  msg_formatted = grub_xasprintf (msg, PACKAGE_VERSION);
-  if (!msg_formatted)
-    return;
- 
-  msg_len = grub_utf8_to_ucs4_alloc (msg_formatted,
-  				     &unicode_msg, &last_position);
-  grub_free (msg_formatted);
- 
-  if (msg_len < 0)
-    {
-      return;
-    }
+	const char *msg = _("TrustedGRUB2  version %s");
+	char *tpm_msg;
 
-  posx = grub_getstringwidth (unicode_msg, last_position, term);
-  posx = (grub_term_width (term) - posx) / 2;
-  grub_term_gotoxy (term, posx, 1);
+	char *msg_formatted;
+	grub_uint32_t *unicode_msg, *unicode_tpm_msg;
+	grub_uint32_t *last_position, *tpm_last_position;
 
-  grub_print_ucs4 (unicode_msg, last_position, 0, 0, term);
-  grub_putcode ('\n', term);
-  grub_putcode ('\n', term);
-  grub_free (unicode_msg);
+	grub_term_cls (term);
+
+	msg_formatted = grub_xasprintf (msg, TGRUB_VERSION);
+
+	tpm_msg = grub_xasprintf( "[ TPM detected! ]" );
+
+	if ( !msg_formatted || !tpm_msg )
+		return;
+
+	msg_len = grub_utf8_to_ucs4_alloc (msg_formatted,
+	  				     &unicode_msg, &last_position);
+	grub_free (msg_formatted);
+
+	tpm_msg_len = grub_utf8_to_ucs4_alloc (tpm_msg,
+	    				     &unicode_tpm_msg, &tpm_last_position);
+	grub_free (tpm_msg);
+
+	if ( msg_len < 0 || tpm_msg_len < 0 ) {
+		return;
+	}
+
+	posx = grub_getstringwidth (unicode_msg, last_position, term);
+	posx = (grub_term_width (term) - posx) / 2;
+	grub_term_gotoxy (term, posx, 1);
+
+	grub_print_ucs4 (unicode_msg, last_position, 0, 0, term);
+
+	posx2 = grub_getstringwidth (unicode_tpm_msg, tpm_last_position, term);
+	posx2 = (grub_term_width (term) - posx2) / 2;
+	grub_term_gotoxy (term, posx2, 2);
+
+	grub_print_ucs4 (unicode_tpm_msg, tpm_last_position, 0, 0, term);
+	grub_putcode ('\n', term);
+	grub_putcode ('\n', term);
+	grub_free (unicode_msg);
+	grub_free (unicode_tpm_msg);
+	/* END TCG EXTENSION */
 }
 
 static void

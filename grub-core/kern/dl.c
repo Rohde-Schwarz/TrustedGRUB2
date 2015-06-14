@@ -33,6 +33,11 @@
 #include <grub/cache.h>
 #include <grub/i18n.h>
 
+/* Begin TCG Extension */
+#include <grub/sha1.h>
+#include <grub/machine/tpm.h>
+/* End TCG Extension */
+
 /* Platforms where modules are in a readonly area of memory.  */
 #if defined(GRUB_MACHINE_QEMU)
 #define GRUB_MODULES_MACHINE_READONLY
@@ -723,15 +728,23 @@ grub_dl_load (const char *name)
   if (! filename)
     return 0;
 
-  mod = grub_dl_load_file (filename);
-  grub_free (filename);
+  mod = grub_dl_load_file ( filename );
 
-  if (! mod)
-    return 0;
+  if (! mod) {
+	  grub_free (filename);
+	  return 0;
+  }
 
   if (grub_strcmp (mod->name, name) != 0)
     grub_error (GRUB_ERR_BAD_MODULE, "mismatched names");
 
+  /* Begin TCG Extension */
+  if( grub_errno == GRUB_ERR_NONE ) {
+	  grub_TPM_measureFile( filename, TPM_LOADED_FILES_PCR );
+  }
+  /* End TCG Extension */
+
+  grub_free (filename);
   return mod;
 }
 

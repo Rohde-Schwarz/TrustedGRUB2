@@ -35,6 +35,10 @@
 #include <grub/i386/floppy.h>
 #include <grub/lib/cmdline.h>
 
+/* Begin TCG Extension */
+#include <grub/machine/tpm.h>
+/* End TCG Extension */
+
 GRUB_MOD_LICENSE ("GPLv3+");
 
 #define GRUB_LINUX_CL_OFFSET		0x9000
@@ -346,6 +350,11 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       loaded = 0;
       grub_relocator_unload (relocator);
     }
+  /* Begin TCG Extension */
+  else {	/* file successfully loaded */
+	  grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
+  }
+  /* End TCG Extension */
 
   return grub_errno;
 }
@@ -460,6 +469,14 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
   for (i = 0; i < nfiles; i++)
     grub_file_close (files[i]);
   grub_free (files);
+
+  /* Begin TCG Extension */
+  if( grub_errno == GRUB_ERR_NONE ) {
+	  for ( i = 0; i < nfiles; i++ ) {
+		  grub_TPM_measureFile( argv[i], TPM_LOADED_FILES_PCR );
+	  }
+  }
+  /* End TCG Extension */
 
   return grub_errno;
 }
