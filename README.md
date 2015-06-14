@@ -25,7 +25,7 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 * Measurement of all commands and their parameters entered in shell and scripts
 * New SHA1-implementation in GRUB2 kernel (necessary for doing the GRUB2 modules measurement as the crypto module isn't loaded at this stage)
 * Added LUKS keyfile support with additional parameter "-k KEYFILE" for cryptomount command
-* Added supported for unsealing LUKS keyfile with additional "-s" parameter for cryptomount command. LUKS-header is measured before unsealing into PCR 12. Currently unsealing only supported with SRK and well known secret (20 zero bytes)
+* Added support for unsealing LUKS keyfile with additional "-s" parameter for cryptomount command. LUKS-header is measured before unsealing into PCR 12. Currently unsealing only supported with SRK and well known secret (20 zero bytes)
 * New commands:
   * readpcr PCRNUM
   * tcglog LOGINDEX
@@ -220,7 +220,7 @@ Sets Memory Overwrite Request (MOR) Bit. `DISABLEAUTODETECT` specifies if BIOS s
 * `chainloader`  
 * `ntdlr`  
 
-These commands are modified to measure before loading. PCR 14 is extended.
+These commands are modified to measure before loading. PCR 10 is extended.
 
 ### 2.7 Other modifications
 
