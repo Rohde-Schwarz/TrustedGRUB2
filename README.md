@@ -1,4 +1,4 @@
-**Unforunately i had to force push to be able to update to more recent versions of GRUB2. The GRUB2 commit history is now part of this repository. Sorry for the inconvenience. This should be the first and last time this had happened.**
+**Unfortunately i had to force push to be able to update to more recent versions of GRUB2. The GRUB2 commit history is now part of this repository. Sorry for the inconvenience. This should be the first and last time this had happened.**
 
 
 # TrustedGRUB2
