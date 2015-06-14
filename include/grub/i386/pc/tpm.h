@@ -64,12 +64,6 @@ typedef struct {
 /* print SHA1 hash of input */
 void EXPORT_FUNC(print_sha1) ( grub_uint8_t* inDigest );
 
-/* 16 bit big to little-endian conversion */
-grub_uint16_t EXPORT_FUNC(swap16) ( grub_uint16_t value );
-
-/* 32 bit big to little-endian conversion */
-grub_uint32_t EXPORT_FUNC(swap32) ( grub_uint32_t value );
-
 /* 	Measure string */
 void EXPORT_FUNC(grub_TPM_measureString) ( const char* string );
 /* 	Measure file */
