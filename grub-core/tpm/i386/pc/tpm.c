@@ -63,7 +63,7 @@ typedef struct {
 	grub_uint32_t paramSize;
 	grub_uint32_t ordinal;
 	grub_uint32_t pcrIndex;
-} __attribute__ ((packed)) PCRReadIncoming;
+} GRUB_PACKED PCRReadIncoming;
 
 /* TPM_PCRRead Outgoing Operand */
 typedef struct {
@@ -71,14 +71,14 @@ typedef struct {
 	grub_uint32_t paramSize;
 	grub_uint32_t returnCode;
 	grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
-} __attribute__ ((packed)) PCRReadOutgoing;
+} GRUB_PACKED PCRReadOutgoing;
 
 /* TCG_SetMemoryOverwriteRequestBit Input Parameter Block */
 typedef struct {
 	grub_uint16_t iPBLength;
 	grub_uint16_t reserved;
 	grub_uint8_t  memoryOverwriteActionBitValue;
-} __attribute__ ((packed)) SetMemoryOverwriteRequestBitInputParamBlock;
+} GRUB_PACKED SetMemoryOverwriteRequestBitInputParamBlock;
 
 /* TPM_GetRandom Incoming Operand */
 typedef struct {
@@ -86,14 +86,14 @@ typedef struct {
 	grub_uint32_t paramSize;
 	grub_uint32_t ordinal;
 	grub_uint32_t bytesRequested;
-} __attribute__ ((packed)) GetRandomIncoming;
+} GRUB_PACKED GetRandomIncoming;
 
 /* TPM_OIAP Incoming Operand */
 typedef struct {
 	grub_uint16_t tag;
 	grub_uint32_t paramSize;
 	grub_uint32_t ordinal;
-} __attribute__ ((packed)) OIAP_Incoming;
+} GRUB_PACKED OIAP_Incoming;
 
 /* TPM_OIAP Outgoing Operand */
 typedef struct {
@@ -102,7 +102,7 @@ typedef struct {
 	grub_uint32_t returnCode;
 	grub_uint32_t authHandle;
 	grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
-} __attribute__ ((packed)) OIAP_Outgoing;
+} GRUB_PACKED OIAP_Outgoing;
 
 /* TPM_OSAP Incoming Operand */
 typedef struct {
@@ -112,7 +112,7 @@ typedef struct {
 	grub_uint16_t entityType;
 	grub_uint32_t entityValue;
 	grub_uint8_t  nonceOddOSAP[TPM_NONCE_SIZE];
-} __attribute__ ((packed)) OSAP_Incoming;
+} GRUB_PACKED OSAP_Incoming;
 
 /* TPM_OSAP Outgoing Operand */
 typedef struct {
@@ -122,7 +122,7 @@ typedef struct {
 	grub_uint32_t authHandle;
 	grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
 	grub_uint8_t  nonceEvenOSAP[TPM_NONCE_SIZE];
-} __attribute__ ((packed)) OSAP_Outgoing;
+} GRUB_PACKED OSAP_Outgoing;
 
 typedef struct tdTCG_PCClientPCREventStruc {
 	grub_uint32_t pcrIndex;
@@ -130,7 +130,7 @@ typedef struct tdTCG_PCClientPCREventStruc {
 	grub_uint8_t digest[SHA1_DIGEST_SIZE];
 	grub_uint32_t eventDataSize;
 	grub_uint8_t event[1];
-} __attribute__ ((packed)) TCG_PCClientPCREvent;
+} GRUB_PACKED TCG_PCClientPCREvent;
 
 /* grub_fatal() on error */
 static void
@@ -437,7 +437,7 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 		grub_uint32_t returnCode;
 		grub_uint32_t randomBytesSize;
 		grub_uint8_t randomBytes[randomBytesRequested];
-	} __attribute__ ((packed)) *getRandomOutput;
+	} GRUB_PACKED *getRandomOutput;
 
 	PassThroughToTPM_OutputParamBlock* passThroughOutput;
 	/* FIXME: Why are these additional +47 bytes needed? */
@@ -692,7 +692,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 		grub_uint8_t  dataNonceOdd[TPM_NONCE_SIZE];
 		grub_uint8_t  continueDataSession;
 		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
-	} __attribute__ ((packed)) *unsealInput;
+	} GRUB_PACKED *unsealInput;
 
 	PassThroughToTPM_InputParamBlock *passThroughInput;
 	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *unsealInput );
@@ -710,7 +710,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 		grub_uint8_t  dataNonceEven[TPM_NONCE_SIZE];
 		grub_uint8_t  continueDataSession;
 		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
-	} __attribute__ ((packed)) *unsealOutput;
+	} GRUB_PACKED *unsealOutput;
 
 	PassThroughToTPM_OutputParamBlock *passThroughOutput;
 	/* FIXME: Why are these additional +47 bytes needed? */

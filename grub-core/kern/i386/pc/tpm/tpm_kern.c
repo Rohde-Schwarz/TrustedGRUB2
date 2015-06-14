@@ -41,7 +41,7 @@ typedef struct {
 	grub_uint32_t ordinal;
 	grub_uint32_t pcrNum;
 	grub_uint8_t inDigest[SHA1_DIGEST_SIZE];		/* The 160 bit value representing the event to be recorded. */
-} __attribute__ ((packed)) ExtendIncoming;
+} GRUB_PACKED ExtendIncoming;
 
 /* TPM_Extend Outgoing Operand */
 typedef struct {
@@ -49,7 +49,7 @@ typedef struct {
 	grub_uint32_t paramSize;
 	grub_uint32_t returnCode;
 	grub_uint8_t outDigest[SHA1_DIGEST_SIZE];		/* The PCR value after execution of the command. */
-} __attribute__ ((packed)) ExtendOutgoing;
+} GRUB_PACKED ExtendOutgoing;
 
 
 /* ++++++++++++++++++++++++++++++++++++++++ */
