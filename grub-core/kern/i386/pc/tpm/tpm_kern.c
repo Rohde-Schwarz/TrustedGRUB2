@@ -52,51 +52,6 @@ typedef struct {
 } GRUB_PACKED ExtendOutgoing;
 
 
-/* ++++++++++++++++++++++++++++++++++++++++ */
-/* code adapted from bitvisor http://www.bitvisor.org */
-static void
-conv32to16( grub_uint32_t src, grub_uint16_t *lowDest, grub_uint16_t *highDest ) {
-	*lowDest = src;
-	*highDest = src >> 16;
-}
-
-static void
-conv16to32( grub_uint16_t lowSource, grub_uint16_t highSource, grub_uint32_t *dest ) {
-	*dest = lowSource | (grub_uint32_t)highSource << 16;
-}
-
-static void
-conv16to8( grub_uint16_t src, grub_uint8_t *lowDest, grub_uint8_t *highDest ) {
-	*lowDest = src;
-	*highDest = src >> 8;
-}
-
-static void
-conv8to16( grub_uint8_t lowSource, grub_uint8_t highSource, grub_uint16_t *dest ) {
-	*dest = lowSource | (grub_uint16_t)highSource << 8;
-}
-
-/* 16 bit big to little-endian conversion */
-grub_uint16_t
-swap16( grub_uint16_t value ) {
-	grub_uint8_t low, high;
-
-	conv16to8( value, &low, &high );
-	conv8to16( high, low, &value );
-	return value;
-}
-
-/* 32 bit big to little-endian conversion */
-grub_uint32_t
-swap32( grub_uint32_t value ) {
-	grub_uint16_t low, high;
-
-	conv32to16( value, &low, &high );
-	conv16to32( swap16( high ), swap16( low ), &value );
-	return value;
-}
-/* end functions from bitvisor */
-
 void
 print_sha1( grub_uint8_t *inDigest ) {
 
@@ -233,10 +188,10 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	passThroughInput->OPBLength = outputlen;
 
 	extendInput = (void *)passThroughInput->TPMOperandIn;
-	extendInput->tag = swap16( TPM_TAG_RQU_COMMAND );
-	extendInput->paramSize = swap32( sizeof( *extendInput ) );
-	extendInput->ordinal = swap32( TPM_ORD_Extend );
-	extendInput->pcrNum = swap32( (grub_uint32_t) index );
+	extendInput->tag = grub_swap_bytes16( TPM_TAG_RQU_COMMAND );
+	extendInput->paramSize = grub_swap_bytes32( sizeof( *extendInput ) );
+	extendInput->ordinal = grub_swap_bytes32( TPM_ORD_Extend );
+	extendInput->pcrNum = grub_swap_bytes32( (grub_uint32_t) index );
 
 	grub_memcpy( extendInput->inDigest, inDigest, SHA1_DIGEST_SIZE);
 
@@ -250,7 +205,7 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	grub_free( passThroughInput );
 
 	extendOutput = (void *)passThroughOutput->TPMOperandOut;
-	grub_uint32_t tpmExtendReturnCode = swap32( extendOutput->returnCode );
+	grub_uint32_t tpmExtendReturnCode = grub_swap_bytes32( extendOutput->returnCode );
 
 	if( tpmExtendReturnCode != TPM_SUCCESS ) {
 		grub_free( passThroughOutput );
