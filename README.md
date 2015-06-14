@@ -3,7 +3,7 @@
 
 # TrustedGRUB2
 
-[![Build Status](https://travis-ci.org/Sirrix-AG/TrustedGRUB2.svg)](https://travis-ci.org/Sirrix-AG/TrustedGRUB2)
+[![Build Status](https://travis-ci.org/Sirrix-AG/TrustedGRUB2.svg?branch=master)](https://travis-ci.org/Sirrix-AG/TrustedGRUB2)
 
 ## 1. General Information
 
