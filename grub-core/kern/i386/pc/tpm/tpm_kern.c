@@ -23,8 +23,9 @@
 #include <grub/mm.h>
 #include <grub/err.h>
 #include <grub/file.h>
+#include <grub/sha1.h>
+#include <grub/misc.h>
 
-#include <grub/machine/sha1.h>
 #include <grub/machine/tpm.h>
 #include <grub/machine/memory.h>
 #include <grub/machine/int.h>

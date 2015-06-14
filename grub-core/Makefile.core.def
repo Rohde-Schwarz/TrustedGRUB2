@@ -129,6 +129,7 @@ kernel = {
   common = kern/rescue_parser.c;
   common = kern/rescue_reader.c;
   common = kern/term.c;
+  common = kern/sha1.c;
 
   noemu = kern/compiler-rt.c;
   noemu = kern/mm.c;
@@ -209,7 +210,6 @@ kernel = {
   i386_pc = kern/i386/pc/mmap.c;
   i386_pc = term/i386/pc/console.c;
   i386_pc = kern/i386/pc/tpm/tpm_kern.c;
-  i386_pc = kern/i386/pc/sha1.c;
 
   i386_qemu = bus/pci.c;
   i386_qemu = kern/vga_init.c;

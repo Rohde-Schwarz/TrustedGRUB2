@@ -5,6 +5,10 @@
 #include <grub/file.h>
 #include <grub/mm.h>
 
+/* Begin TCG Extension */
+#include <grub/machine/tpm.h>
+/* End TCG Extension */
+
 struct newc_head
 {
   char magic[6];
@@ -236,6 +240,11 @@ grub_initrd_close (struct grub_linux_initrd_context *initrd_ctx)
     return;
   for (i = 0; i < initrd_ctx->nfiles; i++)
     {
+
+      /* Begin TCG Extension */
+      grub_TPM_measureFile( initrd_ctx->components[i].file->name, TPM_LOADED_FILES_PCR );
+      /* End TCG Extension */
+
       grub_free (initrd_ctx->components[i].newc_name);
       grub_file_close (initrd_ctx->components[i].file);
     }

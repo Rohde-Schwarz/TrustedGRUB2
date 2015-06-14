@@ -474,14 +474,6 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
  fail:
   grub_initrd_close (&initrd_ctx);
 
-  /* Begin TCG Extension */
-  if( grub_errno == GRUB_ERR_NONE ) {
-	  for ( i = 0; i < nfiles; i++ ) {
-		  grub_TPM_measureFile( argv[i], TPM_LOADED_FILES_PCR );
-	  }
-  }
-  /* End TCG Extension */
-
   return grub_errno;
 }
 

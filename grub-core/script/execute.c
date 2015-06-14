@@ -1042,8 +1042,8 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
 
 	  unsigned int i;
 	  for( i = 1; i < argv.argc; i++  ) {
-		  grub_strcat( command, " " );
-		  grub_strcat( command, argv.args[i] ); /* append whitespace and args */
+            /* append whitespace and args */
+            grub_snprintf(command, sizeof command, "%s%s%s", command, " ", argv.args[i]);
 	  }
 
 	  /* make sure string is terminated */
