@@ -9,7 +9,7 @@ language: c
 script:
   - "./autogen.sh"
   - "./configure --target=i386 -with-platform=pc --disable-werror"
-  - "make -j 4"
+  - "make -j 4 --silent"
 
 os:
   - linux
@@ -26,5 +26,5 @@ addons:
       description: "Build submitted via Travis CI"
     notification_email: daniel@neus-online.eu
     build_command_prepend: "./autogen.sh;./configure --target=i386 -with-platform=pc --disable-werror; make clean"
-    build_command:   "make -j 4"
+    build_command:   "make -j 4 --silent"
     branch_pattern: coverity_scan
