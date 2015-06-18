@@ -5,6 +5,11 @@
 
 [![Build Status](https://travis-ci.org/Sirrix-AG/TrustedGRUB2.svg)](https://travis-ci.org/Sirrix-AG/TrustedGRUB2)
 
+<a href="https://scan.coverity.com/projects/5521">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/5521/badge.svg"/>
+</a>
+
 ## 1. General Information
 
 ### 1.1 Introduction
