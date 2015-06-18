@@ -170,12 +170,12 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 
 	CHECK_FOR_NULL_ARGUMENT( inDigest );
 
-	ExtendIncoming* extendInput;
-	PassThroughToTPM_InputParamBlock* passThroughInput;
+	ExtendIncoming* extendInput = NULL;
+	PassThroughToTPM_InputParamBlock* passThroughInput = NULL;
 	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *extendInput );
 
-	ExtendOutgoing* extendOutput;
-	PassThroughToTPM_OutputParamBlock* passThroughOutput;
+	ExtendOutgoing* extendOutput = NULL;
+	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
 	/* FIXME: Why are these additional +64 bytes needed? */
     grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *extendOutput ) + 64;
 
@@ -232,7 +232,7 @@ grub_TPM_measureString( const char* string ) {
 	CHECK_FOR_NULL_ARGUMENT( string )
 
 	/* hash string */
-	grub_uint32_t result[5];
+	grub_uint32_t result[5] = { 0 };
 
 	grub_err_t err = sha1_hash_string( string, result );
 
@@ -241,7 +241,7 @@ grub_TPM_measureString( const char* string ) {
 	}
 
 	/* convert from uint32_t to uint8_t */
-	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE] = { 0 };
 	int j, i = 0;
 	for( j = 0; j < 5; j++ ) {
 		convertedResult[i++] = ((result[j]>>24)&0xff);
@@ -275,7 +275,7 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 	}
 
 	/* hash file */
-	grub_uint32_t result[5];
+	grub_uint32_t result[5] = { 0 };
 	grub_err_t err = sha1_hash_file( file, result  );
 
     if( err != GRUB_ERR_NONE ) {
@@ -289,7 +289,7 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
     }
 
 	/* convert from uint32_t to uint8_t */
-	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE] = { 0 };
 	int j, i = 0;
 	for( j = 0; j < 5; j++ ) {
 		convertedResult[i++] = ((result[j]>>24)&0xff);
@@ -313,7 +313,7 @@ grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const
 	CHECK_FOR_NULL_ARGUMENT( buffer )
 
 	/* hash buffer */
-	grub_uint32_t result[5];
+	grub_uint32_t result[5] = { 0 };
 	grub_err_t err = sha1_hash_buffer( buffer, bufferLen, result );
 
     if( err != GRUB_ERR_NONE ) {
@@ -321,7 +321,7 @@ grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const
     }
 
 	/* convert from uint32_t to uint8_t */
-	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE] = { 0 };
 	int j, i = 0;
 	for( j = 0; j < 5; j++ ) {
 		convertedResult[i++] = ((result[j]>>24)&0xff);
