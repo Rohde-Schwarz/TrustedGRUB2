@@ -52,7 +52,7 @@ static const grub_uint32_t TCG_PCR_EVENT_SIZE = 32;
 static const grub_uint16_t TPM_TAG_RQU_AUTH2_COMMAND = 0x00C3;
 
 #define TPM_NONCE_SIZE 20
-static const grub_uint32_t TPM_AUTHDATA_SIZE = 20;
+#define TPM_AUTHDATA_SIZE 20
 
 static const grub_uint8_t srkAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static const grub_uint8_t blobAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -87,6 +87,15 @@ typedef struct {
 	grub_uint32_t ordinal;
 	grub_uint32_t bytesRequested;
 } GRUB_PACKED GetRandomIncoming;
+
+/* TPM_GetRandom Outgoing Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t returnCode;
+	grub_uint32_t randomBytesSize;
+	grub_uint8_t randomBytes[1];
+} GRUB_PACKED GetRandomOutgoing;
 
 /* TPM_OIAP Incoming Operand */
 typedef struct {
@@ -131,6 +140,38 @@ typedef struct tdTCG_PCClientPCREventStruc {
 	grub_uint32_t eventDataSize;
 	grub_uint8_t event[1];
 } GRUB_PACKED TCG_PCClientPCREvent;
+
+/* TPM_UNSEAL Incoming Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t ordinal;
+	grub_uint32_t parentHandle;
+	grub_uint8_t  sealedData[1];
+	grub_uint32_t authHandle;
+	grub_uint8_t  nonceOdd[TPM_NONCE_SIZE];
+	grub_uint8_t  continueAuthSession;
+	grub_uint8_t  parentAuth[TPM_AUTHDATA_SIZE];
+	grub_uint32_t dataAuthHandle;
+	grub_uint8_t  dataNonceOdd[TPM_NONCE_SIZE];
+	grub_uint8_t  continueDataSession;
+	grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
+} GRUB_PACKED UNSEAL_Incoming;
+
+/* TPM_UNSEAL Outgoing Operand */
+typedef struct {
+	grub_uint16_t tag;
+	grub_uint32_t paramSize;
+	grub_uint32_t returnCode;
+	grub_uint32_t secretSize;
+	grub_uint8_t  unsealedData[1];
+	grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
+	grub_uint8_t  continueAuthSession;
+	grub_uint8_t  resAuth[TPM_AUTHDATA_SIZE];
+	grub_uint8_t  dataNonceEven[TPM_NONCE_SIZE];
+	grub_uint8_t  continueDataSession;
+	grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
+} GRUB_PACKED UNSEAL_Outgoing;
 
 /* grub_fatal() on error */
 static void
@@ -429,19 +470,10 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 	PassThroughToTPM_InputParamBlock* passThroughInput = NULL;
 	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *getRandomInput );
 
-	/* variable size struct, must be defined here?! */
-	/* TPM_GetRandom Outgoing Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t returnCode;
-		grub_uint32_t randomBytesSize;
-		grub_uint8_t randomBytes[randomBytesRequested];
-	} GRUB_PACKED *getRandomOutput;
+	GetRandomOutgoing* getRandomOutput = NULL;
 
 	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
-	/* FIXME: Why are these additional +47 bytes needed? */
-	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *getRandomOutput ) + 47;
+	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *getRandomOutput ) + randomBytesRequested;
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
@@ -677,44 +709,15 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 	CHECK_FOR_NULL_ARGUMENT( sealedBuffer )
 	CHECK_FOR_NULL_ARGUMENT( resultSize)
 
-	/* TPM_UNSEAL Incoming Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t ordinal;
-		grub_uint32_t parentHandle;
-		grub_uint8_t  sealedData[inputSize];
-		grub_uint32_t authHandle;
-		grub_uint8_t  nonceOdd[TPM_NONCE_SIZE];
-		grub_uint8_t  continueAuthSession;
-		grub_uint8_t  parentAuth[TPM_AUTHDATA_SIZE];
-		grub_uint32_t dataAuthHandle;
-		grub_uint8_t  dataNonceOdd[TPM_NONCE_SIZE];
-		grub_uint8_t  continueDataSession;
-		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
-	} GRUB_PACKED *unsealInput;
+	UNSEAL_Incoming* unsealInput = NULL;
 
 	PassThroughToTPM_InputParamBlock *passThroughInput = NULL;
-	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *unsealInput );
+	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *unsealInput ) + inputSize;
 
-	/* TPM_UNSEAL Outgoing Operand */
-	struct {
-		grub_uint16_t tag;
-		grub_uint32_t paramSize;
-		grub_uint32_t returnCode;
-		grub_uint32_t secretSize;
-		grub_uint8_t  unsealedData[inputSize];		/* FIXME: what size to use here? */
-		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
-		grub_uint8_t  continueAuthSession;
-		grub_uint8_t  resAuth[TPM_AUTHDATA_SIZE];
-		grub_uint8_t  dataNonceEven[TPM_NONCE_SIZE];
-		grub_uint8_t  continueDataSession;
-		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
-	} GRUB_PACKED *unsealOutput;
+	UNSEAL_Outgoing* unsealOutput = NULL;
 
 	PassThroughToTPM_OutputParamBlock *passThroughOutput = NULL;
-	/* FIXME: Why are these additional +47 bytes needed? */
-	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *unsealOutput ) + 47 ;
+	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *unsealOutput ) + inputSize ;
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
@@ -829,7 +832,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
         grub_fatal( "grub_TPM_unseal: memory allocation failed" );
     }
 
-	grub_memcpy( *result, &unsealOutput->unsealedData[0], *resultSize );
+	grub_memcpy( *result, unsealOutput->unsealedData, *resultSize );
 
 	grub_free( passThroughOutput );
 }
@@ -837,10 +840,6 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 #ifdef TGRUB_DEBUG
 static grub_err_t
 grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
-
-	if( !grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
-	}
 
 	if ( argc == 0 ) {
 		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "value expected" ) );
@@ -892,10 +891,6 @@ grub_cmd_unseal( grub_command_t cmd __attribute__ ((unused)), int argc, char **a
 static grub_err_t
 grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char **args) {
 
-	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
-	}
-
 	if ( argc == 0 ) {
 		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "value expected" ) );
 	}
@@ -915,24 +910,28 @@ grub_cmd_getRandom( grub_command_t cmd __attribute__ ((unused)), int argc, char 
 		return grub_error( GRUB_ERR_BAD_ARGUMENT, N_( "Value must be greater 0" ) );
 	}
 
-	grub_uint8_t random[randomBytesRequested];
+	grub_uint8_t* random;
+	random = grub_zalloc( randomBytesRequested );
+	if( ! random ) {
+		grub_fatal( "grub_cmd_getRandom: memory allocation failed" );
+	}
 
 	grub_TPM_getRandom( randomBytesRequested, &random[0] );
 
+	grub_printf( "random bytes: " );
 	unsigned int j;
 	for( j = 0; j < randomBytesRequested; ++j ) {
 		grub_printf( "%02x", random[j] );
 	}
+	grub_printf( "\n\n" );
+
+	grub_free( random );
 
 	return GRUB_ERR_NONE;
 }
 
 static grub_err_t
 grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attribute__ ((unused)), char** args __attribute__ ((unused))) {
-
-	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
-	}
 
 	grub_uint32_t authHandle = 0;
 	grub_uint8_t nonceEven[TPM_NONCE_SIZE];
@@ -946,16 +945,13 @@ grub_cmd_openOIAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 	for( j = 0; j < TPM_NONCE_SIZE; ++j ) {
 		grub_printf( "%02x", nonceEven[j] );
 	}
+	grub_printf( "\n\n" );
 
 	return GRUB_ERR_NONE;
 }
 
 static grub_err_t
 grub_cmd_openOSAP(grub_command_t cmd __attribute__ ((unused)), int argc __attribute__ ((unused)), char** args __attribute__ ((unused))) {
-
-	if( ! grub_TPM_isAvailable() ) {
-        return grub_error (GRUB_ERR_NO_TPM, N_("TPM not available"));
-	}
 
 	/* get random for nonceOddOSAP */
 	grub_uint8_t nonceOddOSAP[TPM_NONCE_SIZE];
@@ -979,6 +975,7 @@ grub_cmd_openOSAP(grub_command_t cmd __attribute__ ((unused)), int argc __attrib
 	for( j = 0; j < TPM_NONCE_SIZE; ++j ) {
 		grub_printf( "%02x", nonceEvenOSAP[j] );
 	}
+	grub_printf( "\n\n" );
 
 	return GRUB_ERR_NONE;
 }

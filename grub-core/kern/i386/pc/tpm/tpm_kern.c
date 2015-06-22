@@ -217,9 +217,9 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	}
 
 #ifdef TGRUB_DEBUG
-	grub_printf( "New PCR[%lu]=", index );
+	DEBUG_PRINT( ( "New PCR[%lu]=", index ) );
 	print_sha1( extendOutput->outDigest );
-	grub_printf("\n\n");
+	DEBUG_PRINT( ( "\n\n" ) );
 #endif
 
 	grub_free( passThroughOutput );
@@ -252,9 +252,10 @@ grub_TPM_measureString( const char* string ) {
 
 #ifdef TGRUB_DEBUG
     /* print SHA1 hash of input string */
-    grub_printf( "\n" );
+	DEBUG_PRINT( ( "measured command: '%s'\n", string ) );
+	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
-    grub_printf( "  %s\n", string );
+    DEBUG_PRINT( ( "\n" ) );
 #endif
 
 	/* measure */
@@ -300,7 +301,10 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 
 #ifdef TGRUB_DEBUG
     /* print hash */
+	DEBUG_PRINT( ( "measured file: %s\n", filename ) );
+	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
+    DEBUG_PRINT( ( "\n" ) );
 #endif
 
 	/* measure */
@@ -330,9 +334,12 @@ grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const
 		convertedResult[i++] = (result[j]&0xff);
 	}
 
+
 #ifdef TGRUB_DEBUG
     /* print hash */
+	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
+    DEBUG_PRINT( ( "\n" ) );
 #endif
 
 	/* measure */
