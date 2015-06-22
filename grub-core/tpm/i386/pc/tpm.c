@@ -185,8 +185,7 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
 
 	PassThroughToTPM_OutputParamBlock *passThroughOutput = NULL;
 	PCRReadOutgoing* pcrReadOutgoing = NULL;
-	/* FIXME: Why are these additional +47 bytes needed? */
-    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *pcrReadOutgoing ) + 47 ;
+    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *pcrReadOutgoing );
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
@@ -533,8 +532,7 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
 
 	OIAP_Outgoing* oiapOutput = NULL;
 	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
-	/* FIXME: Why are these additional +47 bytes needed? */
-	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *oiapOutput ) + 47 ;
+	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *oiapOutput );
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
@@ -588,8 +586,7 @@ grub_TPM_openOSAP_Session( const grub_uint16_t entityType, const grub_uint32_t e
 
 	OSAP_Outgoing* osapOutput = NULL;
 	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
-	/* FIXME: Why are these additional +47 bytes needed? */
-	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *osapOutput ) + 47 ;
+	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *osapOutput );
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {

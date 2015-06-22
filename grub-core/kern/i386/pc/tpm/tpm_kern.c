@@ -176,8 +176,7 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 
 	ExtendOutgoing* extendOutput = NULL;
 	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
-	/* FIXME: Why are these additional +64 bytes needed? */
-    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *extendOutput ) + 64;
+    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *extendOutput );
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
