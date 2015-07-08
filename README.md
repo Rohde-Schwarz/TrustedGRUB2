@@ -23,7 +23,7 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 
 ### 1.2 Features
 
-* Based on GRUB2 (master branch, last merge: 14.06.2015)
+* Based on GRUB2 (master branch, last merge: 08.07.2015)
 * TPM Support with TPM detection (only legacy/mbr mode, UEFI is not supported at the moment)
 * Measurement of GRUB2 kernel
 * Measurement of all loaded GRUB2 modules
