@@ -52,6 +52,7 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 
 ### 1.3 Measurements (in short)
 
+* PCR 0-7 Measured by BIOS
 * PCR 8 First sector of TrustedGRUB2 kernel (diskboot.img)
 * PCR 9 TrustedGRUB2 kernel (core.img)
 * PCR 10 Everything that is loaded from disk (grub2-modules,
