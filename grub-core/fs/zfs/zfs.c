@@ -2882,7 +2882,10 @@ dnode_get_path (struct subvolume *subvol, const char *path_in, dnode_end_t *dn,
 
 		  err = dmu_read (&(dnode_path->dn), block, &t, 0, data);
 		  if (err)
-		    return err;
+		    {
+		      grub_free (sym_value);
+		      return err;
+		    }
 
 		  movesize = sym_sz - block * blksz;
 		  if (movesize > blksz)
@@ -3668,6 +3671,8 @@ zfs_mount (grub_device_t dev)
 			 data) != 0)
     {
       grub_error (GRUB_ERR_BAD_FS, "Unsupported features in pool");
+      grub_free (osp);
+      zfs_unmount (data);
       return NULL;
     }
 
