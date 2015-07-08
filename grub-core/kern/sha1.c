@@ -19,6 +19,7 @@
 #include <grub/sha1.h>
 #include <grub/types.h>
 #include <grub/mm.h>
+#include <grub/misc.h>
 
 // concatenates 4 * 8-bit words (= 1 byte) to one 32-bit word
 #define CONCAT_4_BYTES( w32, w8, w8_i)            \

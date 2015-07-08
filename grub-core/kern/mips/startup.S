@@ -21,6 +21,7 @@
 #include <grub/offsets.h>
 #include <grub/machine/memory.h>
 #include <grub/machine/kernel.h>
+#include <grub/cpu/kernel.h>
 #include <grub/offsets.h>
 
 #define BASE_ADDR 8	
@@ -28,6 +29,7 @@
 	.globl __start, _start, start
 	.set noreorder
 	.set nomacro
+	mips_attributes
 __start:
 _start:
 start:		
@@ -36,7 +38,7 @@ start:
 	bal cont
 	 nop
 
-	. = _start + GRUB_KERNEL_MACHINE_TOTAL_MODULE_SIZE
+	.org GRUB_KERNEL_MACHINE_TOTAL_MODULE_SIZE
 VARIABLE(grub_total_modules_size)
 	.long 0
 
@@ -73,7 +75,6 @@ cont:
 #endif
 
 	/* Move the modules out of BSS.  */
-#ifndef GRUB_MACHINE_ARC
 	lui $t2, %hi(__bss_start)
 	addiu $t2, %lo(__bss_start)
 	
@@ -103,7 +104,6 @@ modulesmovcont:
 	b modulesmovcont
 	 addiu $t3, $t3, -1
 modulesmovdone:
-#endif
 
 	/* Clean BSS.  */
 	
@@ -118,10 +118,10 @@ bsscont:
 	bne $t3, $0, bsscont
          nop
 
-	lui $t1, %hi(grub_main)
-	addiu $t1, %lo(grub_main)
+	lui $t9, %hi(grub_main)
+	addiu $t9, %lo(grub_main)
 
 	lui $sp, %hi(GRUB_MACHINE_MEMORY_STACK_HIGH)
-	jr $t1
+	jr $t9
 	 addiu $sp, $sp, %lo(GRUB_MACHINE_MEMORY_STACK_HIGH)
 

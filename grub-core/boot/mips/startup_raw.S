@@ -21,16 +21,19 @@
 #include <grub/offsets.h>
 #include <grub/machine/memory.h>
 #include <grub/machine/kernel.h>
+#include <grub/cpu/kernel.h>
 #include <grub/offsets.h>
 
 #define BASE_ADDR 8
 
 .extern __bss_start
 .extern _end
+.extern _edata
 
 	.globl __start, _start, start
 	.set noreorder
 	.set nomacro
+	mips_attributes
 __start:
 _start:
 start:		
@@ -38,13 +41,13 @@ start:
 	bal codestart
 	 nop
 base:	
-	. = _start + GRUB_DECOMPRESSOR_MACHINE_COMPRESSED_SIZE
+	.org GRUB_DECOMPRESSOR_MACHINE_COMPRESSED_SIZE
 compressed_size:
 	.long 0
-	. = _start + GRUB_DECOMPRESSOR_MACHINE_UNCOMPRESSED_SIZE
+	.org GRUB_DECOMPRESSOR_MACHINE_UNCOMPRESSED_SIZE
 uncompressed_size:
 	.long 0
-	. = _start + GRUB_DECOMPRESSOR_MACHINE_UNCOMPRESSED_ADDR
+	.org GRUB_DECOMPRESSOR_MACHINE_UNCOMPRESSED_ADDR
 uncompressed_addr:
 	.long 0
 codestart:
@@ -149,18 +152,18 @@ digcont:
 1:
 	jr $ra
 	 nop
-busclockstr:	.asciiz "busclock="
-cpuclockstr:	.asciiz "cpuclock="
-memsizestr:	.asciiz "memsize="
-highmemsizestr:	.asciiz "highmemsize="
-machtype_yeeloong_str1:	.asciiz "machtype=8.9"
-machtype_yeeloong_str2:	.asciiz "machtype=lemote-yeeloong-"
-machtype_fuloong2f_str:	.asciiz "machtype=lemote-fuloong-2f"
-machtype_fuloong2e_str:	.asciiz "machtype=lemote-fuloong-2e"
-pmon_yeeloong_str:	.asciiz "PMON_VER=LM8"
-pmon_fuloong2f_str:	.asciiz "PMON_VER=LM6"
-pmon_yeeloong_verstr:	.asciiz "Version=LM8"
-pmon_fuloong2f_verstr:	.asciiz "Version=LM6"
+busclockstr:	.asciz "busclock="
+cpuclockstr:	.asciz "cpuclock="
+memsizestr:	.asciz "memsize="
+highmemsizestr:	.asciz "highmemsize="
+machtype_yeeloong_str1:	.asciz "machtype=8.9"
+machtype_yeeloong_str2:	.asciz "machtype=lemote-yeeloong-"
+machtype_fuloong2f_str:	.asciz "machtype=lemote-fuloong-2f"
+machtype_fuloong2e_str:	.asciz "machtype=lemote-fuloong-2e"
+pmon_yeeloong_str:	.asciz "PMON_VER=LM8"
+pmon_fuloong2f_str:	.asciz "PMON_VER=LM6"
+pmon_yeeloong_verstr:	.asciz "Version=LM8"
+pmon_fuloong2f_verstr:	.asciz "Version=LM6"
 	.p2align 2
 
 argdone:
@@ -196,6 +199,21 @@ do_check:
 argfw:
 	not $s7, $a2
 cmdlinedone:	
+#endif
+#ifdef GRUB_MACHINE_ARC
+	lui $t0, %hi(_start - 256)
+	addiu $t0, $t0, %lo(_start - 256)
+	addiu $t3, $t0, 255
+	lw $t1, 0($a1)
+1:	
+	bne $t0, $t3, 2f
+	 lb $t2, 0($t1)
+	move $t2, $zero
+2:
+	sb $t2, 0($t0)
+	addiu $t0, $t0, 1
+	bnez $t2, 1b
+	 addiu $t1, $t1, 1
 #endif
 	/* Copy the decompressor. */
 	lui $t1, %hi(base)
@@ -233,8 +251,9 @@ cmdlinedone:
 #include "../../kern/mips/cache_flush.S"
 
 	/* Decompress the payload. */
-	lui $a0, %hi(__bss_start)
-	addiu $a0, $a0, %lo(__bss_start)
+	lui $a0, %hi(_edata)
+	addiu $a0, $a0, %lo(_edata)
+
 	lui $t0, %hi(base)
 	addiu $t0, $t0, %lo(base)
 	subu $a0, $a0, $t0
@@ -250,13 +269,18 @@ cmdlinedone:
 	*/
 	move $s6, $a3
 
-	lui $t0, %hi(EXT_C(grub_decompress_core))
-	addiu $t0, $t0, %lo(EXT_C(grub_decompress_core))
+	lui $t9, %hi(EXT_C(grub_decompress_core))
+	addiu $t9, $t9, %lo(EXT_C(grub_decompress_core))
 
+#ifdef GRUB_MACHINE_ARC
+	lui $sp, %hi(_start - 512)
+	jalr $t9
+	 addiu $sp, $sp, %lo(_start - 512)
+#else
 	lui $sp, %hi(_start - 256)
-	jalr $t0
+	jalr $t9
 	 addiu $sp, $sp, %lo(_start - 256)
-	
+#endif	
 	move $a0, $s1
 	move $a1, $s6
 
@@ -267,3 +291,11 @@ cmdlinedone:
 
 	jr $t1
 	 nop
+	/* Ensure that .data section is created. In code we suppose that _edata
+	   is first location not in decompressor image. Strictly speaking it's
+	   _edata only when .data is present and _etext otherwise. But checking
+	   for .data presence would cost more in code than it is to ensure that
+	   .data is created.
+	*/
+	.data
+	.long 0

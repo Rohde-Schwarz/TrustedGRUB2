@@ -59,11 +59,10 @@ _start:
 	movw	$LOCAL(firstlist), %di
 
 /* BEGIN TCG EXTENSION */
-	/* clear EAX to remove potential garbage in its high part since we only
-	 * store a word in EAX below */
+	/* clear EAX to remove potential garbage */
 	xorl	%eax, %eax
 	/* 8(%di) = number of sectors to read */
-	movw	8(%di), %eax
+	movl	8(%di), %eax
 
 	/* Multiply number of sectors to read with 512 bytes. EAX is 32bit
 	 * which is large enough to hold values of up to 4GB. I doubt there
@@ -446,7 +445,7 @@ LOCAL(message):
 	.word 0
 	.word 0
 
-	. = _start + 0x200 - GRUB_BOOT_MACHINE_LIST_SIZE
+	.org 0x200 - GRUB_BOOT_MACHINE_LIST_SIZE
 LOCAL(firstlist):	/* this label has to be before the first list entry!!! */
         /* fill the first data listing with the default */
 blocklist_default_start:

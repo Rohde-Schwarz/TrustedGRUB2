@@ -24,6 +24,7 @@
 #include <grub/err.h>
 #include <grub/file.h>
 #include <grub/sha1.h>
+#include <grub/misc.h>
 
 #include <grub/machine/tpm.h>
 #include <grub/machine/memory.h>
@@ -40,7 +41,7 @@ typedef struct {
 	grub_uint32_t ordinal;
 	grub_uint32_t pcrNum;
 	grub_uint8_t inDigest[SHA1_DIGEST_SIZE];		/* The 160 bit value representing the event to be recorded. */
-} __attribute__ ((packed)) ExtendIncoming;
+} GRUB_PACKED ExtendIncoming;
 
 /* TPM_Extend Outgoing Operand */
 typedef struct {
@@ -48,53 +49,8 @@ typedef struct {
 	grub_uint32_t paramSize;
 	grub_uint32_t returnCode;
 	grub_uint8_t outDigest[SHA1_DIGEST_SIZE];		/* The PCR value after execution of the command. */
-} __attribute__ ((packed)) ExtendOutgoing;
+} GRUB_PACKED ExtendOutgoing;
 
-
-/* ++++++++++++++++++++++++++++++++++++++++ */
-/* code adapted from bitvisor http://www.bitvisor.org */
-static void
-conv32to16( grub_uint32_t src, grub_uint16_t *lowDest, grub_uint16_t *highDest ) {
-	*lowDest = src;
-	*highDest = src >> 16;
-}
-
-static void
-conv16to32( grub_uint16_t lowSource, grub_uint16_t highSource, grub_uint32_t *dest ) {
-	*dest = lowSource | (grub_uint32_t)highSource << 16;
-}
-
-static void
-conv16to8( grub_uint16_t src, grub_uint8_t *lowDest, grub_uint8_t *highDest ) {
-	*lowDest = src;
-	*highDest = src >> 8;
-}
-
-static void
-conv8to16( grub_uint8_t lowSource, grub_uint8_t highSource, grub_uint16_t *dest ) {
-	*dest = lowSource | (grub_uint16_t)highSource << 8;
-}
-
-/* 16 bit big to little-endian conversion */
-grub_uint16_t
-swap16( grub_uint16_t value ) {
-	grub_uint8_t low, high;
-
-	conv16to8( value, &low, &high );
-	conv8to16( high, low, &value );
-	return value;
-}
-
-/* 32 bit big to little-endian conversion */
-grub_uint32_t
-swap32( grub_uint32_t value ) {
-	grub_uint16_t low, high;
-
-	conv32to16( value, &low, &high );
-	conv16to32( swap16( high ), swap16( low ), &value );
-	return value;
-}
-/* end functions from bitvisor */
 
 void
 print_sha1( grub_uint8_t *inDigest ) {
@@ -214,14 +170,13 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 
 	CHECK_FOR_NULL_ARGUMENT( inDigest );
 
-	ExtendIncoming* extendInput;
-	PassThroughToTPM_InputParamBlock* passThroughInput;
+	ExtendIncoming* extendInput = NULL;
+	PassThroughToTPM_InputParamBlock* passThroughInput = NULL;
 	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *extendInput );
 
-	ExtendOutgoing* extendOutput;
-	PassThroughToTPM_OutputParamBlock* passThroughOutput;
-	/* FIXME: Why are these additional +64 bytes needed? */
-    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *extendOutput ) + 64;
+	ExtendOutgoing* extendOutput = NULL;
+	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
+    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *extendOutput );
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
@@ -232,10 +187,10 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	passThroughInput->OPBLength = outputlen;
 
 	extendInput = (void *)passThroughInput->TPMOperandIn;
-	extendInput->tag = swap16( TPM_TAG_RQU_COMMAND );
-	extendInput->paramSize = swap32( sizeof( *extendInput ) );
-	extendInput->ordinal = swap32( TPM_ORD_Extend );
-	extendInput->pcrNum = swap32( (grub_uint32_t) index );
+	extendInput->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
+	extendInput->paramSize = grub_swap_bytes32( sizeof( *extendInput ) );
+	extendInput->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_Extend );
+	extendInput->pcrNum = grub_swap_bytes32( (grub_uint32_t) index );
 
 	grub_memcpy( extendInput->inDigest, inDigest, SHA1_DIGEST_SIZE);
 
@@ -249,7 +204,7 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	grub_free( passThroughInput );
 
 	extendOutput = (void *)passThroughOutput->TPMOperandOut;
-	grub_uint32_t tpmExtendReturnCode = swap32( extendOutput->returnCode );
+	grub_uint32_t tpmExtendReturnCode = grub_swap_bytes32( extendOutput->returnCode );
 
 	if( tpmExtendReturnCode != TPM_SUCCESS ) {
 		grub_free( passThroughOutput );
@@ -261,9 +216,9 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	}
 
 #ifdef TGRUB_DEBUG
-	grub_printf( "New PCR[%lu]=", index );
+	DEBUG_PRINT( ( "New PCR[%lu]=", index ) );
 	print_sha1( extendOutput->outDigest );
-	grub_printf("\n\n");
+	DEBUG_PRINT( ( "\n\n" ) );
 #endif
 
 	grub_free( passThroughOutput );
@@ -276,7 +231,7 @@ grub_TPM_measureString( const char* string ) {
 	CHECK_FOR_NULL_ARGUMENT( string )
 
 	/* hash string */
-	grub_uint32_t result[5];
+	grub_uint32_t result[5] = { 0 };
 
 	grub_err_t err = sha1_hash_string( string, result );
 
@@ -285,7 +240,7 @@ grub_TPM_measureString( const char* string ) {
 	}
 
 	/* convert from uint32_t to uint8_t */
-	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE] = { 0 };
 	int j, i = 0;
 	for( j = 0; j < 5; j++ ) {
 		convertedResult[i++] = ((result[j]>>24)&0xff);
@@ -296,9 +251,10 @@ grub_TPM_measureString( const char* string ) {
 
 #ifdef TGRUB_DEBUG
     /* print SHA1 hash of input string */
-    grub_printf( "\n" );
+	DEBUG_PRINT( ( "measured command: '%s'\n", string ) );
+	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
-    grub_printf( "  %s\n", string );
+    DEBUG_PRINT( ( "\n" ) );
 #endif
 
 	/* measure */
@@ -319,7 +275,7 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 	}
 
 	/* hash file */
-	grub_uint32_t result[5];
+	grub_uint32_t result[5] = { 0 };
 	grub_err_t err = sha1_hash_file( file, result  );
 
     if( err != GRUB_ERR_NONE ) {
@@ -333,7 +289,7 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
     }
 
 	/* convert from uint32_t to uint8_t */
-	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE] = { 0 };
 	int j, i = 0;
 	for( j = 0; j < 5; j++ ) {
 		convertedResult[i++] = ((result[j]>>24)&0xff);
@@ -344,7 +300,10 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 
 #ifdef TGRUB_DEBUG
     /* print hash */
+	DEBUG_PRINT( ( "measured file: %s\n", filename ) );
+	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
+    DEBUG_PRINT( ( "\n" ) );
 #endif
 
 	/* measure */
@@ -357,7 +316,7 @@ grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const
 	CHECK_FOR_NULL_ARGUMENT( buffer )
 
 	/* hash buffer */
-	grub_uint32_t result[5];
+	grub_uint32_t result[5] = { 0 };
 	grub_err_t err = sha1_hash_buffer( buffer, bufferLen, result );
 
     if( err != GRUB_ERR_NONE ) {
@@ -365,7 +324,7 @@ grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const
     }
 
 	/* convert from uint32_t to uint8_t */
-	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE];
+	grub_uint8_t convertedResult[SHA1_DIGEST_SIZE] = { 0 };
 	int j, i = 0;
 	for( j = 0; j < 5; j++ ) {
 		convertedResult[i++] = ((result[j]>>24)&0xff);
@@ -374,9 +333,12 @@ grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const
 		convertedResult[i++] = (result[j]&0xff);
 	}
 
+
 #ifdef TGRUB_DEBUG
     /* print hash */
+	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
+    DEBUG_PRINT( ( "\n" ) );
 #endif
 
 	/* measure */

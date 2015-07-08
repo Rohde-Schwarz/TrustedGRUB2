@@ -53,6 +53,10 @@ void EXPORT_FUNC(grub_efi_print_device_path) (grub_efi_device_path_t *dp);
 char *EXPORT_FUNC(grub_efi_get_filename) (grub_efi_device_path_t *dp);
 grub_efi_device_path_t *
 EXPORT_FUNC(grub_efi_get_device_path) (grub_efi_handle_t handle);
+grub_efi_device_path_t *
+EXPORT_FUNC(grub_efi_find_last_device_path) (const grub_efi_device_path_t *dp);
+grub_efi_device_path_t *
+EXPORT_FUNC(grub_efi_duplicate_device_path) (const grub_efi_device_path_t *dp);
 grub_err_t EXPORT_FUNC (grub_efi_finish_boot_services) (grub_efi_uintn_t *outbuf_size, void *outbuf,
 							grub_efi_uintn_t *map_key,
 							grub_efi_uintn_t *efi_desc_size,
@@ -64,6 +68,11 @@ grub_err_t EXPORT_FUNC (grub_efi_set_virtual_address_map) (grub_efi_uintn_t memo
 void *EXPORT_FUNC (grub_efi_get_variable) (const char *variable,
 					   const grub_efi_guid_t *guid,
 					   grub_size_t *datasize_out);
+grub_err_t
+EXPORT_FUNC (grub_efi_set_variable) (const char *var,
+				     const grub_efi_guid_t *guid,
+				     void *data,
+				     grub_size_t datasize);
 int
 EXPORT_FUNC (grub_efi_compare_device_paths) (const grub_efi_device_path_t *dp1,
 					     const grub_efi_device_path_t *dp2);

@@ -5,6 +5,11 @@
 
 [![Build Status](https://travis-ci.org/Sirrix-AG/TrustedGRUB2.svg?branch=master)](https://travis-ci.org/Sirrix-AG/TrustedGRUB2)
 
+<a href="https://scan.coverity.com/projects/5521">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/5521/badge.svg"/>
+</a>
+
 ## 1. General Information
 
 ### 1.1 Introduction
@@ -18,14 +23,14 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 
 ### 1.2 Features
 
-* Based on GRUB2 Release 2.00
+* Based on GRUB2 (master branch, last merge: 14.06.2015)
 * TPM Support with TPM detection (only legacy/mbr mode, UEFI is not supported at the moment)
 * Measurement of GRUB2 kernel
 * Measurement of all loaded GRUB2 modules
 * Measurement of all commands and their parameters entered in shell and scripts
 * New SHA1-implementation in GRUB2 kernel (necessary for doing the GRUB2 modules measurement as the crypto module isn't loaded at this stage)
 * Added LUKS keyfile support with additional parameter "-k KEYFILE" for cryptomount command
-* Added supported for unsealing LUKS keyfile with additional "-s" parameter for cryptomount command. LUKS-header is measured before unsealing into PCR 12. Currently unsealing only supported with SRK and well known secret (20 zero bytes)
+* Added support for unsealing LUKS keyfile with additional "-s" parameter for cryptomount command. LUKS-header is measured before unsealing into PCR 12. Currently unsealing only supported with SRK and well known secret (20 zero bytes)
 * New commands:
   * readpcr PCRNUM
   * tcglog LOGINDEX
@@ -102,7 +107,7 @@ To compile and install TrustedGRUB2, please run
 
 ```bash
 ./autogen.sh
-./configure --prefix=INSTALLDIR --target=i386 -with-platform=pc --disable-werror
+./configure --prefix=INSTALLDIR --target=i386 -with-platform=pc
 make
 make install
 ```
@@ -220,7 +225,7 @@ Sets Memory Overwrite Request (MOR) Bit. `DISABLEAUTODETECT` specifies if BIOS s
 * `chainloader`  
 * `ntdlr`  
 
-These commands are modified to measure before loading. PCR 14 is extended.
+These commands are modified to measure before loading. PCR 10 is extended.
 
 ### 2.7 Other modifications
 
@@ -243,12 +248,11 @@ support to GRUB2.
 * grub-core/boot/i386/pc/boot.S
 * grub-core/boot/i386/pc/diskboot.S
 * grub-core/kern/dl.c
-* grub-core/kern/i386/pc/startup.S
-* grub-core/kern/i386/pc/tpm/tpm.S
 * grub-core/kern/i386/pc/tpm/tpm_kern.c
 * grub-core/kern/sha1.c
 * grub-core/disk/cryptodisk.c
 * grub-core/disk/luks.c
+* grub-core/loader/linux.c
 * grub-core/loader/i386/linux.c
 * grub-core/loader/i386/pc/chainloader.c
 * grub-core/loader/i386/pc/linux.c

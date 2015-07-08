@@ -1,3 +1,7 @@
+env:
+  global:
+   - secure: "Acg+6oi50Jb6DBDozRa08VmaqkMpA5y0CHCw9odbn+f5sZa21mVG3wLMPyTiQTOvusTSE4Kt19l3CKqzKboEtgYOr8BxyyznoNOt8xm4+ZD/l3CowK2bKoN+6p9awmMYn2Edi5wmg4KMDAVghTvjNtZgQgtSCer496vu+sVLQ4g="
+
 compiler: gcc
 language: c
 
@@ -5,7 +9,7 @@ language: c
 script:
   - "./autogen.sh"
   - "./configure --target=i386 -with-platform=pc"
-  - "make"
+  - "make -j 4 --silent"
 
 os:
   - linux
@@ -14,3 +18,13 @@ notifications:
   email:
     recipients:
       - daniel@neus-online.eu
+
+addons:
+  coverity_scan:
+    project:
+      name: "Sirrix-AG/TrustedGRUB2"
+      description: "Build submitted via Travis CI"
+    notification_email: daniel@neus-online.eu
+    build_command_prepend: "./autogen.sh;./configure --target=i386 -with-platform=pc; make clean"
+    build_command:   "make -j 4 --silent"
+    branch_pattern: coverity_scan

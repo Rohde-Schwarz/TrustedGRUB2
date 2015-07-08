@@ -17,8 +17,6 @@
  */
 
 #include <grub/symbol.h>
-/* For stack parameters.  */
-#include <grub/i386/pc/memory.h>
 #include <grub/machine/memory.h>
 #include <grub/cpu/linux.h>
 #include <grub/offsets.h>
@@ -63,10 +61,3 @@ multiboot_header:
 	/* checksum */
 	.long	-0x1BADB002 - MULTIBOOT_MEMORY_INFO
 
-/*
- *  prot_to_real and associated structures (but NOT real_to_prot, that is
- *  only needed for BIOS gates).
- */
-#include "../realmode.S"
-
-#include "../int.S"

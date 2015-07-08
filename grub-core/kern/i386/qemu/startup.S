@@ -19,7 +19,6 @@
 #include <config.h>
 #include <grub/symbol.h>
 
-#include <grub/i386/pc/memory.h>
 #include <grub/machine/memory.h>
 #include <grub/machine/kernel.h>
 
@@ -29,7 +28,7 @@
 _start:
 	jmp	codestart
 
-	. = _start + GRUB_KERNEL_I386_QEMU_CORE_ENTRY_ADDR
+	.org GRUB_KERNEL_I386_QEMU_CORE_ENTRY_ADDR
 VARIABLE(grub_core_entry_addr)
 	.long	0
 
@@ -74,5 +73,3 @@ codestart:
 1:	
 	hlt
 	jmp 1b
-
-#include "../realmode.S"
