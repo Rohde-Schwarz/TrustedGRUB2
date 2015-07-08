@@ -62,7 +62,7 @@ _start:
 	/* clear EAX to remove potential garbage */
 	xorl	%eax, %eax
 	/* 8(%di) = number of sectors to read */
-	movl	8(%di), %eax
+	movw	8(%di), %ax
 
 	/* Multiply number of sectors to read with 512 bytes. EAX is 32bit
 	 * which is large enough to hold values of up to 4GB. I doubt there
