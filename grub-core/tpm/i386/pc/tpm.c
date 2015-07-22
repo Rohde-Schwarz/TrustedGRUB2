@@ -33,6 +33,9 @@
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wvla"
+
 
 /* TPM_ENTITY_TYPE values */
 static const grub_uint16_t TPM_ET_SRK =  0x0004;
@@ -88,15 +91,6 @@ typedef struct {
 	grub_uint32_t bytesRequested;
 } GRUB_PACKED GetRandomIncoming;
 
-/* TPM_GetRandom Outgoing Operand */
-typedef struct {
-	grub_uint16_t tag;
-	grub_uint32_t paramSize;
-	grub_uint32_t returnCode;
-	grub_uint32_t randomBytesSize;
-	grub_uint8_t randomBytes[1];
-} GRUB_PACKED GetRandomOutgoing;
-
 /* TPM_OIAP Incoming Operand */
 typedef struct {
 	grub_uint16_t tag;
@@ -140,38 +134,6 @@ typedef struct tdTCG_PCClientPCREventStruc {
 	grub_uint32_t eventDataSize;
 	grub_uint8_t event[1];
 } GRUB_PACKED TCG_PCClientPCREvent;
-
-/* TPM_UNSEAL Incoming Operand */
-typedef struct {
-	grub_uint16_t tag;
-	grub_uint32_t paramSize;
-	grub_uint32_t ordinal;
-	grub_uint32_t parentHandle;
-	grub_uint8_t  sealedData[1];
-	grub_uint32_t authHandle;
-	grub_uint8_t  nonceOdd[TPM_NONCE_SIZE];
-	grub_uint8_t  continueAuthSession;
-	grub_uint8_t  parentAuth[TPM_AUTHDATA_SIZE];
-	grub_uint32_t dataAuthHandle;
-	grub_uint8_t  dataNonceOdd[TPM_NONCE_SIZE];
-	grub_uint8_t  continueDataSession;
-	grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
-} GRUB_PACKED UNSEAL_Incoming;
-
-/* TPM_UNSEAL Outgoing Operand */
-typedef struct {
-	grub_uint16_t tag;
-	grub_uint32_t paramSize;
-	grub_uint32_t returnCode;
-	grub_uint32_t secretSize;
-	grub_uint8_t  unsealedData[1];
-	grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
-	grub_uint8_t  continueAuthSession;
-	grub_uint8_t  resAuth[TPM_AUTHDATA_SIZE];
-	grub_uint8_t  dataNonceEven[TPM_NONCE_SIZE];
-	grub_uint8_t  continueDataSession;
-	grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
-} GRUB_PACKED UNSEAL_Outgoing;
 
 /* grub_fatal() on error */
 static void
@@ -469,10 +431,17 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 	PassThroughToTPM_InputParamBlock* passThroughInput = NULL;
 	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *getRandomInput );
 
-	GetRandomOutgoing* getRandomOutput = NULL;
+	/* TPM_GetRandom Outgoing Operand */
+	struct {
+		grub_uint16_t tag;
+		grub_uint32_t paramSize;
+		grub_uint32_t returnCode;
+		grub_uint32_t randomBytesSize;
+		grub_uint8_t randomBytes[randomBytesRequested];
+	} GRUB_PACKED *getRandomOutput;
 
 	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
-	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *getRandomOutput ) + randomBytesRequested;
+	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *getRandomOutput );
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
@@ -497,7 +466,7 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
     grub_free( passThroughInput );
 
-	getRandomOutput = (void *)passThroughOutput->TPMOperandOut;
+    getRandomOutput = (void *)passThroughOutput->TPMOperandOut;
 	grub_uint32_t tpm_getRandomReturnCode = grub_swap_bytes32( getRandomOutput->returnCode );
 
 	if( tpm_getRandomReturnCode != TPM_SUCCESS ) {
@@ -514,7 +483,7 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
         grub_fatal( "grub_TPM_getRandom: tpmOutput->randomBytesSize != randomBytesRequested" );
 	}
 
-	grub_memcpy( result, getRandomOutput->randomBytes, (grub_uint32_t) randomBytesRequested );
+	grub_memcpy( result, &getRandomOutput->randomBytes[0], (grub_uint32_t) randomBytesRequested );
 
 	grub_free( passThroughOutput );
 }
@@ -706,15 +675,43 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
 	CHECK_FOR_NULL_ARGUMENT( sealedBuffer )
 	CHECK_FOR_NULL_ARGUMENT( resultSize)
 
-	UNSEAL_Incoming* unsealInput = NULL;
+	/* TPM_UNSEAL Incoming Operand */
+	struct {
+		grub_uint16_t tag;
+		grub_uint32_t paramSize;
+		grub_uint32_t ordinal;
+		grub_uint32_t parentHandle;
+		grub_uint8_t  sealedData[inputSize];
+		grub_uint32_t authHandle;
+		grub_uint8_t  nonceOdd[TPM_NONCE_SIZE];
+		grub_uint8_t  continueAuthSession;
+		grub_uint8_t  parentAuth[TPM_AUTHDATA_SIZE];
+		grub_uint32_t dataAuthHandle;
+		grub_uint8_t  dataNonceOdd[TPM_NONCE_SIZE];
+		grub_uint8_t  continueDataSession;
+		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
+	} GRUB_PACKED *unsealInput;
 
 	PassThroughToTPM_InputParamBlock *passThroughInput = NULL;
-	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *unsealInput ) + inputSize;
+	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *unsealInput );
 
-	UNSEAL_Outgoing* unsealOutput = NULL;
+	/* TPM_UNSEAL Outgoing Operand */
+	struct {
+		grub_uint16_t tag;
+		grub_uint32_t paramSize;
+		grub_uint32_t returnCode;
+		grub_uint32_t secretSize;
+		grub_uint8_t  unsealedData[inputSize];		/* FIXME: what size to use here? */
+		grub_uint8_t  nonceEven[TPM_NONCE_SIZE];
+		grub_uint8_t  continueAuthSession;
+		grub_uint8_t  resAuth[TPM_AUTHDATA_SIZE];
+		grub_uint8_t  dataNonceEven[TPM_NONCE_SIZE];
+		grub_uint8_t  continueDataSession;
+		grub_uint8_t  dataAuth[TPM_AUTHDATA_SIZE];
+	} GRUB_PACKED *unsealOutput;
 
 	PassThroughToTPM_OutputParamBlock *passThroughOutput = NULL;
-	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *unsealOutput ) + inputSize ;
+	grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *unsealOutput );
 
 	passThroughInput = grub_zalloc( inputlen );
 	if( ! passThroughInput ) {
@@ -829,7 +826,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
         grub_fatal( "grub_TPM_unseal: memory allocation failed" );
     }
 
-	grub_memcpy( *result, unsealOutput->unsealedData, *resultSize );
+	grub_memcpy( *result, &unsealOutput->unsealedData[0], *resultSize );
 
 	grub_free( passThroughOutput );
 }
@@ -1027,4 +1024,7 @@ GRUB_MOD_FINI(tpm)
 #endif
 
 }
+
+#pragma GCC diagnostic pop
+
 /* End TCG extension */
