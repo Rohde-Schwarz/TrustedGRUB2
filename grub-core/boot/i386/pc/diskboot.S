@@ -69,6 +69,7 @@ _start:
 	 * will ever be a core.img larger than that. ;-) */
 	shll	$9, %eax
 
+#ifdef TGRUB_HP_WORKAROUND
 	/* HP workaround
 	 * This is a workaround for HP desktop/laptop BIOS which seem to be
 	 * unable to handle blocks ending on 512 byte boundaries when measuring
@@ -81,6 +82,7 @@ _start:
 	 * */
 	inc	%eax   /* add 1 to number_of_bytes_to_measure */
 	incw	8(%di) /* make code below read 1 more sector than specified */
+#endif
 
 	/* write result to number_of_bytes_to_measure var */
 	movl	%eax, number_of_bytes_to_measure
