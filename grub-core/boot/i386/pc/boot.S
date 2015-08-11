@@ -426,9 +426,12 @@ error_no_tpm:
 tcg_compacthashlogextendevent:
 
 	movw    $0xBB07, %ax			/* TCG_CompactHashLogExtendEvent */
-	movw	$GRUB_BOOT_MACHINE_KERNEL_ADDR, %di
 
-	/* FIXME: is it correct to set esi to zero? */
+	movw	$0x0, %bx
+	movw	%bx, %es
+
+	movl	$GRUB_BOOT_MACHINE_KERNEL_ADDR, %edi
+
 	xorl	%esi, %esi
 
 	movl    $0x41504354, %ebx	/* EBX = "TCPA" */
