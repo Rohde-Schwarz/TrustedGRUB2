@@ -69,7 +69,8 @@ In order to use the TCG-enhanced TrustedGRUB2, you need a computer which has TCG
 
 ### 1.5 Known Bugs / Limitations
 
-* On some HP notebooks and workstations, TrustedGRUB2 is not able to do the kernel measurements due to a buggy BIOS. This means PCR 8,9 can contain bogus values. This seems to be especially the case if the core.img is bigger than 64KB. There is a workaround: uncomment `/* #define TGRUB_HP_WORKAROUND */` in tpm.h and see diskboot.S for further details.
+* On some HP notebooks and workstations, TrustedGRUB2 is not able to do the kernel measurements due to a buggy BIOS. This means PCR 8,9 can contain bogus values. This seems to be especially the case if the core.img is bigger than 64KB. 
+* For this We probably have found a workaround: HP desktop/laptop BIOS seems to be unable to handle blocks ending on 512 byte boundaries when measuring data. So we increase the number of bytes to read by 1 and also the number of sectors to read, which ensures that all bytes of core.img are read. For this to work correctly the loaded core.img must be padded with zeroes or some other fixed value. grub_mkimage has already been adjusted to pad core.img with zeroes to a 512 byte alignment. The missing zero byte has to be added by yourself. The workaround can be found in diskboot.S . Further uncomment `/* #define TGRUB_HP_WORKAROUND */` in tpm.h
 
 If you find any bugs, create an issue or send a mail to trustedgrub@sirrix.com
 
@@ -264,6 +265,7 @@ support to GRUB2.
 * include/grub/i386/pc/boot.h
 * include/grub/i386/pc/tpm.h
 * include/grub/sha1.h
+* util/mkimage.c
 
 ## 3. Thanks
 

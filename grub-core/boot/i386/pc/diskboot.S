@@ -77,8 +77,8 @@ _start:
 	 * number of sectors to read, which ensures that all bytes of core.img
 	 * are read. For this to work correctly the loaded core.img must be
 	 * padded with zeroes or some other fixed value:
-	 * 1) pad core.img with zeroes to 512 byte blocks
-	 * 2) append 1 extra zero byte to core.img
+	 * 1) pad core.img with zeroes to 512 byte blocks. Already done by grub_mkimage adjustment
+	 * 2) append 1 extra zero byte to core.img. Has to be done by yourself.
 	 * */
 	inc	%eax   /* add 1 to number_of_bytes_to_measure */
 	incw	8(%di) /* make code below read 1 more sector than specified */
