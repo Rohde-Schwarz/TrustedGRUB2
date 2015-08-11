@@ -6,8 +6,6 @@
 
 /* #define TGRUB_DEBUG */
 
-/* #define TGRUB_HP_WORKAROUND */
-
 #ifdef TGRUB_DEBUG
 	#define DEBUG_PRINT( x ) grub_printf x
 #else

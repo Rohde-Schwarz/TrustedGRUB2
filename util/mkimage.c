@@ -1402,9 +1402,10 @@ grub_install_generate_image (const char *dir, const char *prefix,
 	free (boot_path);
 
 /* BEGIN TCG EXTENSION */
-
-	/* To simplify measurement the core.img should be 512 byte aligned  */
+	/* HP workaround */
+	/* core.img size has to be core_size % 512 != 0  */
         size_t newCoreImgSize = ALIGN_UP (core_size, 512);
+	newCoreImgSize++;
 
 	void* newCoreImg = xmalloc (newCoreImgSize);
         memset (newCoreImg, 0, newCoreImgSize);
