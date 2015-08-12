@@ -1400,6 +1400,21 @@ grub_install_generate_image (const char *dir, const char *prefix,
 	grub_util_write_image (boot_img, boot_size, out, outname);
 	free (boot_img);
 	free (boot_path);
+
+/* BEGIN TCG EXTENSION */
+	/* HP workaround */
+	/* core.img size has to be core_size % 512 != 0  */
+        size_t newCoreImgSize = ALIGN_UP (core_size, 512);
+	newCoreImgSize++;
+
+	void* newCoreImg = xmalloc (newCoreImgSize);
+        memset (newCoreImg, 0, newCoreImgSize);
+	memcpy(newCoreImg, core_img, core_size);
+	free (core_img);
+
+	core_img = newCoreImg;
+        core_size = newCoreImgSize;
+/* END TCG EXTENSION */
       }
       break;
     case IMAGE_EFI:

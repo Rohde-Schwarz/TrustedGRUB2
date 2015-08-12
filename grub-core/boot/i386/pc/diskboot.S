@@ -69,6 +69,20 @@ _start:
 	 * will ever be a core.img larger than that. ;-) */
 	shll	$9, %eax
 
+	/* HP workaround
+	 * This is a workaround for HP desktop/laptop BIOS which seem to be
+	 * unable to handle blocks ending on 512 byte boundaries when measuring
+	 * data. So we increase the number of bytes to read by 1 and also the
+	 * number of sectors to read, which ensures that all bytes of core.img
+	 * are read. For this to work correctly the loaded core.img must be
+	 * padded with zeroes or some other fixed value:
+	 * 1) pad core.img with zeroes to 512 byte blocks.
+	 * 2) append 1 extra zero byte to core.img.
+	 * Step 1 and 2 are already implemented in grub_mkimage
+	 * */
+	inc	%eax   /* add 1 to number_of_bytes_to_measure */
+	incw	8(%di) /* make code below read 1 more sector than specified */
+
 	/* write result to number_of_bytes_to_measure var */
 	movl	%eax, number_of_bytes_to_measure
 /* END TCG EXTENSION */
@@ -350,8 +364,7 @@ tcg_compacthashlogextendevent:
 	movw	%bx, %es
 
 	/* Rest of kernel starts at this address */
-	xorl	%edi, %edi
-	movw	$(GRUB_BOOT_MACHINE_KERNEL_ADDR + 0x200), %di
+	movl	$(GRUB_BOOT_MACHINE_KERNEL_ADDR + 0x200), %edi
 
 	movl    $0x41504354, %ebx	/* EBX = "TCPA" */
 
@@ -359,7 +372,6 @@ tcg_compacthashlogextendevent:
 	movl	$number_of_bytes_to_measure, %esi
 	movl	(%esi), %ecx
 
-	/* FIXME: is it correct to set esi to zero? */
 	xorl	%esi, %esi
 
 	movl	$0x9, %edx			/* PCR 9 */

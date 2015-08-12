@@ -69,9 +69,7 @@ In order to use the TCG-enhanced TrustedGRUB2, you need a computer which has TCG
 
 ### 1.5 Known Bugs / Limitations
 
-* On some HP notebooks and workstations, TrustedGRUB2 is not able to do the kernel measurements due to a buggy BIOS. This means PCR 8,9 can contain bogus values. This seems to be especially the case if the core.img is bigger than 64KB.
-
-If you find any bugs, create an issue or send a mail to trustedgrub@sirrix.com
+If you find any bugs, create an issue on github
 
 ### 1.6 Configuring TrustedGRUB2 before installation
 
@@ -116,7 +114,7 @@ make install
 Installing to device:
 
 ```bash
-./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc /dev/sda
+./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc --no-rs-codes /dev/sda 
 ```
 
 [WARNING]
@@ -125,7 +123,7 @@ if installing over an old GRUB2 install you probably have to adjust your grub.cf
 For usb-devices this command can be used (assuming /dev/sdb/ is your usb-device):
 
 ```bash
-./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc --root-directory=/mnt/sdb1 /dev/sdb
+./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc --root-directory=/mnt/sdb1 --no-rs-codes /dev/sdb
 ```
 
 ## 2. Technical Details
@@ -264,6 +262,7 @@ support to GRUB2.
 * include/grub/i386/pc/boot.h
 * include/grub/i386/pc/tpm.h
 * include/grub/sha1.h
+* util/mkimage.c
 
 ## 3. Thanks
 
