@@ -64,6 +64,12 @@ typedef struct {
 /* print SHA1 hash of input */
 void EXPORT_FUNC(print_sha1) ( grub_uint8_t* inDigest );
 
+/* 	Checks for TPM availability
+	Returns 1 if available
+	Returns 0 if not
+*/
+grub_uint32_t EXPORT_FUNC(grub_TPM_isAvailable) ( void );
+
 /* 	Measure string */
 void EXPORT_FUNC(grub_TPM_measureString) ( const char* string );
 /* 	Measure file */

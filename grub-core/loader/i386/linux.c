@@ -1043,7 +1043,8 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
     }
   /* Begin TCG Extension */
   else {	/* file successfully loaded */
-	  grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
+	  if (grub_TPM_isAvailable())
+	    grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
   }
   /* End TCG Extension */
 

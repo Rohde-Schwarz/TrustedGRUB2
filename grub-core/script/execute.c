@@ -1050,7 +1050,8 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
 	  command[grub_strlen( command )] = '\0';
 
 	  /*  measure string */
-	  grub_TPM_measureString( command );
+	  if (grub_TPM_isAvailable())
+	    grub_TPM_measureString( command );
   }
   /* End TCG Extension */
 

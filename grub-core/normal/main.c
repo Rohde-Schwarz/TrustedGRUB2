@@ -35,6 +35,8 @@
 #include <grub/bufio.h>
 
 /* BEGIN TCG EXTENSION */
+#include <grub/machine/tpm.h>
+
 #define TGRUB_VERSION "1.21"
 /* END TCG EXTENSION */
 
@@ -211,8 +213,11 @@ grub_normal_init_page (struct grub_term_output *term,
   grub_uint32_t *last_position;
  
   grub_term_cls (term);
-
-  msg_formatted = grub_xasprintf (_("TrustedGRUB2  version %s"), TGRUB_VERSION);
+ 
+  if( grub_TPM_isAvailable() )
+    msg_formatted = grub_xasprintf (_("TrustedGRUB2  version %s"), TGRUB_VERSION);
+  else
+    msg_formatted = grub_xasprintf (_("TrustedGRUB2  version %s [ No TPM detected! ]"), TGRUB_VERSION);
   if (!msg_formatted)
     return;
  

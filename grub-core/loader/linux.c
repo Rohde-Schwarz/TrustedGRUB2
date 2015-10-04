@@ -242,7 +242,8 @@ grub_initrd_close (struct grub_linux_initrd_context *initrd_ctx)
     {
 
       /* Begin TCG Extension */
-      grub_TPM_measureFile( initrd_ctx->components[i].file->name, TPM_LOADED_FILES_PCR );
+      if (grub_TPM_isAvailable())
+        grub_TPM_measureFile( initrd_ctx->components[i].file->name, TPM_LOADED_FILES_PCR );
       /* End TCG Extension */
 
       grub_free (initrd_ctx->components[i].newc_name);

@@ -224,6 +224,35 @@ grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 	grub_free( passThroughOutput );
 }
 
+static unsigned int grubTPM_AvailabilityAlreadyChecked = 0;
+static unsigned int grubTPM_isAvailable = 0;
+
+/* Returns 1 if TPM is available, 0 otherwise . */
+grub_uint32_t
+grub_TPM_isAvailable( void ) {
+
+	/* Checking for availability takes a while. so its useful to check this only once */
+	if( grubTPM_AvailabilityAlreadyChecked ) {
+		return grubTPM_isAvailable;
+	}
+
+	grub_uint32_t returnCode, featureFlags, eventLog, edi;
+	grub_uint8_t major, minor;
+
+	grub_err_t err = tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
+
+    if( err == GRUB_ERR_NONE ) {
+        grubTPM_isAvailable = 1;
+    } else {
+        grubTPM_isAvailable = 0;
+        grub_errno = GRUB_ERR_NONE;
+    }
+
+	grubTPM_AvailabilityAlreadyChecked = 1;
+
+	return grubTPM_isAvailable;
+}
+
 /* grub_fatal() on error */
 void
 grub_TPM_measureString( const char* string ) {

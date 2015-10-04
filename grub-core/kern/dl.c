@@ -756,7 +756,8 @@ grub_dl_load (const char *name)
 
   /* Begin TCG Extension */
   if( grub_errno == GRUB_ERR_NONE ) {
-	  grub_TPM_measureFile( filename, TPM_LOADED_FILES_PCR );
+	  if (grub_TPM_isAvailable())
+	    grub_TPM_measureFile( filename, TPM_LOADED_FILES_PCR );
   }
   /* End TCG Extension */
 

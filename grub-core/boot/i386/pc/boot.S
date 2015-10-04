@@ -397,10 +397,10 @@ tcg_statuscheck:
 
 error_tpm_deactivated:
   MSG(deactivatedTPM_error_string)
-  jmp	LOCAL(general_error)
+  jmp	tcg_end
 error_no_tpm:
 	MSG(noTPM_error_string)
-	jmp	LOCAL(general_error)
+	jmp	tcg_end
 
 /*
  * BIOS call "INT 1Ah, (AH)=BBh, (AL)=07h" TCG_CompactHashLogExtendEvent
@@ -442,7 +442,6 @@ tcg_compacthashlogextendevent:
 	test	%eax, %eax
 	jz		tcg_end				/* if eax != 0 */
 	MSG(tcg_error_string)
-	jmp	LOCAL(general_error)
 
 tcg_end:
 	popa
