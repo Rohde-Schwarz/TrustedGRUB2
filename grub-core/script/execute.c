@@ -1032,9 +1032,18 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
 
   /* Begin TCG Extension */
 
-  /* do not measure "menuentry" command */
-  /* it makes precomputation of the pcr value difficult and is unnecessary because each command within the menuentry is anyway measured */
-  if( grub_strncmp( argv.args[0], "menuentry", grub_strlen( "menuentry" ) ) != 0 ) {
+  /* Do not measure the following commands:
+   * menuentry
+   * submenu
+   * [ ... ]
+   *
+   * They make precomputation of the PCR value difficult and is unnecessary
+   * because each command within menuentry and submeny is measured anyway. As
+   * for [ ... ], it seems it isn't possible to execute a command within those.
+   */
+  if ( grub_strncmp( argv.args[0], "menuentry", grub_strlen( "menuentry" ) ) != 0 &&
+       grub_strncmp( argv.args[0], "submenu", grub_strlen( "submenu" ) ) != 0 &&
+       grub_strncmp( argv.args[0], "[", grub_strlen( "[" ) ) != 0 ) {
 
 	  /* Build string for measurement containing command + args */
 	  char command[1024];
