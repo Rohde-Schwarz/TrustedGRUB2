@@ -21,15 +21,14 @@
 #include <grub/offsets.h>
 #include <grub/machine/memory.h>
 #include <grub/machine/kernel.h>
-#include <grub/cpu/kernel.h>
 #include <grub/offsets.h>
+#include <grub/mips/asm.h>
 
 #define BASE_ADDR 8	
 
 	.globl __start, _start, start
 	.set noreorder
 	.set nomacro
-	mips_attributes
 __start:
 _start:
 start:		
@@ -97,8 +96,8 @@ cont:
 modulesmovcont:
 	beq $t3, $0, modulesmovdone
          nop
-	lb $t4, 0($t2)
-	sb $t4, 0($t1)
+	lb GRUB_ASM_T4, 0($t2)
+	sb GRUB_ASM_T4, 0($t1)
 	addiu $t2, $t2, -1
 	addiu $t1, $t1, -1
 	b modulesmovcont
