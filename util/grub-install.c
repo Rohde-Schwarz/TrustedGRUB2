@@ -1698,7 +1698,7 @@ main (int argc, char *argv[])
 	/*  Now perform the installation.  */
 	if (install_bootsector)
 	  grub_util_sparc_setup (platdir, "boot.img", "core.img",
-				 install_device, force,
+				 install_drive, force,
 				 fs_probe, allow_floppy,
 				 0 /* unused */ );
 	break;
@@ -1727,7 +1727,7 @@ main (int argc, char *argv[])
 	  grub_elf = grub_util_path_concat (2, core_services, "grub.elf");
 	  grub_install_copy_file (imgfile, grub_elf, 1);
 
-	  f = grub_util_fopen (mach_kernel, "r+");
+	  f = grub_util_fopen (mach_kernel, "a+");
 	  if (!f)
 	    grub_util_error (_("Can't create file: %s"), strerror (errno));
 	  fclose (f);
