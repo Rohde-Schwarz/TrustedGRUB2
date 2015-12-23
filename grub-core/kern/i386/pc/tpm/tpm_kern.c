@@ -30,6 +30,10 @@
 #include <grub/machine/memory.h>
 #include <grub/machine/int.h>
 
+#ifdef TGRUB_DEBUG
+	#include <grub/time.h>
+#endif
+
 
 /* Ordinals */
 static const grub_uint32_t TPM_ORD_Extend = 0x00000014;
@@ -255,6 +259,7 @@ grub_TPM_measureString( const char* string ) {
 	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
     DEBUG_PRINT( ( "\n" ) );
+    grub_sleep( 5 );
 #endif
 
 	/* measure */

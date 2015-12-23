@@ -1032,25 +1032,48 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
 
   /* Begin TCG Extension */
 
-  /* do not measure "menuentry" command */
-  /* it makes precomputation of the pcr value difficult and is unnecessary because each command within the menuentry is anyway measured */
-  if( grub_strncmp( argv.args[0], "menuentry", grub_strlen( "menuentry" ) ) != 0 ) {
+  /* Do not measure the following commands:
+   * menuentry
+   * submenu
+   * [ ... ]
+   *
+   * They make precomputation of the PCR value difficult and it's unnecessary
+   * because each command within menuentry and submeny is measured anyway. As
+   * for [ ... ], it seems it isn't possible to execute a command within those.
+   */
+  if ( grub_strncmp( cmdname, "menuentry", grub_strlen( "menuentry" ) ) != 0 &&
+       grub_strncmp( cmdname, "submenu", grub_strlen( "submenu" ) ) != 0 &&
+       grub_strncmp( cmdname, "[", grub_strlen( "[" ) ) != 0 ) {
 
-	  /* Build string for measurement containing command + args */
-	  char command[1024];
-	  grub_strcpy( command, argv.args[0] );	/* copy command */
-
-	  unsigned int i;
+	  unsigned int i, commandAndArgsLength;
+	  commandAndArgsLength = grub_strlen(cmdname);
 	  for( i = 1; i < argv.argc; i++  ) {
-            /* append whitespace and args */
-            grub_snprintf(command, ARRAY_SIZE( command ), "%s%s%s", command, " ", argv.args[i]);
+          /* calculate command length */
+		  commandAndArgsLength++;	/* one byte for whitespace  */
+		  commandAndArgsLength += grub_strlen(argv.args[i]); /* length of arg */
+	  }
+	  /* plus one byte for string termination */
+	  commandAndArgsLength++;
+
+	  /* allocate memory now */
+	  char* commandAndArgs = grub_zalloc(commandAndArgsLength);
+	  if( !commandAndArgs ) {
+		  grub_errno = GRUB_ERR_OUT_OF_MEMORY;
+		  return grub_error (GRUB_ERR_OUT_OF_MEMORY,
+				     N_("memory allocation failed"));
 	  }
 
-	  /* make sure string is terminated */
-	  command[grub_strlen( command )] = '\0';
+	  grub_strcpy( commandAndArgs, cmdname );	/* copy command */
+
+	  /* append whitespace + args */
+	  for( i = 1; i < argv.argc; i++  ) {
+		  grub_snprintf(commandAndArgs, commandAndArgsLength, "%s%s%s", commandAndArgs, " ", argv.args[i]);
+	  }
 
 	  /*  measure string */
-	  grub_TPM_measureString( command );
+	  grub_TPM_measureString( commandAndArgs );
+
+	  grub_free( commandAndArgs );
   }
   /* End TCG Extension */
 
