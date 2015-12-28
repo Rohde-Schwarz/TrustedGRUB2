@@ -272,8 +272,8 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 
 	CHECK_FOR_NULL_ARGUMENT( filename )
 
-	/* open file */
-	grub_file_t file = grub_file_open( filename );
+	/* open file 'raw' (without any pre-processing filters) */
+	grub_file_t file = grub_file_open_nofilter( filename );
 	if( ! file ) {
         grub_print_error();
         grub_fatal( "grub_TPM_measureFile: grub_file_open failed." );
