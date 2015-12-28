@@ -176,7 +176,9 @@ GRUB2 already contains an SHA1-implementation in its crypto module, but this isn
 ### 2.5 Measurement of all commands and their parameters entered in shell and scripts
 
 All commands which are entered in shell or executed by scripts is measured to PCR 11. Therefore commands in grub.cfg are automatically measured. No need to measure grub.cfg separately.
-One exception applies to this rule: The "menuentry" command is not measured because it makes precomputation of the PCR value difficult and is unnecessary because each command within the menuentry is anyway measured.
+One exception applies to this rule: The "menuentry", "submenu" and "[ ... ]" commands are not measured because it makes precomputation of the PCR 
+value difficult and is unnecessary because each command within "menuentry" or "submenu" is anyway measured. For "[ ... ]" it shouldn't be possible to 
+write commands between the square brackets.
 
 ### 2.6 TrustedGRUB2 commands
 
