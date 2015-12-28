@@ -26,21 +26,21 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 * Measurement of all loaded GRUB2 modules
 * Measurement of all commands and their parameters entered in shell and scripts
 * New SHA1-implementation in GRUB2 kernel (necessary for doing the GRUB2 modules measurement as the crypto module isn't loaded at this stage)
-* Added LUKS keyfile support with additional parameter "-k KEYFILE" for cryptomount command
-* Added support for unsealing LUKS keyfile with additional "-s" parameter for cryptomount command. LUKS-header is measured before unsealing into PCR 12. Currently unsealing only supported with SRK and well known secret (20 zero bytes)
+* Added LUKS keyfile support with additional parameter `-k KEYFILE` for `cryptomount` command
+* Added support for unsealing LUKS keyfile with additional `-s`` parameter for `cryptomount` command. LUKS-header is measured before unsealing into PCR 12. Currently unsealing only supported with SRK and well known secret (20 zero bytes)
 * New commands:
-  * readpcr PCRNUM
-  * tcglog LOGINDEX
-  * measure FILE PCRNUM
-  * setmor DISABLEAUTODETECT
+  * `readpcr PCRNUM`
+  * `tcglog LOGINDEX`
+  * `measure FILE PCRNUM`
+  * `setmor DISABLEAUTODETECT`
 * Loader measurements:
-  * linux / linux16
-  * initrd / initrd16
-  * chainloader
-  * ntdlr
+  * `linux` / `linux16`
+  * `initrd` / `initrd16`
+  * `chainloader`
+  * `ntdlr`
 * New cryptomount parameters:
-  * cryptomount -k KEYFILE
-  * cryptomount -k KEYFILE -s
+  * `cryptomount -k KEYFILE`
+  * `cryptomount -k KEYFILE -s`
 * Functionality added without own command:
   * TPM_Unseal
   * TPM_GetRandom
@@ -138,7 +138,7 @@ Concretely, this looks like the following:
 | rest of TrustedGRUB2 kernel (core.img)	   | start of TrustedGRUB2 kernel	|
 | Grub modules + OS (kernel and so on) 		   | TrustedGRUB2 kernel			|
 
-This chain of trust can be extended by using the newly added "measure" command to measure the integrity of arbitrary files.
+This chain of trust can be extended by using the newly added `measure` command to measure the integrity of arbitrary files.
 
 ### 2.2 Measurement of GRUB2 kernel
 
