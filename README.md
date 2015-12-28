@@ -245,6 +245,7 @@ The following list presents the files that have been added / modified to add TCG
 support to GRUB2.
 
 * README.md
+* Changelog.md
 * grub-core/Makefile.am
 * grub-core/Makefile.core.def
 * grub-core/boot/i386/pc/boot.S
