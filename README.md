@@ -246,6 +246,7 @@ support to GRUB2.
 * grub-core/kern/dl.c
 * grub-core/kern/i386/pc/tpm/tpm_kern.c
 * grub-core/kern/sha1.c
+* grub-core/kern/file.c
 * grub-core/disk/cryptodisk.c
 * grub-core/disk/luks.c
 * grub-core/loader/linux.c
@@ -259,6 +260,7 @@ support to GRUB2.
 * include/grub/i386/pc/boot.h
 * include/grub/i386/pc/tpm.h
 * include/grub/sha1.h
+* include/grub/file.h
 * util/mkimage.c
 
 ## 3. Thanks

@@ -148,45 +148,54 @@ grub_file_open (const char *name)
 grub_file_t
 grub_file_open_nofilter (const char *name)
 {
-  grub_device_t device = 0;
+ grub_device_t device = 0;
   grub_file_t file = 0;
   char *device_name;
   const char *file_name;
 
   device_name = grub_file_get_device_name (name);
   if (grub_errno)
-    goto fail;
+	goto fail;
 
   /* Get the file part of NAME.  */
   file_name = (name[0] == '(') ? grub_strchr (name, ')') : NULL;
   if (file_name)
-    file_name++;
+	file_name++;
   else
-    file_name = name;
+	file_name = name;
 
   device = grub_device_open (device_name);
   grub_free (device_name);
   if (! device)
-    goto fail;
+	goto fail;
 
   file = (grub_file_t) grub_zalloc (sizeof (*file));
   if (! file)
-    goto fail;
+	goto fail;
 
   file->device = device;
 
-  if (device->disk && file_name[0] != '/')
-    /* This is a block list.  */
-    file->fs = &grub_fs_blocklist;
+  /* In case of relative pathnames and non-Unix systems (like Windows)
+   * name of host files may not start with `/'. Blocklists for host files
+   * are meaningless as well (for a start, host disk does not allow any direct
+   * access - it is just a marker). So skip host disk in this case.
+   */
+  if (device->disk && file_name[0] != '/'
+#if defined(GRUB_UTIL) || defined(GRUB_MACHINE_EMU)
+	  && grub_strcmp (device->disk->name, "host")
+#endif
+	 )
+	/* This is a block list.  */
+	file->fs = &grub_fs_blocklist;
   else
-    {
-      file->fs = grub_fs_probe (device);
-      if (! file->fs)
+	{
+	  file->fs = grub_fs_probe (device);
+	  if (! file->fs)
 	goto fail;
-    }
+	}
 
   if ((file->fs->open) (file, file_name) != GRUB_ERR_NONE)
-    goto fail;
+	goto fail;
 
   file->name = grub_strdup (name);
   grub_errno = GRUB_ERR_NONE;
@@ -195,7 +204,7 @@ grub_file_open_nofilter (const char *name)
 
  fail:
   if (device)
-    grub_device_close (device);
+	grub_device_close (device);
 
   /* if (net) grub_net_close (net);  */
 
