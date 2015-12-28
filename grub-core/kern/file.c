@@ -143,6 +143,69 @@ grub_file_open (const char *name)
   return 0;
 }
 
+
+/* Begin TCG extension */
+grub_file_t
+grub_file_open_nofilter (const char *name)
+{
+  grub_device_t device = 0;
+  grub_file_t file = 0;
+  char *device_name;
+  const char *file_name;
+
+  device_name = grub_file_get_device_name (name);
+  if (grub_errno)
+    goto fail;
+
+  /* Get the file part of NAME.  */
+  file_name = (name[0] == '(') ? grub_strchr (name, ')') : NULL;
+  if (file_name)
+    file_name++;
+  else
+    file_name = name;
+
+  device = grub_device_open (device_name);
+  grub_free (device_name);
+  if (! device)
+    goto fail;
+
+  file = (grub_file_t) grub_zalloc (sizeof (*file));
+  if (! file)
+    goto fail;
+
+  file->device = device;
+
+  if (device->disk && file_name[0] != '/')
+    /* This is a block list.  */
+    file->fs = &grub_fs_blocklist;
+  else
+    {
+      file->fs = grub_fs_probe (device);
+      if (! file->fs)
+	goto fail;
+    }
+
+  if ((file->fs->open) (file, file_name) != GRUB_ERR_NONE)
+    goto fail;
+
+  file->name = grub_strdup (name);
+  grub_errno = GRUB_ERR_NONE;
+
+  return file;
+
+ fail:
+  if (device)
+    grub_device_close (device);
+
+  /* if (net) grub_net_close (net);  */
+
+  grub_free (file);
+
+  return 0;
+}
+/* End TCG extension CUSTOM */
+
+
 grub_disk_read_hook_t grub_file_progress_hook;
 
 grub_ssize_t
