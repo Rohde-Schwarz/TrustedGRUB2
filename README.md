@@ -20,7 +20,7 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 
 ### 1.2 Features
 
-* Based on GRUB2 (master branch, last merge: 08.07.2015)
+* Based on GRUB2 (master branch, last merge: 23.12.2015)
 * TPM Support with TPM detection (only legacy/mbr mode, UEFI is not supported at the moment)
 * Measurement of GRUB2 kernel
 * Measurement of all loaded GRUB2 modules
@@ -176,8 +176,8 @@ GRUB2 already contains an SHA1-implementation in its crypto module, but this isn
 ### 2.5 Measurement of all commands and their parameters entered in shell and scripts
 
 All commands which are entered in shell or executed by scripts is measured to PCR 11. Therefore commands in grub.cfg are automatically measured. No need to measure grub.cfg separately.
-One exception applies to this rule: The "menuentry", "submenu" and "[ ... ]" commands are not measured because it makes precomputation of the PCR 
-value difficult and is unnecessary because each command within "menuentry" or "submenu" is anyway measured. For "[ ... ]" it shouldn't be possible to 
+One exception applies to this rule: The `menuentry`, `submenu` and `[ ... ]` commands are not measured because it makes precomputation of the PCR 
+value difficult and is unnecessary because each command within `menuentry` or `submenu` is anyway measured. For `[ ... ]` it shouldn't be possible to 
 write commands between the square brackets.
 
 ### 2.6 TrustedGRUB2 commands
@@ -221,9 +221,13 @@ Sets Memory Overwrite Request (MOR) Bit. `DISABLEAUTODETECT` specifies if BIOS s
 * `linux` / `linux16`  
 * `initrd` / `initrd16`  
 * `chainloader`  
-* `ntdlr`  
+* `ntdlr`
 
 These commands are modified to measure before loading. PCR 10 is extended.
+
+Additionally the following commands have been modified:
+
+* `cryptomount`
 
 ### 2.7 Other modifications
 
