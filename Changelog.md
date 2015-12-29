@@ -1,8 +1,11 @@
 ### Changelog
 
-#### Not yet released
+#### 1.3.0 - Not yet released
 
-* 
+* Fix measurement of compressed files. Previously the uncompressed version of the file was measured and not the one that is stored on the disk. GH #28
+* Command measurement: in addition to not measuring `menuentry` also `submenu` and `[ ... ]` are not measured to simplify precomputation. GH #25
+* Update to latest GRUB2 master (23.12.2015) that also includes a fix for CVE-2015-8370
+* Prevent possible buffer overlow in case the command to measure is greater than 1024 byte in length
 
 #### 1.2.1
 
