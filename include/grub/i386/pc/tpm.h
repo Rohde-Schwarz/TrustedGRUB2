@@ -4,8 +4,6 @@
 
 #include <grub/err.h>
 
-/* #define TGRUB_DEBUG */
-
 #ifdef TGRUB_DEBUG
 	#define DEBUG_PRINT( x ) grub_printf x
 #else

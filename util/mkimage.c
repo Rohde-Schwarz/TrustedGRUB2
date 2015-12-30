@@ -1389,6 +1389,7 @@ grub_install_generate_image (const char *dir, const char *prefix,
 	free (boot_path);
 
 /* BEGIN TCG EXTENSION */
+#ifdef TGRUB_HP_WORKAROUND
 	/* HP workaround */
 	/* core.img size has to be core_size % 512 != 0  */
         size_t newCoreImgSize = ALIGN_UP (core_size, 512);
@@ -1401,6 +1402,7 @@ grub_install_generate_image (const char *dir, const char *prefix,
 
 	core_img = newCoreImg;
         core_size = newCoreImgSize;
+#endif
 /* END TCG EXTENSION */
       }
       break;
