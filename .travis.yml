@@ -13,6 +13,7 @@ env:
 script:
   - "./autogen.sh"
   - "./configure --target=i386 -with-platform=pc"
+  - "echo ${DEFINES}"
   - "make ${DEFINES} -j 4 --silent"
 
 os:
