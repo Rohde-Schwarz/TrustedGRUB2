@@ -5,11 +5,15 @@ env:
 compiler: gcc
 language: c
 
+env:
+  - DEFINES=""
+  - DEFINES="CPPFLAGS=-DTGRUB_HP_WORKAROUND"
+  - DEFINES="CPPFLAGS=-DTGRUB_DEBUG"
 
 script:
   - "./autogen.sh"
   - "./configure --target=i386 -with-platform=pc"
-  - "make -j 4 --silent"
+  - "make DEFINES -j 4 --silent"
 
 os:
   - linux

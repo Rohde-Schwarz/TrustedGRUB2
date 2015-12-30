@@ -66,7 +66,20 @@ In order to use the TCG-enhanced TrustedGRUB2, you need a computer which has TCG
 
 ### 1.5 Known Bugs / Limitations
 
-If you find any bugs, create an issue on github
+* On some HP notebooks and workstations, TrustedGRUB2 (in default mode) is not able to do the kernel measurements due to a buggy BIOS. This means PCR 9 can 
+contain bogus values. HP desktop/laptop BIOS seems to be unable to handle blocks ending on 512 byte boundaries when measuring data.
+  * Fortunately we've found a workaround:
+    * The workaround works as follows: we increase the number of bytes to read by 1 and also the number of sectors to read, which ensures that all 
+bytes of core.img are read. For this to work correctly the loaded core.img must be padded with zeroes.
+    * In summary: 
+      1. pad core.img with zeroes to 512 byte blocks.
+      2. append 1 extra zero byte to core.img.
+    * This doesn't have to be done manually. We've patched `grub_mkimage` to do step 1 and step 2 for us.
+    * This workaround has to be enabled explicitly. To do so: define `TGRUB_HP_WORKAROUND`. For example like this: `make 
+CPPFLAGS=-DTGRUB_HP_WORKAROUND`
+    * IMPORTANT: you have to append `--no-rs-codes` to `grub-install` otherwise you end up in a reboot loop.
+
+If you find any other bugs, create an issue on github
 
 ### 1.6 Configuring TrustedGRUB2 before installation
 
@@ -81,13 +94,7 @@ PCR selection for module measurement, command measurement and loaded files measu
 
 #### 1.6.2 Debug output
 
-To enable some debug output uncomment:
-
-```C++
-/* #define TGRUB_DEBUG */
-```
-
-in tpm.h
+To enable some debug output define `TGRUB_DEBUG`. For example like this `make CPPFLAGS=-DTGRUB_DEBUG`
 
 ### 1.7 Installation of TrustedGRUB2
 
@@ -111,7 +118,7 @@ make install
 Installing to device:
 
 ```bash
-./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc --no-rs-codes /dev/sda 
+./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc /dev/sda 
 ```
 
 [WARNING]
@@ -120,7 +127,7 @@ if installing over an old GRUB2 install you probably have to adjust your grub.cf
 For usb-devices this command can be used (assuming /dev/sdb/ is your usb-device):
 
 ```bash
-./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc --root-directory=/mnt/sdb1 --no-rs-codes /dev/sdb
+./INSTALLDIR/sbin/grub-install --directory=INSTALLDIR/lib/grub/i386-pc --root-directory=/mnt/sdb1 /dev/sdb
 ```
 
 ## 2. Technical Details
