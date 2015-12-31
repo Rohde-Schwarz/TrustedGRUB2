@@ -41,7 +41,7 @@
 #include <grub/i386/relocator.h>
 
 /* Begin TCG Extension */
-#include <grub/machine/tpm.h>
+#include <grub/tpm.h>
 /* End TCG Extension */
 
 
@@ -242,7 +242,7 @@ grub_chainloader_cmd (const char *filename, grub_chainloader_flags_t flags)
   grub_loader_set (grub_chainloader_boot, grub_chainloader_unload, 1);
 
   /* Begin TCG Extension */
-  grub_TPM_measureFile( (char*)filename, TPM_LOADED_FILES_PCR );
+  grub_TPM_measure_file( (char*)filename, TPM_LOADED_FILES_PCR );
 
   /* End TCG Extension */
 

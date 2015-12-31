@@ -34,7 +34,7 @@
 #include <grub/i18n.h>
 
 /* Begin TCG Extension */
-#include <grub/machine/tpm.h>
+#include <grub/tpm.h>
 /* End TCG Extension */
 
 /* Platforms where modules are in a readonly area of memory.  */
@@ -756,7 +756,7 @@ grub_dl_load (const char *name)
 
   /* Begin TCG Extension */
   if( grub_errno == GRUB_ERR_NONE ) {
-	  grub_TPM_measureFile( filename, TPM_LOADED_FILES_PCR );
+	  grub_TPM_measure_file( filename, TPM_LOADED_FILES_PCR );
   }
   /* End TCG Extension */
 

@@ -30,7 +30,7 @@
 #include <grub/env.h>
 
 /* Begin TCG extension */
-#include <grub/machine/tpm.h>
+#include <grub/tpm.h>
 /* End TCG extension */
 
 GRUB_MOD_LICENSE ("GPLv3+");
@@ -338,7 +338,7 @@ static grub_err_t luks_recover_key(grub_disk_t source, grub_cryptodisk_t dev) {
 
 	// measure luks header
 	if (!grub_strcmp(grub_env_get("unsealmount"), "true")) {
-		grub_TPM_measureBuffer(&header, sizeof(header),
+		grub_TPM_measure_buffer(&header, sizeof(header),
 				TPM_LUKS_HEADER_MEASUREMENT_PCR);
 	}
 

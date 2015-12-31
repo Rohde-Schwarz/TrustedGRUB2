@@ -97,6 +97,7 @@ KERNEL_HEADER_FILES += $(top_builddir)/include/grub/machine/int.h
 KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/i386/tsc.h
 KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/sha1.h
 KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/i386/pc/tpm.h
+KERNEL_HEADER_FILES += $(top_srcdir)/include/grub/tpm.h
 endif
 
 if COND_i386_efi

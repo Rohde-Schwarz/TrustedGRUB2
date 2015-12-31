@@ -257,6 +257,7 @@ support to GRUB2.
 * grub-core/Makefile.core.def
 * grub-core/boot/i386/pc/boot.S
 * grub-core/boot/i386/pc/diskboot.S
+* grub-core/kern/tpm.c
 * grub-core/kern/dl.c
 * grub-core/kern/i386/pc/tpm/tpm_kern.c
 * grub-core/kern/sha1.c
@@ -273,6 +274,7 @@ support to GRUB2.
 * grub-core/tpm/i386/pc/tpm.c
 * include/grub/i386/pc/boot.h
 * include/grub/i386/pc/tpm.h
+* include/grub/tpm.h
 * include/grub/sha1.h
 * include/grub/file.h
 * util/mkimage.c

@@ -29,7 +29,7 @@
 #include <grub/i18n.h>
 
 /* Begin TCG Extension */
-#include <grub/machine/tpm.h>
+#include <grub/tpm.h>
 /* End TCG Extension */
 
 /* Max digits for a char is 3 (0xFF is 255), similarly for an int it
@@ -1071,7 +1071,7 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
 	  }
 
 	  /*  measure string */
-	  grub_TPM_measureString( commandAndArgs );
+	  grub_TPM_measure_string( commandAndArgs );
 
 	  grub_free( commandAndArgs );
   }

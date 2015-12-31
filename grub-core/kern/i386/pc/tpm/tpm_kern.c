@@ -1,9 +1,8 @@
 /* Begin TCG Extension */
 
-/* tpm_kern.c - tpm management */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2002,2003,2004,2005,2007,2008,2009  Free Software Foundation, Inc.
+ *  Copyright (C) 2014,2015  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,17 +25,21 @@
 #include <grub/sha1.h>
 #include <grub/misc.h>
 
-#include <grub/machine/tpm.h>
-#include <grub/machine/memory.h>
-#include <grub/machine/int.h>
+#include <grub/tpm.h>
+#include <grub/i386/pc/tpm.h>
+#include <grub/i386/pc/memory.h>
+#include <grub/i386/pc/int.h>
 
 #ifdef TGRUB_DEBUG
 	#include <grub/time.h>
 #endif
 
+/************************* constants *************************/
 
 /* Ordinals */
 static const grub_uint32_t TPM_ORD_Extend = 0x00000014;
+
+/************************* struct typedefs *************************/
 
 /* TPM_Extend Incoming Operand */
 typedef struct {
@@ -55,16 +58,69 @@ typedef struct {
 	grub_uint8_t outDigest[SHA1_DIGEST_SIZE];		/* The PCR value after execution of the command. */
 } GRUB_PACKED ExtendOutgoing;
 
+/************************* static functions *************************/
 
-void
-print_sha1( grub_uint8_t *inDigest ) {
+/* grub_fatal() on error */
+static void
+grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
 
-	/* print SHA1 hash of input */
-	unsigned int j;
-	for( j = 0; j < SHA1_DIGEST_SIZE; j++ ) {
-		grub_printf( "%02x", inDigest[j] );
+	CHECK_FOR_NULL_ARGUMENT( inDigest );
+
+	ExtendIncoming* extendInput = NULL;
+	PassThroughToTPM_InputParamBlock* passThroughInput = NULL;
+	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *extendInput );
+
+	ExtendOutgoing* extendOutput = NULL;
+	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
+    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *extendOutput );
+
+	passThroughInput = grub_zalloc( inputlen );
+	if( ! passThroughInput ) {
+        grub_fatal( "grub_TPM_measure: memory allocation failed" );
 	}
+
+	passThroughInput->IPBLength = inputlen;
+	passThroughInput->OPBLength = outputlen;
+
+	extendInput = (void *)passThroughInput->TPMOperandIn;
+	extendInput->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
+	extendInput->paramSize = grub_swap_bytes32( sizeof( *extendInput ) );
+	extendInput->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_Extend );
+	extendInput->pcrNum = grub_swap_bytes32( (grub_uint32_t) index );
+
+	grub_memcpy( extendInput->inDigest, inDigest, SHA1_DIGEST_SIZE);
+
+	passThroughOutput = grub_zalloc( outputlen );
+	if( ! passThroughOutput ) {
+		grub_free( passThroughInput );
+        grub_fatal( "grub_TPM_measure: memory allocation failed" );
+	}
+
+	grub_TPM_int1A_passThroughToTPM( passThroughInput, passThroughOutput );
+	grub_free( passThroughInput );
+
+	extendOutput = (void *)passThroughOutput->TPMOperandOut;
+	grub_uint32_t tpmExtendReturnCode = grub_swap_bytes32( extendOutput->returnCode );
+
+	if( tpmExtendReturnCode != TPM_SUCCESS ) {
+		grub_free( passThroughOutput );
+
+		if( tpmExtendReturnCode == TPM_BADINDEX ) {
+            grub_fatal( "grub_TPM_measure: bad pcr index" );
+		}
+        grub_fatal( "grub_TPM_measure: tpmExtendReturnCode: %u", tpmExtendReturnCode );
+	}
+
+#ifdef TGRUB_DEBUG
+	DEBUG_PRINT( ( "New PCR[%lu]=", index ) );
+	print_sha1( extendOutput->outDigest );
+	DEBUG_PRINT( ( "\n\n" ) );
+#endif
+
+	grub_free( passThroughOutput );
 }
+
+/************************* non-static functions *************************/
 
 /* Invokes TCG_StatusCheck Int1A interrupt
 
@@ -80,7 +136,7 @@ print_sha1( grub_uint8_t *inDigest ) {
 
  */
 grub_err_t
-tcg_statusCheck( grub_uint32_t* returnCode, grub_uint8_t* major, grub_uint8_t* minor, grub_uint32_t* featureFlags, grub_uint32_t* eventLog, grub_uint32_t* edi ) {
+grub_TPM_int1A_statusCheck( grub_uint32_t* returnCode, grub_uint8_t* major, grub_uint8_t* minor, grub_uint32_t* featureFlags, grub_uint32_t* eventLog, grub_uint32_t* edi ) {
 
 	CHECK_FOR_NULL_ARGUMENT( returnCode )
 	CHECK_FOR_NULL_ARGUMENT( major )
@@ -121,7 +177,7 @@ tcg_statusCheck( grub_uint32_t* returnCode, grub_uint8_t* major, grub_uint8_t* m
    Page 112 TCG_PCClientImplementation_1-21_1_00
  */
 void
-tcg_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, PassThroughToTPM_OutputParamBlock* output ) {
+grub_TPM_int1A_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, PassThroughToTPM_OutputParamBlock* output ) {
 
 	CHECK_FOR_NULL_ARGUMENT( input );
 	CHECK_FOR_NULL_ARGUMENT( output );
@@ -169,68 +225,8 @@ tcg_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, PassThrough
 }
 
 /* grub_fatal() on error */
-static void
-grub_TPM_measure( const grub_uint8_t* inDigest, const unsigned long index ) {
-
-	CHECK_FOR_NULL_ARGUMENT( inDigest );
-
-	ExtendIncoming* extendInput = NULL;
-	PassThroughToTPM_InputParamBlock* passThroughInput = NULL;
-	grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *extendInput );
-
-	ExtendOutgoing* extendOutput = NULL;
-	PassThroughToTPM_OutputParamBlock* passThroughOutput = NULL;
-    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *extendOutput );
-
-	passThroughInput = grub_zalloc( inputlen );
-	if( ! passThroughInput ) {
-        grub_fatal( "grub_TPM_measure: memory allocation failed" );
-	}
-
-	passThroughInput->IPBLength = inputlen;
-	passThroughInput->OPBLength = outputlen;
-
-	extendInput = (void *)passThroughInput->TPMOperandIn;
-	extendInput->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
-	extendInput->paramSize = grub_swap_bytes32( sizeof( *extendInput ) );
-	extendInput->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_Extend );
-	extendInput->pcrNum = grub_swap_bytes32( (grub_uint32_t) index );
-
-	grub_memcpy( extendInput->inDigest, inDigest, SHA1_DIGEST_SIZE);
-
-	passThroughOutput = grub_zalloc( outputlen );
-	if( ! passThroughOutput ) {
-		grub_free( passThroughInput );
-        grub_fatal( "grub_TPM_measure: memory allocation failed" );
-	}
-
-	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
-	grub_free( passThroughInput );
-
-	extendOutput = (void *)passThroughOutput->TPMOperandOut;
-	grub_uint32_t tpmExtendReturnCode = grub_swap_bytes32( extendOutput->returnCode );
-
-	if( tpmExtendReturnCode != TPM_SUCCESS ) {
-		grub_free( passThroughOutput );
-
-		if( tpmExtendReturnCode == TPM_BADINDEX ) {
-            grub_fatal( "grub_TPM_measure: bad pcr index" );
-		}
-        grub_fatal( "grub_TPM_measure: tpmExtendReturnCode: %u", tpmExtendReturnCode );
-	}
-
-#ifdef TGRUB_DEBUG
-	DEBUG_PRINT( ( "New PCR[%lu]=", index ) );
-	print_sha1( extendOutput->outDigest );
-	DEBUG_PRINT( ( "\n\n" ) );
-#endif
-
-	grub_free( passThroughOutput );
-}
-
-/* grub_fatal() on error */
 void
-grub_TPM_measureString( const char* string ) {
+grub_TPM_measure_string( const char* string ) {
 
 	CHECK_FOR_NULL_ARGUMENT( string )
 
@@ -268,7 +264,7 @@ grub_TPM_measureString( const char* string ) {
 
 /* grub_fatal() on error */
 void
-grub_TPM_measureFile( const char* filename, const unsigned long index ) {
+grub_TPM_measure_file( const char* filename, const unsigned long index ) {
 
 	CHECK_FOR_NULL_ARGUMENT( filename )
 
@@ -316,7 +312,7 @@ grub_TPM_measureFile( const char* filename, const unsigned long index ) {
 }
 
 void
-grub_TPM_measureBuffer( const void* buffer, const grub_uint32_t bufferLen, const unsigned long index ) {
+grub_TPM_measure_buffer( const void* buffer, const grub_uint32_t bufferLen, const unsigned long index ) {
 
 	CHECK_FOR_NULL_ARGUMENT( buffer )
 

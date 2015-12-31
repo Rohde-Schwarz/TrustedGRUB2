@@ -1,9 +1,8 @@
 /* Begin TCG extension */
 
-/* tpm.c -- tpm module.  */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2005,2007,2008,2009,2010  Free Software Foundation, Inc.
+ *  Copyright (C) 2014,2015 Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,16 +25,18 @@
 #include <grub/crypto.h>
 #include <grub/file.h>
 
-#include <grub/machine/tpm.h>
-#include <grub/machine/boot.h>
-#include <grub/machine/memory.h>
-#include <grub/machine/int.h>
+#include <grub/tpm.h>
+#include <grub/i386/pc/tpm.h>
+#include <grub/i386/pc/boot.h>
+#include <grub/i386/pc/memory.h>
+#include <grub/i386/pc/int.h>
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wvla"
 
+/************************* constants *************************/
 
 /* TPM_ENTITY_TYPE values */
 static const grub_uint16_t TPM_ET_SRK =  0x0004;
@@ -59,6 +60,8 @@ static const grub_uint16_t TPM_TAG_RQU_AUTH2_COMMAND = 0x00C3;
 
 static const grub_uint8_t srkAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 static const grub_uint8_t blobAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+/************************* struct typedefs *************************/
 
 /* TPM_PCRRead Incoming Operand */
 typedef struct {
@@ -135,6 +138,8 @@ typedef struct tdTCG_PCClientPCREventStruc {
 	grub_uint8_t event[1];
 } GRUB_PACKED TCG_PCClientPCREvent;
 
+/************************* static functions *************************/
+
 /* grub_fatal() on error */
 static void
 grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
@@ -169,7 +174,7 @@ grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
         grub_fatal( "readpcr: memory allocation failed" );
 	}
 
-	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
+	grub_TPM_int1A_passThroughToTPM( passThroughInput, passThroughOutput );
 	grub_free( passThroughInput );
 
 	pcrReadOutgoing = (void *)passThroughOutput->TPMOperandOut;
@@ -226,7 +231,7 @@ grub_TPM_read_tcglog( const unsigned long index ) {
 	grub_uint8_t major, minor;
 
 	/* get event log pointer */
-	tcg_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
+	grub_TPM_int1A_statusCheck( &returnCode, &major, &minor, &featureFlags, &eventLog, &edi );
 
 	/* edi = 0 means event log is empty */
 	if( edi == 0 ) {
@@ -328,7 +333,7 @@ grub_cmd_measure( grub_command_t cmd __attribute__ ((unused)), int argc, char **
         grub_fatal( "invalid format for index" );
     }
 
-	grub_TPM_measureFile( args[0], index );
+	grub_TPM_measure_file( args[0], index );
 
 	return GRUB_ERR_NONE;
 }
@@ -463,7 +468,7 @@ grub_TPM_getRandom( const unsigned long randomBytesRequested, grub_uint8_t* resu
 		grub_fatal( "grub_TPM_getRandom: memory allocation failed" );
 	}
 
-	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
+	grub_TPM_int1A_passThroughToTPM( passThroughInput, passThroughOutput );
     grub_free( passThroughInput );
 
     getRandomOutput = (void *)passThroughOutput->TPMOperandOut;
@@ -522,7 +527,7 @@ grub_TPM_openOIAP_Session( grub_uint32_t* authHandle, grub_uint8_t* nonceEven ) 
         grub_fatal( "grub_TPM_openOIAP_Session: memory allocation failed");
 	}
 
-	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
+	grub_TPM_int1A_passThroughToTPM( passThroughInput, passThroughOutput );
 	grub_free( passThroughInput );
 
 	oiapOutput = (void *)passThroughOutput->TPMOperandOut;
@@ -580,7 +585,7 @@ grub_TPM_openOSAP_Session( const grub_uint16_t entityType, const grub_uint32_t e
         grub_fatal( "grub_TPM_openOSAP_Session: memory allocation failed" );
 	}
 
-	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
+	grub_TPM_int1A_passThroughToTPM( passThroughInput, passThroughOutput );
 	grub_free( passThroughInput );
 
 	osapOutput = (void *)passThroughOutput->TPMOperandOut;
@@ -667,6 +672,8 @@ grub_TPM_calculate_Auth( const grub_uint8_t* sharedSecret, const grub_uint8_t* d
         grub_fatal( "grub_TPM_calculate_Auth failed: hmacErrorCode: %u", hmacErrorCode );
 	}
 }
+
+/************************* non-static functions *************************/
 
 /* grub_fatal() on error */
 void
@@ -799,7 +806,7 @@ grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, 
         grub_fatal( "grub_TPM_unseal: memory allocation failed" );
 	}
 
-	tcg_passThroughToTPM( passThroughInput, passThroughOutput );
+	grub_TPM_int1A_passThroughToTPM( passThroughInput, passThroughOutput );
 	grub_free( passThroughInput );
 
 	unsealOutput = (void *)passThroughOutput->TPMOperandOut;

@@ -37,7 +37,7 @@
 #include <grub/linux.h>
 
 /* Begin TCG Extension */
-#include <grub/machine/tpm.h>
+#include <grub/tpm.h>
 /* End TCG Extension */
 
 GRUB_MOD_LICENSE ("GPLv3+");
@@ -1043,7 +1043,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
     }
   /* Begin TCG Extension */
   else {	/* file successfully loaded */
-	  grub_TPM_measureFile( argv[0], TPM_LOADED_FILES_PCR );
+	  grub_TPM_measure_file( argv[0], TPM_LOADED_FILES_PCR );
   }
   /* End TCG Extension */
 
