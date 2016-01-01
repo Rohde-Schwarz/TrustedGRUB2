@@ -133,15 +133,6 @@ char *EXPORT_FUNC(grub_file_get_device_name) (const char *name);
 
 grub_file_t EXPORT_FUNC(grub_file_open) (const char *name);
 
-/* Begin TCG extension */
-
-/* Used for TPM file measurement */
-/* grub_file_open is not suited for measurement because it does not necessarily return the same file that is stored on disk */
-/* For example it decompresses compressed files automatically */
-grub_file_t EXPORT_FUNC(grub_file_open_nofilter) (const char *name);
-
-/* End TCG extension */
-
 grub_ssize_t EXPORT_FUNC(grub_file_read) (grub_file_t file, void *buf,
 					  grub_size_t len);
 grub_off_t EXPORT_FUNC(grub_file_seek) (grub_file_t file, grub_off_t offset);

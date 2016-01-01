@@ -255,7 +255,7 @@ grub_TPM_measure_string( const char* string ) {
 	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
     DEBUG_PRINT( ( "\n" ) );
-    grub_sleep( 5 );
+    grub_sleep( 4 );
 #endif
 
 	/* measure */
@@ -269,7 +269,9 @@ grub_TPM_measure_file( const char* filename, const unsigned long index ) {
 	CHECK_FOR_NULL_ARGUMENT( filename )
 
 	/* open file 'raw' (without any pre-processing filters) */
-	grub_file_t file = grub_file_open_nofilter( filename );
+	grub_file_filter_disable_compression ();
+	grub_file_t file = grub_file_open( filename );
+
 	if( ! file ) {
         grub_print_error();
         grub_fatal( "grub_TPM_measureFile: grub_file_open failed." );
