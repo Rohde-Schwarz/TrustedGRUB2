@@ -241,11 +241,6 @@ grub_initrd_close (struct grub_linux_initrd_context *initrd_ctx)
     return;
   for (i = 0; i < initrd_ctx->nfiles; i++)
     {
-
-      /* Begin TCG Extension */
-      grub_TPM_measure_file( initrd_ctx->components[i].file->name, TPM_LOADED_FILES_PCR );
-      /* End TCG Extension */
-
       grub_free (initrd_ctx->components[i].newc_name);
       grub_file_close (initrd_ctx->components[i].file);
     }
@@ -297,6 +292,10 @@ grub_initrd_load (struct grub_linux_initrd_context *initrd_ctx,
 	  grub_initrd_close (initrd_ctx);
 	  return grub_errno;
 	}
+      /* Begin TCG Extension */
+      grub_TPM_measure_buffer( ptr, cursize, TPM_LOADED_FILES_PCR );
+      /* End TCG Extension */
+
       ptr += cursize;
     }
   if (newc)
