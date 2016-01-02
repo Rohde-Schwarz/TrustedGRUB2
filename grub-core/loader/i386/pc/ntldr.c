@@ -141,7 +141,7 @@ grub_cmd_ntldr (grub_command_t cmd __attribute__ ((unused)),
   grub_loader_set (grub_ntldr_boot, grub_ntldr_unload, 1);
 
   /* Begin TCG Extension */
-  grub_TPM_measure_file( argv[0], TPM_LOADED_FILES_PCR );
+  grub_TPM_measure_buffer( ntldr, ntldrsize, TPM_LOADED_FILES_PCR );
   /* End TCG Extension */
 
   return GRUB_ERR_NONE;

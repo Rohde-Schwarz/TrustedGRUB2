@@ -205,6 +205,10 @@ grub_chainloader_cmd (const char *filename, grub_chainloader_flags_t flags)
 
   grub_file_close (file);
 
+  /* Begin TCG Extension */
+  grub_TPM_measure_buffer( bs, GRUB_DISK_SECTOR_SIZE, TPM_LOADED_FILES_PCR );
+  /* End TCG Extension */
+
   /* Obtain the partition table from the root device.  */
   drive = grub_get_root_biosnumber ();
   dev = grub_device_open (0);
@@ -240,11 +244,6 @@ grub_chainloader_cmd (const char *filename, grub_chainloader_flags_t flags)
   boot_part_addr = part_addr;
 
   grub_loader_set (grub_chainloader_boot, grub_chainloader_unload, 1);
-
-  /* Begin TCG Extension */
-  grub_TPM_measure_file( (char*)filename, TPM_LOADED_FILES_PCR );
-
-  /* End TCG Extension */
 
   return;
 

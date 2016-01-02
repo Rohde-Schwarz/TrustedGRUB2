@@ -52,12 +52,6 @@
 
 /************************* macros *************************/
 
-#ifdef TGRUB_DEBUG
-	#define DEBUG_PRINT( x ) grub_printf x
-#else
-	#define DEBUG_PRINT( x )
-#endif
-
 #define CHECK_FOR_NULL_ARGUMENT( argument ) 						                    \
 			if( ! argument ) {										                    \
 				grub_fatal( "BAD_ARGUMENT: argument is NULL" );   				\

@@ -682,6 +682,7 @@ grub_dl_load_file (const char *filename)
   grub_file_t file = NULL;
   grub_ssize_t size;
   void *core = 0;
+  void *measureModBuf = 0;
   grub_dl_t mod = 0;
 
   grub_boot_time ("Loading module %s", filename);
@@ -710,10 +711,27 @@ grub_dl_load_file (const char *filename)
      opens of the same device.  */
   grub_file_close (file);
 
+  /* Begin TCG Extension */
+  /* grub_dl_load_core() modifies the original buffer, so make a copy here that is measured later */
+  measureModBuf = grub_malloc (size);
+  if (! measureModBuf)
+  {
+	  return 0;
+  }
+  grub_memcpy(measureModBuf, core, size);
+
   mod = grub_dl_load_core (core, size);
   grub_free (core);
-  if (! mod)
+
+  if (! mod) {
+	grub_free (measureModBuf);
     return 0;
+  }
+
+  DEBUG_PRINT( ( "measured module: %s \n", mod->name ) );
+  grub_TPM_measure_buffer( measureModBuf, size, TPM_LOADED_FILES_PCR );
+  grub_free (measureModBuf);
+  /* End TCG Extension */
 
   mod->ref_count--;
   return mod;
@@ -753,12 +771,6 @@ grub_dl_load (const char *name)
 
   if (grub_strcmp (mod->name, name) != 0)
     grub_error (GRUB_ERR_BAD_MODULE, "mismatched names");
-
-  /* Begin TCG Extension */
-  if( grub_errno == GRUB_ERR_NONE ) {
-	  grub_TPM_measure_file( filename, TPM_LOADED_FILES_PCR );
-  }
-  /* End TCG Extension */
 
   grub_free (filename);
   return mod;
