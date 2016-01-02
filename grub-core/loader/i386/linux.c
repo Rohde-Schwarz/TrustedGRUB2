@@ -684,12 +684,13 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   grub_file_t file = 0;
   struct linux_kernel_header lh;
   grub_uint8_t setup_sects;
-  grub_size_t real_size, prot_size, prot_file_size;
+  grub_size_t real_size, prot_size, prot_file_size, kernelBufOffset = 0;
   grub_ssize_t len;
   int i;
   grub_size_t align, min_align;
   int relocatable;
   grub_uint64_t preferred_address = GRUB_LINUX_BZIMAGE_ADDR;
+  grub_uint8_t* kernelBuf = 0;
 
   grub_dl_ref (my_mod);
 
@@ -703,13 +704,24 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   if (! file)
     goto fail;
 
-  if (grub_file_read (file, &lh, sizeof (lh)) != sizeof (lh))
-    {
-      if (!grub_errno)
-	grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
-		    argv[0]);
-      goto fail;
-    }
+  /* Begin TCG Extension */
+  kernelBuf = grub_malloc( file->size );
+  if( ! kernelBuf )
+  {
+	  grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("allocating kernel buffer failed"));
+	  goto fail;
+  }
+
+  if (grub_file_read (file, kernelBuf, file->size) != (grub_ssize_t) file->size)
+  {
+	  if (!grub_errno)
+		  grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
+				  argv[0]);
+	  goto fail;
+  }
+
+  grub_memcpy( &lh, kernelBuf, sizeof(lh) );
+  kernelBufOffset = sizeof(lh);
 
   if (lh.boot_flag != grub_cpu_to_le16_compile_time (0xaa55))
     {
@@ -810,13 +822,9 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   linux_params.ps_mouse = linux_params.padding10 =  0;
 
   len = sizeof (linux_params) - sizeof (lh);
-  if (grub_file_read (file, (char *) &linux_params + sizeof (lh), len) != len)
-    {
-      if (!grub_errno)
-	grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
-		    argv[0]);
-      goto fail;
-    }
+
+  grub_memcpy( &linux_params + sizeof (lh), kernelBuf + kernelBufOffset, len );
+  kernelBufOffset+= len;
 
   linux_params.type_of_loader = GRUB_LINUX_BOOT_LOADER_TYPE;
 
@@ -848,9 +856,12 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
 #ifdef GRUB_MACHINE_EFI
 #ifdef __x86_64__
   if (grub_le_to_cpu16 (linux_params.version) < 0x0208 &&
-      ((grub_addr_t) grub_efi_system_table >> 32) != 0)
-    return grub_error(GRUB_ERR_BAD_OS,
-		      "kernel does not support 64-bit addressing");
+      ((grub_addr_t) grub_efi_system_table >> 32) != 0) {
+	  grub_free(kernelBuf);
+	  return grub_error(GRUB_ERR_BAD_OS,
+	  		      "kernel does not support 64-bit addressing");
+  }
+
 #endif
 
   if (grub_le_to_cpu16 (linux_params.version) >= 0x0208)
@@ -874,8 +885,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
 #endif
 
   /* The other parameters are filled when booting.  */
-
-  grub_file_seek (file, real_size + GRUB_DISK_SECTOR_SIZE);
+  kernelBufOffset= real_size + GRUB_DISK_SECTOR_SIZE;
 
   grub_dprintf ("linux", "bzImage, setup=0x%x, size=0x%x\n",
 		(unsigned) real_size, (unsigned) prot_size);
@@ -1020,15 +1030,18 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
 			      - (sizeof (LINUX_IMAGE) - 1));
 
   len = prot_file_size;
-  if (grub_file_read (file, prot_mode_mem, len) != len && !grub_errno)
-    grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
-		argv[0]);
+
+  grub_memcpy( prot_mode_mem, kernelBuf + kernelBufOffset, len );
+  kernelBufOffset+= len;
 
   if (grub_errno == GRUB_ERR_NONE)
     {
       grub_loader_set (grub_linux_boot, grub_linux_unload,
 		       0 /* set noreturn=0 in order to avoid grub_console_fini() */);
       loaded = 1;
+
+      DEBUG_PRINT( ("measured linux kernel: \n") );
+      grub_TPM_measure_buffer( kernelBuf, file->size, TPM_LOADED_FILES_PCR );
     }
 
  fail:
@@ -1036,16 +1049,16 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   if (file)
     grub_file_close (file);
 
+  if(kernelBuf) {
+	  grub_free(kernelBuf);
+  }
+  /* End TCG Extension */
+
   if (grub_errno != GRUB_ERR_NONE)
     {
       grub_dl_unref (my_mod);
       loaded = 0;
     }
-  /* Begin TCG Extension */
-  else {	/* file successfully loaded */
-	  grub_TPM_measure_file( argv[0], TPM_LOADED_FILES_PCR );
-  }
-  /* End TCG Extension */
 
   return grub_errno;
 }
