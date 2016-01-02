@@ -34,6 +34,14 @@
 #define TPM_COMMAND_MEASUREMENT_PCR 11
 #define TPM_LUKS_HEADER_MEASUREMENT_PCR 12
 
+/************************* macros *************************/
+
+#ifdef TGRUB_DEBUG
+	#define DEBUG_PRINT( x ) grub_printf x
+#else
+	#define DEBUG_PRINT( x )
+#endif
+
 /************************* functions *************************/
 
 /* print SHA1 hash of input */

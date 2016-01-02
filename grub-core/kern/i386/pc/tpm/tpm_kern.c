@@ -342,6 +342,7 @@ grub_TPM_measure_buffer( const void* buffer, const grub_uint32_t bufferLen, cons
 	DEBUG_PRINT( ( "SHA1: " ) );
     print_sha1( convertedResult );
     DEBUG_PRINT( ( "\n" ) );
+    grub_sleep( 4 );
 #endif
 
 	/* measure */
