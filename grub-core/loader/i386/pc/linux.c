@@ -127,13 +127,14 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   grub_file_t file = 0;
   struct linux_kernel_header lh;
   grub_uint8_t setup_sects;
-  grub_size_t real_size;
+  grub_size_t real_size, kernelBufOffset = 0;
   grub_ssize_t len;
   int i;
   char *grub_linux_prot_chunk;
   int grub_linux_is_bzimage;
   grub_addr_t grub_linux_prot_target;
   grub_err_t err;
+  grub_uint8_t* kernelBuf = 0;
 
   grub_dl_ref (my_mod);
 
@@ -147,13 +148,24 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   if (! file)
     goto fail;
 
-  if (grub_file_read (file, &lh, sizeof (lh)) != sizeof (lh))
-    {
-      if (!grub_errno)
-	grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
-		    argv[0]);
-      goto fail;
-    }
+  /* Begin TCG Extension */
+  kernelBuf = grub_malloc( file->size );
+  if( ! kernelBuf )
+  {
+	  grub_error (GRUB_ERR_OUT_OF_MEMORY, N_("allocating kernel buffer failed"));
+	  goto fail;
+  }
+
+  if (grub_file_read (file, kernelBuf, file->size) != (grub_ssize_t) file->size)
+  {
+	if (!grub_errno)
+		grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
+		argv[0]);
+	goto fail;
+  }
+
+  grub_memcpy( &lh, kernelBuf, sizeof(lh) );
+  kernelBufOffset = sizeof(lh);
 
   if (lh.boot_flag != grub_cpu_to_le16_compile_time (0xaa55))
     {
@@ -309,8 +321,11 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
 					   grub_linux_real_target,
 					   GRUB_LINUX_CL_OFFSET
 					   + maximal_cmdline_size);
-    if (err)
-      return err;
+    if (err) {
+    	grub_free(kernelBuf);
+    	return err;
+    }
+
     grub_linux_real_chunk = get_virtual_current_address (ch);
   }
 
@@ -318,13 +333,9 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   grub_memmove (grub_linux_real_chunk, &lh, sizeof (lh));
 
   len = real_size + GRUB_DISK_SECTOR_SIZE - sizeof (lh);
-  if (grub_file_read (file, grub_linux_real_chunk + sizeof (lh), len) != len)
-    {
-      if (!grub_errno)
-	grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
-		    argv[0]);
-      goto fail;
-    }
+
+  grub_memcpy( grub_linux_real_chunk + sizeof (lh), kernelBuf + kernelBufOffset, len );
+  kernelBufOffset+= len;
 
   if (lh.header != grub_cpu_to_le32_compile_time (GRUB_LINUX_MAGIC_SIGNATURE)
       || grub_le_to_cpu16 (lh.version) < 0x0200)
@@ -353,21 +364,24 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
     err = grub_relocator_alloc_chunk_addr (relocator, &ch,
 					   grub_linux_prot_target,
 					   grub_linux16_prot_size);
-    if (err)
-      return err;
+    if (err) {
+    	grub_free( kernelBuf);
+    	return err;
+    }
+
     grub_linux_prot_chunk = get_virtual_current_address (ch);
   }
 
   len = grub_linux16_prot_size;
-  if (grub_file_read (file, grub_linux_prot_chunk, grub_linux16_prot_size)
-      != (grub_ssize_t) grub_linux16_prot_size && !grub_errno)
-    grub_error (GRUB_ERR_BAD_OS, N_("premature end of file %s"),
-		argv[0]);
+
+  grub_memcpy( grub_linux_prot_chunk, kernelBuf + kernelBufOffset, len  );
 
   if (grub_errno == GRUB_ERR_NONE)
     {
       grub_loader_set (grub_linux16_boot, grub_linux_unload, 0);
       loaded = 1;
+      DEBUG_PRINT( ("measured linux16 kernel: \n") );
+      grub_TPM_measure_buffer( kernelBuf, file->size, TPM_LOADED_FILES_PCR );
     }
 
  fail:
@@ -375,17 +389,17 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   if (file)
     grub_file_close (file);
 
+  if(kernelBuf) {
+	  grub_free(kernelBuf);
+  }
+  /* End TCG Extension */
+
   if (grub_errno != GRUB_ERR_NONE)
     {
       grub_dl_unref (my_mod);
       loaded = 0;
       grub_relocator_unload (relocator);
     }
-  /* Begin TCG Extension */
-  else {	/* file successfully loaded */
-	  grub_TPM_measure_file( argv[0], TPM_LOADED_FILES_PCR );
-  }
-  /* End TCG Extension */
 
   return grub_errno;
 }
