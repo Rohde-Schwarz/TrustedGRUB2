@@ -8,6 +8,9 @@
 * Prevent possible buffer overlow in case the command to measure is greater than 1024 byte in length
 * Disable HP workaround in default mode, i.e. HP workaround has to be enabled explicitly by defining `TGRUB_HP_WORKAROUND`. Therefore there is no need 
 to append `--no-rs-codes` to `grub-install` anymore in case you don't need the workaround. GH #18
+* Measure buffer that is used. Before this fix everything that was measured from disk was read a second time. This enabled following attack: A 
+sufficiently malicious storage device might provide a backdoored file on the first read attempt, followed by the correct file on the second read 
+attempt. The measurement would then appear correct. GH #9
 
 #### 1.2.1
 
