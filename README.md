@@ -230,7 +230,7 @@ Sets Memory Overwrite Request (MOR) Bit. `DISABLEAUTODETECT` specifies if BIOS s
 * `chainloader`  
 * `ntdlr`
 
-These commands are modified to measure before loading. PCR 13 is extended.
+These commands are modified to measure before loading. PCR 10 is extended.
 
 Additionally the following commands have been modified:
 
