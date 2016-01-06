@@ -11,6 +11,9 @@ to append `--no-rs-codes` to `grub-install` anymore in case you don't need the w
 * Measure buffer that is used. Before this fix everything that was measured from disk was read a second time. This enabled following attack: A 
 sufficiently malicious storage device might provide a backdoored file on the first read attempt, followed by the correct file on the second read 
 attempt. The measurement would then appear correct. GH #9
+* Measurements of parts of TrustedGRUB2 that are loaded at runtime like grub2-modules are now seperated from the loader measurements like kernel and initrd. Additionally renamed `TPM_LOADED_FILES_PCR` to 
+`TPM_LOADER_MEASUREMENT_PCR` and introduced a new define `TPM_GRUB2_LOADED_FILES_MEASUREMENT_PCR` for the GRUB2 measurements. GH #34
+
 
 #### 1.2.1
 
