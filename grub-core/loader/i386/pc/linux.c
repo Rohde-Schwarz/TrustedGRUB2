@@ -381,7 +381,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       grub_loader_set (grub_linux16_boot, grub_linux_unload, 0);
       loaded = 1;
       DEBUG_PRINT( ("measured linux16 kernel: \n") );
-      grub_TPM_measure_buffer( kernelBuf, file->size, TPM_LOADED_FILES_PCR );
+      grub_TPM_measure_buffer( kernelBuf, file->size, TPM_LOADER_MEASUREMENT_PCR );
     }
 
  fail:

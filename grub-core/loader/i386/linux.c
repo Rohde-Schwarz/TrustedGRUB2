@@ -1041,7 +1041,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
       loaded = 1;
 
       DEBUG_PRINT( ("measured linux kernel: \n") );
-      grub_TPM_measure_buffer( kernelBuf, file->size, TPM_LOADED_FILES_PCR );
+      grub_TPM_measure_buffer( kernelBuf, file->size, TPM_LOADER_MEASUREMENT_PCR );
     }
 
  fail:

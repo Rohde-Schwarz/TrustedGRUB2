@@ -206,7 +206,7 @@ grub_chainloader_cmd (const char *filename, grub_chainloader_flags_t flags)
   grub_file_close (file);
 
   /* Begin TCG Extension */
-  grub_TPM_measure_buffer( bs, GRUB_DISK_SECTOR_SIZE, TPM_LOADED_FILES_PCR );
+  grub_TPM_measure_buffer( bs, GRUB_DISK_SECTOR_SIZE, TPM_LOADER_MEASUREMENT_PCR );
   /* End TCG Extension */
 
   /* Obtain the partition table from the root device.  */
