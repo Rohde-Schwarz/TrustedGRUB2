@@ -293,7 +293,7 @@ grub_initrd_load (struct grub_linux_initrd_context *initrd_ctx,
 	  return grub_errno;
 	}
       /* Begin TCG Extension */
-      grub_TPM_measure_buffer( ptr, cursize, TPM_LOADED_FILES_PCR );
+      grub_TPM_measure_buffer( ptr, cursize, TPM_LOADER_MEASUREMENT_PCR );
       /* End TCG Extension */
 
       ptr += cursize;

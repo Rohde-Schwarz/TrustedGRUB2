@@ -52,11 +52,10 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 * PCR 0-7 Measured by BIOS
 * PCR 8 First sector of TrustedGRUB2 kernel (diskboot.img)
 * PCR 9 TrustedGRUB2 kernel (core.img)
-* PCR 10 Everything that is loaded from disk (grub2-modules,
-Linux-kernel, initrd, ntldr, etc.) // TODO: fonts, themes, locales
-* PCR 11 contains all commandline arguments from scripts (e.g. grub.cfg)
-and those entered in the shell
+* PCR 10 Loader measurements - currently linux-kernel, initrd, ntldr, chainloader
+* PCR 11 Contains all commandline arguments from scripts (e.g. grub.cfg) and those entered in the shell
 * PCR 12 LUKS-header
+* PCR 13 Parts of GRUB2 that are loaded from disk like GRUB2-modules // TODO: fonts, themes, locales
 
 Kernel measurements are only implemented for diskboot so far (e.g. no cdboot or pxeboot measurement)
 
@@ -87,9 +86,10 @@ If you find any other bugs, create an issue on github
 PCR selection for module measurement, command measurement and loaded files measurement can be adjusted in tpm.h:
 
 ```C++
-#define TPM_LOADED_FILES_PCR 10
+#define TPM_LOADER_MEASUREMENT_PCR 10
 #define TPM_COMMAND_MEASUREMENT_PCR 11
 #define TPM_LUKS_HEADER_MEASUREMENT_PCR 12
+#define TPM_GRUB2_LOADED_FILES_MEASUREMENT_PCR 13
 ```
 
 #### 1.6.2 Debug output
@@ -173,7 +173,7 @@ the entry point for the code which has to be checked is a address 0x8200 and tha
 ### 2.3 Measurement of GRUB2 modules
 
 Grub2 has a modular structure. GRUB2 dynamically loads needed modules which are not contained in kernel. Modifications in boot.S and diskboot.S are only measuring GRUB2 kernel.
-Therefore the GRUB2 module loader was modified to measure modules to PCR 10 before they are loaded. Changes can be found in dl.c .
+Therefore the GRUB2 module loader was modified to measure modules to PCR 13 before they are loaded. Changes can be found in dl.c .
 
 ### 2.4 New SHA1-implementation in GRUB2 kernel
 

@@ -729,7 +729,7 @@ grub_dl_load_file (const char *filename)
   }
 
   DEBUG_PRINT( ( "measured module: %s \n", mod->name ) );
-  grub_TPM_measure_buffer( measureModBuf, size, TPM_LOADED_FILES_PCR );
+  grub_TPM_measure_buffer( measureModBuf, size, TPM_GRUB2_LOADED_FILES_MEASUREMENT_PCR );
   grub_free (measureModBuf);
   /* End TCG Extension */
 
