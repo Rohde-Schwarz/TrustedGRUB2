@@ -38,6 +38,8 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
   * `initrd` / `initrd16`
   * `chainloader`
   * `ntdlr`
+  * `multiboot`
+  * `module`
 * New cryptomount parameters:
   * `cryptomount -k KEYFILE`
   * `cryptomount -k KEYFILE -s`
@@ -52,7 +54,7 @@ This can only be done indirectly by using the seal/unseal functions of the TPM (
 * PCR 0-7 Measured by BIOS
 * PCR 8 First sector of TrustedGRUB2 kernel (diskboot.img)
 * PCR 9 TrustedGRUB2 kernel (core.img)
-* PCR 10 Loader measurements - currently linux-kernel, initrd, ntldr, chainloader
+* PCR 10 Loader measurements - currently linux-kernel, initrd, ntldr, chainloader, multiboot, module
 * PCR 11 Contains all commandline arguments from scripts (e.g. grub.cfg) and those entered in the shell
 * PCR 12 LUKS-header
 * PCR 13 Parts of GRUB2 that are loaded from disk like GRUB2-modules // TODO: fonts, themes, locales
@@ -229,6 +231,9 @@ Sets Memory Overwrite Request (MOR) Bit. `DISABLEAUTODETECT` specifies if BIOS s
 * `initrd` / `initrd16`  
 * `chainloader`  
 * `ntdlr`
+* `multiboot`
+* `module`
+  * append `--nounzip` to get measuremens of the compressed file 
 
 These commands are modified to measure before loading. PCR 10 is extended.
 
@@ -246,7 +251,11 @@ All modifications have been commented with
 /* END TCG EXTENSION */
 ```
 
-### 2.8 File list
+### 2.8 Security considerations
+
+* The `multiboot` command measurement does not follow the new convention of measuring the same buffer that is loaded into memory. If someone needs this extra security feel free to send a pull request. See GH #9 and GH #38 for more details.
+
+### 2.9 File list
 
 The following list presents the files that have been added / modified to add TCG
 support to GRUB2.
@@ -263,6 +272,7 @@ support to GRUB2.
 * grub-core/kern/sha1.c
 * grub-core/disk/cryptodisk.c
 * grub-core/disk/luks.c
+* grub-core/loader/multiboot.c
 * grub-core/loader/linux.c
 * grub-core/loader/i386/linux.c
 * grub-core/loader/i386/pc/chainloader.c
