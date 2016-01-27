@@ -1,6 +1,6 @@
 ### Changelog
 
-#### 1.3.0 - Not yet released
+#### 1.3.0
 
 * Fix measurement of compressed files. Previously the uncompressed version of the file was measured and not the one that is stored on the disk. GH #28
 * Command measurement: in addition to not measuring `menuentry` also `submenu` and `[ ... ]` are not measured to simplify precomputation. GH #25
