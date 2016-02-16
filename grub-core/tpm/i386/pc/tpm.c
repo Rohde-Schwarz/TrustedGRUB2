@@ -46,7 +46,6 @@ static const grub_uint32_t TPM_KH_SRK = 0x40000000;
 
 /* Ordinals */
 static const grub_uint32_t TPM_ORD_OSAP = 0x0000000B;
-static const grub_uint32_t TPM_ORD_PcrRead = 0x00000015;
 static const grub_uint32_t TPM_ORD_Unseal = 0x00000018;
 static const grub_uint32_t TPM_ORD_GetRandom = 0x00000046;
 static const grub_uint32_t TPM_ORD_OIAP = 0x0000000A;
@@ -62,22 +61,6 @@ static const grub_uint8_t srkAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0,
 static const grub_uint8_t blobAuthData[SHA1_DIGEST_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /************************* struct typedefs *************************/
-
-/* TPM_PCRRead Incoming Operand */
-typedef struct {
-	grub_uint16_t tag;
-	grub_uint32_t paramSize;
-	grub_uint32_t ordinal;
-	grub_uint32_t pcrIndex;
-} GRUB_PACKED PCRReadIncoming;
-
-/* TPM_PCRRead Outgoing Operand */
-typedef struct {
-	grub_uint16_t tag;
-	grub_uint32_t paramSize;
-	grub_uint32_t returnCode;
-	grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
-} GRUB_PACKED PCRReadOutgoing;
 
 /* TCG_SetMemoryOverwriteRequestBit Input Parameter Block */
 typedef struct {
@@ -139,60 +122,6 @@ typedef struct tdTCG_PCClientPCREventStruc {
 } GRUB_PACKED TCG_PCClientPCREvent;
 
 /************************* static functions *************************/
-
-/* grub_fatal() on error */
-static void
-grub_TPM_readpcr( const unsigned long index, grub_uint8_t* result ) {
-
-    CHECK_FOR_NULL_ARGUMENT( result )
-
-	PassThroughToTPM_InputParamBlock *passThroughInput = NULL;
-	PCRReadIncoming* pcrReadIncoming = NULL;
-    grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *pcrReadIncoming );
-
-	PassThroughToTPM_OutputParamBlock *passThroughOutput = NULL;
-	PCRReadOutgoing* pcrReadOutgoing = NULL;
-    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *pcrReadOutgoing );
-
-	passThroughInput = grub_zalloc( inputlen );
-	if( ! passThroughInput ) {
-        grub_fatal( "readpcr: memory allocation failed" );
-	}
-
-	passThroughInput->IPBLength = inputlen;
-	passThroughInput->OPBLength = outputlen;
-
-	pcrReadIncoming = (void *)passThroughInput->TPMOperandIn;
-	pcrReadIncoming->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
-	pcrReadIncoming->paramSize = grub_swap_bytes32( sizeof( *pcrReadIncoming ) );
-	pcrReadIncoming->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_PcrRead );
-	pcrReadIncoming->pcrIndex = grub_swap_bytes32( (grub_uint32_t) index);
-
-	passThroughOutput = grub_zalloc( outputlen );
-	if( ! passThroughOutput ) {
-		grub_free( passThroughInput );
-        grub_fatal( "readpcr: memory allocation failed" );
-	}
-
-	grub_TPM_int1A_passThroughToTPM( passThroughInput, passThroughOutput );
-	grub_free( passThroughInput );
-
-	pcrReadOutgoing = (void *)passThroughOutput->TPMOperandOut;
-	grub_uint32_t tpm_PCRreadReturnCode = grub_swap_bytes32( pcrReadOutgoing->returnCode );
-
-	if( tpm_PCRreadReturnCode != TPM_SUCCESS ) {
-		grub_free( passThroughOutput );
-
-		if( tpm_PCRreadReturnCode == TPM_BADINDEX ) {
-            grub_fatal( "readpcr: bad pcr index" );
-		}
-
-        grub_fatal( "readpcr: tpm_PCRreadReturnCode: %u", tpm_PCRreadReturnCode );
-	}
-
-	grub_memcpy( result, pcrReadOutgoing->pcr_value, SHA1_DIGEST_SIZE );
-	grub_free( passThroughOutput );
-}
 
 /* grub_fatal() on error */
 static grub_err_t

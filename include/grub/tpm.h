@@ -55,6 +55,8 @@ void EXPORT_FUNC(grub_TPM_measure_file) ( const char* filename, const unsigned l
 /* 	Measure buffer */
 void EXPORT_FUNC(grub_TPM_measure_buffer) ( const void* buffer, grub_uint32_t bufferLen, const unsigned long index );
 
+void EXPORT_FUNC(grub_TPM_readpcr) ( const grub_uint8_t index, grub_uint8_t* result );
+
 void grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t** result, grub_size_t* resultSize );
 
 #endif
