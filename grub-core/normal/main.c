@@ -35,7 +35,7 @@
 #include <grub/bufio.h>
 
 /* BEGIN TCG EXTENSION */
-#define TGRUB_VERSION "1.30"
+#define TGRUB_VERSION "1.40"
 /* END TCG EXTENSION */
 
 GRUB_MOD_LICENSE ("GPLv3+");
