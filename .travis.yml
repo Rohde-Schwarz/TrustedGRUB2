@@ -1,6 +1,6 @@
 env:
   global:
-   - secure: "E1iOs3Ag9oM8tXTTPSE35IwSxrrRgCew51b8JdyNjpptyFvDBNPCPDkA9OA4NKCIQ1/bZyliKIl3oOX6wejDGabAD7jPi2dIh7BK87aWSpyakKiDNL1kq79c/dP8h9L52mb19VgWQCsPQIwovFxIFPiIAQBBFhkNRjrd1Y98bGI="
+   - secure: "KCKGkyBjatEdxbvX1qCXAEr3JYzheJEI+3WZHqYNUWOzZvKvmnlhpQmSEX+vdvf12uLPiiA+NDYwNeoJ2Mw/bK/l/BRcLxSbZdp6p8iaLnr8SghQKMdNGYBA/IGDCu55hrXi0T+sTCMlXUUYBmZhWYBeWifUMh7kj8BUwKzi4vc="
 
 compiler: gcc
 language: c
