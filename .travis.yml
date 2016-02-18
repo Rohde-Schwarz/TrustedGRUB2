@@ -1,35 +1,30 @@
 env:
-  global:
-   - secure: "KCKGkyBjatEdxbvX1qCXAEr3JYzheJEI+3WZHqYNUWOzZvKvmnlhpQmSEX+vdvf12uLPiiA+NDYwNeoJ2Mw/bK/l/BRcLxSbZdp6p8iaLnr8SghQKMdNGYBA/IGDCu55hrXi0T+sTCMlXUUYBmZhWYBeWifUMh7kj8BUwKzi4vc="
-
-compiler: gcc
-language: c
-
-env:
+  matrix:
   - DEFINES=""
   - DEFINES="CPPFLAGS=-DTGRUB_HP_WORKAROUND"
   - DEFINES="CPPFLAGS=-DTGRUB_DEBUG"
-
+  global:
+    secure: fsJ8kz9HO/dorxiZDKX3sUJZkQXECKlsZJ6GtoGwJWQyDfZ988msG0alZucRyOHr/3dO4I0UENxIWx4FuKIw1t33ngw2Ugi7muKe53KJJa5iUz0dl8uZ4ndSW45cmF9vvCDAaTRsRITRj4SP275CBO7vs83UhB5yiBwaZAhNwzk=
+compiler: gcc
+language: c
 script:
-  - "./autogen.sh"
-  - "./configure --target=i386 -with-platform=pc"
-  - "echo ${DEFINES}"
-  - "make ${DEFINES} -j 4 --silent"
-
+- "./autogen.sh"
+- "./configure --target=i386 -with-platform=pc"
+- echo ${DEFINES}
+- make ${DEFINES} -j 4 --silent
 os:
-  - linux
-
+- linux
 notifications:
   email:
     recipients:
-      - daniel@neus-online.eu
-
+    - daniel@neus-online.eu
 addons:
   coverity_scan:
     project:
-      name: "Sirrix-AG/TrustedGRUB2"
-      description: "Build submitted via Travis CI"
+      name: Sirrix-AG/TrustedGRUB2
+      description: Build submitted via Travis CI
     notification_email: daniel@neus-online.eu
-    build_command_prepend: "./autogen.sh;./configure --target=i386 -with-platform=pc; make clean"
-    build_command:   "make -j 4 --silent"
+    build_command_prepend: "./autogen.sh;./configure --target=i386 -with-platform=pc;
+      make clean"
+    build_command: make -j 4 --silent
     branch_pattern: coverity_scan
