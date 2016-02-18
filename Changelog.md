@@ -1,5 +1,8 @@
 ### Changelog
 
+#### 1.4.0 (not yet released)
+* Extend log on each TPM_Extend GH #11
+
 #### 1.3.0
 
 * Fix measurement of compressed files. Previously the uncompressed version of the file was measured and not the one that is stored on the disk. GH #28
