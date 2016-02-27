@@ -255,9 +255,6 @@ static int sha1_update(sha1_context *ctx, t_U8 *chunk_data, t_U32 chunk_length)
     return -1;
   }
 
-  // chunk_length =? 0
-  if ( chunk_length == 0 ) return -1;
-
   // chunk_length = n * 64 byte + left
   left = ctx->total_bytes_Lo & 0x3F;
 
@@ -332,7 +329,6 @@ static int sha1_finish(sha1_context *ctx, t_U32 *sha1_hash)
   // parameter check
   if ( (ctx == NULL) || (sha1_hash == NULL) )
   {
-    *sha1_hash = 0;
     return -1;
   }
 
