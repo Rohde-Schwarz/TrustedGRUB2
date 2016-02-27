@@ -1,6 +1,6 @@
 ### Changelog
 
-#### 1.4.0 (not yet released)
+#### 1.4.0
 * Extend log on each TPM_Extend GH #11
 
 #### 1.3.0
