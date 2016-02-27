@@ -37,6 +37,10 @@
 #include <grub/net.h>
 #include <grub/lib/cmdline.h>
 
+/* Begin TCG Extension */
+#include <grub/tpm.h>
+/* End TCG Extension */
+
 #if defined (GRUB_MACHINE_EFI)
 #include <grub/efi/efi.h>
 #endif
@@ -125,6 +129,11 @@ grub_multiboot_load (grub_file_t file, const char *filename)
     }
 
   COMPILE_TIME_ASSERT (MULTIBOOT_HEADER_ALIGN % 4 == 0);
+
+  /* Begin TCG Extension */
+  DEBUG_PRINT( ("measured multiboot file: %s \n", filename ) );
+  grub_TPM_measure_buffer( buffer, len, TPM_LOADER_MEASUREMENT_PCR );
+  /* End TCG Extension */
 
   header = find_header (buffer, len);
 

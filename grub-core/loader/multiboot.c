@@ -302,10 +302,6 @@ grub_cmd_multiboot (grub_command_t cmd __attribute__ ((unused)),
       grub_relocator_unload (grub_multiboot_relocator);
       grub_multiboot_relocator = NULL;
       grub_dl_unref (my_mod);
-    } else {
-    	/* Begin TCG Extension */
-    	grub_TPM_measure_file( argv[0], TPM_LOADER_MEASUREMENT_PCR );
-    	/* End TCG Extension */
     }
 
   return grub_errno;
