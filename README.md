@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/Rohde-Schwarz-Cybersecurity/TrustedGRUB2.svg?branch=master)](https://travis-ci.org/Rohde-Schwarz-Cybersecurity/TrustedGRUB2)
 
-<a href="https://scan.coverity.com/projects/5521">
+<a href="https://scan.coverity.com/projects/rohde-schwarz-cybersecurity-trustedgrub2">
   <img alt="Coverity Scan Build Status"
        src="https://scan.coverity.com/projects/5521/badge.svg"/>
 </a>
