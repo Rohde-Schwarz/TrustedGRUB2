@@ -7,6 +7,8 @@
        src="https://scan.coverity.com/projects/5521/badge.svg"/>
 </a>
 
+[![Quality Gate](https://sonarqube.com/api/badges/gate?key=TrustedGRUB2)](https://sonarqube.com/dashboard/index/TrustedGRUB2)
+
 ## 1. General Information
 
 ### 1.1 Introduction
