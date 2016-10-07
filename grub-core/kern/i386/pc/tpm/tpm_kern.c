@@ -87,69 +87,51 @@ typedef struct {
 
 /************************* static functions *************************/
 
-/* Invokes TCG_HashLogExtendEvent
+/* Invokes TCG_CompactHashLogExtendEvent
  *
- * we hash ourself
+ *  Avoids the potentially buggy TCG_HashLogExtendEvent
  *
  *  grub_fatal() on error
- *  Page 116 TCG_PCClientImplementation_1-21_1_00
+ *  Page 126 TCG_PCClientImplementation_1-21_1_00
  */
 static void
-grub_TPM_int1A_hashLogExtendEvent( const grub_uint8_t* inDigest, grub_uint8_t pcrIndex, const char* description ) {
+grub_TPM_int1A_compactHashLogExtendEvent( const grub_uint8_t* inDigest, grub_uint8_t pcrIndex, const char* description ) {
 
     CHECK_FOR_NULL_ARGUMENT( inDigest );
     CHECK_FOR_NULL_ARGUMENT( description );
 
     if( pcrIndex > 23 )
     {
-        grub_fatal( "grub_TPM_int1A_hashLogExtendEvent: pcr > 23 is invalid" );
+        grub_fatal( "grub_TPM_int1A_compactHashLogExtendEvent: pcr > 23 is invalid" );
     }
 
-    /* Prepare Event struct */
-    grub_uint32_t strSize = grub_strlen(description);
-    grub_uint32_t eventStructSize = strSize + sizeof(Event);
-    Event* event = grub_zalloc(eventStructSize);
-
-    if (!event)
-    {
-        grub_fatal( "grub_TPM_int1A_hashLogExtendEvent: memory allocation failed" );
+    // Hash the description and truncate it for the event field of the log entry
+    grub_uint32_t descriptionHash[5] = { 0 };
+    grub_err_t err = sha1_hash_string( description, descriptionHash );
+    if( err != GRUB_ERR_NONE ) {
+        grub_fatal( "grub_TPM_measureString: sha1_hash_string failed." );
     }
+    grub_uint32_t informativeValue = descriptionHash[0];
 
-    event->pcrIndex = pcrIndex;
-    event->eventType = 0x0d; /* EV_IPL */
-    event->eventDataSize = strSize;
-    grub_memcpy(event->digest, inDigest, SHA1_DIGEST_SIZE );
-    grub_memcpy(event->event, description, strSize);
-
-    /* Prepare EventIncoming struct */
-    EventIncoming incoming;
-    incoming.ipbLength = sizeof(incoming);
-    incoming.hashDataPtr = 0;
-    incoming.hashDataLen = 0;
-    incoming.pcrIndex = pcrIndex;
-    incoming.logDataPtr = (grub_addr_t) event;
-    incoming.logDataLen = eventStructSize;
-
-    EventOutgoing outgoing;
     struct grub_bios_int_registers regs;
     regs.flags = GRUB_CPU_INT_FLAGS_DEFAULT;
-    regs.eax = 0xBB01;
+    regs.eax = 0xBB07;
     regs.ebx = TCPA;
-    regs.ecx = 0;
-    regs.edx = 0;
-    regs.es = (((grub_addr_t) &incoming) & 0xffff0000) >> 4;
-    regs.edi = ((grub_addr_t) &incoming) & 0xffff;
-    regs.ds = (((grub_addr_t) &outgoing) & 0xffff0000) >> 4;
-    regs.esi = ((grub_addr_t) &outgoing) & 0xffff;
+    regs.ecx = SHA1_DIGEST_SIZE;
+    regs.edx = pcrIndex;
+    regs.es = (((grub_addr_t) &inDigest) & 0xffff0000) >> 4;
+    regs.edi = ((grub_addr_t) &inDigest) & 0xffff;
+    regs.ds = 0;
+    regs.esi = informativeValue;
 
     grub_bios_interrupt (0x1A, &regs);
 
     if ( regs.eax != TCG_PC_OK ) {
-        grub_fatal( "TCG_HashLogExtendEvent failed: 0x%x", regs.eax );
+        grub_fatal( "TCG_CompactHashLogExtendEvent failed: 0x%x", regs.eax );
     }
 
 #ifdef TGRUB_DEBUG
-    DEBUG_PRINT( ( "event number: %u \n", outgoing.eventNum ) );
+    DEBUG_PRINT( ( "event number: %u \n", regs.edx ) );
     DEBUG_PRINT( ( "New PCR[%u]=", pcrIndex ) );
     grub_uint8_t result[SHA1_DIGEST_SIZE] = { 0 };
     grub_TPM_readpcr( pcrIndex, &result[0] );
@@ -157,8 +139,6 @@ grub_TPM_int1A_hashLogExtendEvent( const grub_uint8_t* inDigest, grub_uint8_t pc
     DEBUG_PRINT( ( "\n\n" ) );
     grub_sleep( 4 );
 #endif
-
-    grub_free(event);
 }
 
 /************************* non-static functions *************************/
@@ -342,7 +322,7 @@ grub_TPM_measure_string( const char* string ) {
     DEBUG_PRINT( ( "\n" ) );
 #endif
 
-    grub_TPM_int1A_hashLogExtendEvent( convertedResult, TPM_COMMAND_MEASUREMENT_PCR, string );
+    grub_TPM_int1A_compactHashLogExtendEvent( convertedResult, TPM_COMMAND_MEASUREMENT_PCR, string );
 }
 
 /* grub_fatal() on error */
@@ -393,7 +373,7 @@ grub_TPM_measure_file( const char* filename, const grub_uint8_t index ) {
 #endif
 
     /* measure */
-    grub_TPM_int1A_hashLogExtendEvent( convertedResult, index, filename );
+    grub_TPM_int1A_compactHashLogExtendEvent( convertedResult, index, filename );
 }
 
 void
@@ -428,6 +408,6 @@ grub_TPM_measure_buffer( const void* buffer, const grub_uint32_t bufferLen, cons
 #endif
 
     /* measure */
-    grub_TPM_int1A_hashLogExtendEvent( convertedResult, index, "measured buffer" );
+    grub_TPM_int1A_compactHashLogExtendEvent( convertedResult, index, "measured buffer" );
 }
 /* End TCG Extension */
