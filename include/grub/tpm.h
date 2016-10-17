@@ -56,6 +56,8 @@ void EXPORT_FUNC(grub_TPM_measure_file) ( const char* filename, const grub_uint8
 void EXPORT_FUNC(grub_TPM_measure_buffer) ( const void* buffer, grub_uint32_t bufferLen, const grub_uint8_t index );
 
 void EXPORT_FUNC(grub_TPM_readpcr) ( const grub_uint8_t index, grub_uint8_t* result );
+/* Extend PCR via pass-through */
+void EXPORT_FUNC(grub_TPM_extendpcr) ( const grub_uint8_t index, const grub_uint8_t* indigest, grub_uint8_t* result );
 
 void grub_TPM_unseal( const grub_uint8_t* sealedBuffer, const grub_size_t inputSize, grub_uint8_t** result, grub_size_t* resultSize );
 

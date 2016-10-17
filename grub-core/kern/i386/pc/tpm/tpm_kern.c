@@ -38,11 +38,11 @@
 
 /* Ordinals */
 static const grub_uint32_t TPM_ORD_PcrRead = 0x00000015;
-
+static const grub_uint32_t TPM_ORD_Extend = 0x00000014;
 /************************* struct typedefs *************************/
 
 /* TCG_HashLogExtendEvent Input Parameter Block (Format 2) */
-typedef struct {
+/*typedef struct {
     grub_uint16_t ipbLength;
     grub_uint16_t reserved;
     grub_uint32_t hashDataPtr;
@@ -52,15 +52,15 @@ typedef struct {
     grub_uint32_t logDataPtr;
     grub_uint32_t logDataLen;
  } GRUB_PACKED EventIncoming;
-
+*/
 /* TCG_HashLogExtendEvent Output Parameter Block */
-typedef struct {
+/*typedef struct {
     grub_uint16_t opbLength;
     grub_uint16_t reserved;
     grub_uint32_t eventNum;
     grub_uint8_t  hashValue[SHA1_DIGEST_SIZE];
 } GRUB_PACKED EventOutgoing;
-
+*/
 typedef struct {
     grub_uint32_t pcrIndex;
     grub_uint32_t eventType;
@@ -68,6 +68,25 @@ typedef struct {
     grub_uint32_t eventDataSize;
     grub_uint8_t event[0];
 } GRUB_PACKED Event;
+
+/* TCG_HashLogEvent Input Parameter Block */
+typedef struct {
+    grub_uint16_t ipbLength;
+    grub_uint16_t reserved;
+    grub_uint32_t hashDataPtr;
+    grub_uint32_t hashDataLen;
+    grub_uint32_t pcrIndex;
+    grub_uint32_t logEventType;
+    grub_uint32_t logDataPtr;
+    grub_uint32_t logDataLen;
+ } GRUB_PACKED LogEventIncoming;
+
+/* TCG_HashLogEvent Output Parameter Block */
+typedef struct {
+    grub_uint16_t opbLength;
+    grub_uint16_t reserved;
+    grub_uint32_t eventNum;
+} GRUB_PACKED LogEventOutgoing;
 
 /* TPM_PCRRead Incoming Operand */
 typedef struct {
@@ -85,25 +104,56 @@ typedef struct {
     grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
 } GRUB_PACKED PCRReadOutgoing;
 
+/* TPM_Extend Incoming Operand */
+typedef struct {
+    grub_uint16_t tag;
+    grub_uint32_t paramSize;
+    grub_uint32_t ordinal;
+    grub_uint32_t pcrIndex;
+    grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
+} GRUB_PACKED PCRExtendIncoming;
+
+typedef struct {
+    grub_uint16_t tag;
+    grub_uint32_t paramSize;
+    grub_uint32_t returnCode;
+    grub_uint32_t ordinal;
+    grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
+} GRUB_PACKED PCRExtendOutgoing;
+
 /************************* static functions *************************/
 
-/* Invokes TCG_HashLogExtendEvent
+/* Invokes TPM_Extend and TCG_HashLogEvent
  *
  * we hash ourself
  *
  *  grub_fatal() on error
- *  Page 116 TCG_PCClientImplementation_1-21_1_00
+ *  Page 122 TCG_PCClientImplementation_1-21_1_00
  */
 static void
-grub_TPM_int1A_hashLogExtendEvent( const grub_uint8_t* inDigest, grub_uint8_t pcrIndex, const char* description ) {
+grub_TPM_extendAndLogPCR( const grub_uint8_t* inDigest, grub_uint8_t pcrIndex, const char* description ) {
 
     CHECK_FOR_NULL_ARGUMENT( inDigest );
     CHECK_FOR_NULL_ARGUMENT( description );
 
     if( pcrIndex > 23 )
     {
-        grub_fatal( "grub_TPM_int1A_hashLogExtendEvent: pcr > 23 is invalid" );
+        grub_fatal( "grub_TPM_extendAndLogPCR: pcr > 23 is invalid" );
     }
+    
+    
+    grub_uint8_t result[SHA1_DIGEST_SIZE] = { 0 };
+    /* Do the TPM_Extend via a pass-through */
+    grub_TPM_extendpcr(pcrIndex, inDigest, result);
+    
+#ifdef TGRUB_DEBUG
+    DEBUG_PRINT( ( "TPM_Extend on PCR %u \n", pcrIndex ) );
+    DEBUG_PRINT( ( "New PCR[%u]=", pcrIndex ) );
+    print_sha1(result);
+    DEBUG_PRINT( ( "\n\n" ) );
+#endif
+
+    /* Now, we must log the TPM_Extend that we just did */
 
     /* Prepare Event struct */
     grub_uint32_t strSize = grub_strlen(description);
@@ -112,7 +162,7 @@ grub_TPM_int1A_hashLogExtendEvent( const grub_uint8_t* inDigest, grub_uint8_t pc
 
     if (!event)
     {
-        grub_fatal( "grub_TPM_int1A_hashLogExtendEvent: memory allocation failed" );
+        grub_fatal( "grub_TPM_extendAndLogPCR: memory allocation failed" );
     }
 
     event->pcrIndex = pcrIndex;
@@ -122,18 +172,19 @@ grub_TPM_int1A_hashLogExtendEvent( const grub_uint8_t* inDigest, grub_uint8_t pc
     grub_memcpy(event->event, description, strSize);
 
     /* Prepare EventIncoming struct */
-    EventIncoming incoming;
+    LogEventIncoming incoming;
     incoming.ipbLength = sizeof(incoming);
     incoming.hashDataPtr = 0;
     incoming.hashDataLen = 0;
     incoming.pcrIndex = pcrIndex;
+    incoming.logEventType = 0x0d; /* EV_IPL */
     incoming.logDataPtr = (grub_addr_t) event;
     incoming.logDataLen = eventStructSize;
 
-    EventOutgoing outgoing;
+    LogEventOutgoing outgoing;
     struct grub_bios_int_registers regs;
     regs.flags = GRUB_CPU_INT_FLAGS_DEFAULT;
-    regs.eax = 0xBB01;
+    regs.eax = 0xBB04;
     regs.ebx = TCPA;
     regs.ecx = 0;
     regs.edx = 0;
@@ -145,13 +196,12 @@ grub_TPM_int1A_hashLogExtendEvent( const grub_uint8_t* inDigest, grub_uint8_t pc
     grub_bios_interrupt (0x1A, &regs);
 
     if ( regs.eax != TCG_PC_OK ) {
-        grub_fatal( "TCG_HashLogExtendEvent failed: 0x%x", regs.eax );
+        grub_fatal( "TCG_HashLogEvent failed: 0x%x", regs.eax );
     }
 
 #ifdef TGRUB_DEBUG
     DEBUG_PRINT( ( "event number: %u \n", outgoing.eventNum ) );
     DEBUG_PRINT( ( "New PCR[%u]=", pcrIndex ) );
-    grub_uint8_t result[SHA1_DIGEST_SIZE] = { 0 };
     grub_TPM_readpcr( pcrIndex, &result[0] );
     print_sha1( result );
     DEBUG_PRINT( ( "\n\n" ) );
@@ -162,6 +212,64 @@ grub_TPM_int1A_hashLogExtendEvent( const grub_uint8_t* inDigest, grub_uint8_t pc
 }
 
 /************************* non-static functions *************************/
+
+/* grub_fatal() on error */
+void
+grub_TPM_extendpcr(const grub_uint8_t index, const grub_uint8_t* indigest, grub_uint8_t* result ) {
+
+    CHECK_FOR_NULL_ARGUMENT( result )
+    CHECK_FOR_NULL_ARGUMENT( indigest )
+    
+    PassThroughToTPM_InputParamBlock *passThroughInput = NULL;
+    PCRExtendIncoming* pcrExtendIncoming = NULL;
+    grub_uint16_t inputlen = sizeof( *passThroughInput ) - sizeof( passThroughInput->TPMOperandIn ) + sizeof( *pcrExtendIncoming );
+
+    PassThroughToTPM_OutputParamBlock *passThroughOutput = NULL;
+    PCRExtendOutgoing* pcrExtendOutgoing = NULL;
+    grub_uint16_t outputlen = sizeof( *passThroughOutput ) - sizeof( passThroughOutput->TPMOperandOut ) + sizeof( *pcrExtendOutgoing );
+
+    passThroughInput = grub_zalloc( inputlen );
+    if( ! passThroughInput ) {
+        grub_fatal( "extendpcr: memory allocation failed" );
+    }
+
+    passThroughInput->IPBLength = inputlen;
+    passThroughInput->OPBLength = outputlen;
+
+    pcrExtendIncoming = (void*) passThroughInput->TPMOperandIn;
+    pcrExtendIncoming->tag = grub_swap_bytes16_compile_time( TPM_TAG_RQU_COMMAND );
+    pcrExtendIncoming->paramSize = grub_swap_bytes32( sizeof( *pcrExtendIncoming ) );
+    pcrExtendIncoming->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_Extend );
+    pcrExtendIncoming->pcrIndex = grub_swap_bytes32( (grub_uint32_t) index);
+
+    grub_memcpy(pcrExtendIncoming->pcr_value, indigest, SHA1_DIGEST_SIZE );
+    
+    passThroughOutput = grub_zalloc( outputlen );
+    if( ! passThroughOutput ) {
+        grub_free( passThroughInput );
+        grub_fatal( "extendpcr: memory allocation failed" );
+    }
+
+    grub_TPM_int1A_passThroughToTPM( passThroughInput, passThroughOutput );
+    grub_free( passThroughInput );
+
+    pcrExtendOutgoing = (void *)passThroughOutput->TPMOperandOut;
+    grub_uint32_t tpm_PCRextendReturnCode = grub_swap_bytes32( pcrExtendOutgoing->returnCode );
+
+    if( tpm_PCRextendReturnCode != TPM_SUCCESS ) {
+        grub_free( passThroughOutput );
+
+        if( tpm_PCRextendReturnCode == TPM_BADINDEX ) {
+            grub_fatal( "extendpcr: bad pcr index" );
+        }
+
+        grub_fatal( "extendpcr: tpm_PCRextendReturnCode: %u", tpm_PCRextendReturnCode );
+    }
+
+    grub_memcpy( result, pcrExtendOutgoing->pcr_value, SHA1_DIGEST_SIZE );
+    grub_free( passThroughOutput );
+}
+
 
 /* grub_fatal() on error */
 void
@@ -342,7 +450,7 @@ grub_TPM_measure_string( const char* string ) {
     DEBUG_PRINT( ( "\n" ) );
 #endif
 
-    grub_TPM_int1A_hashLogExtendEvent( convertedResult, TPM_COMMAND_MEASUREMENT_PCR, string );
+    grub_TPM_extendAndLogPCR( convertedResult, TPM_COMMAND_MEASUREMENT_PCR, string );
 }
 
 /* grub_fatal() on error */
@@ -393,7 +501,7 @@ grub_TPM_measure_file( const char* filename, const grub_uint8_t index ) {
 #endif
 
     /* measure */
-    grub_TPM_int1A_hashLogExtendEvent( convertedResult, index, filename );
+    grub_TPM_extendAndLogPCR( convertedResult, index, filename );
 }
 
 void
@@ -428,6 +536,6 @@ grub_TPM_measure_buffer( const void* buffer, const grub_uint32_t bufferLen, cons
 #endif
 
     /* measure */
-    grub_TPM_int1A_hashLogExtendEvent( convertedResult, index, "measured buffer" );
+    grub_TPM_extendAndLogPCR( convertedResult, index, "measured buffer" );
 }
 /* End TCG Extension */
