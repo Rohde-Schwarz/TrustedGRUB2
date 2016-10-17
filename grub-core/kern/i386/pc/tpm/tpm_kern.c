@@ -41,26 +41,6 @@ static const grub_uint32_t TPM_ORD_PcrRead = 0x00000015;
 static const grub_uint32_t TPM_ORD_Extend = 0x00000014;
 /************************* struct typedefs *************************/
 
-/* TCG_HashLogExtendEvent Input Parameter Block (Format 2) */
-/*typedef struct {
-    grub_uint16_t ipbLength;
-    grub_uint16_t reserved;
-    grub_uint32_t hashDataPtr;
-    grub_uint32_t hashDataLen;
-    grub_uint32_t pcrIndex;
-    grub_uint32_t reserved2;
-    grub_uint32_t logDataPtr;
-    grub_uint32_t logDataLen;
- } GRUB_PACKED EventIncoming;
-*/
-/* TCG_HashLogExtendEvent Output Parameter Block */
-/*typedef struct {
-    grub_uint16_t opbLength;
-    grub_uint16_t reserved;
-    grub_uint32_t eventNum;
-    grub_uint8_t  hashValue[SHA1_DIGEST_SIZE];
-} GRUB_PACKED EventOutgoing;
-*/
 typedef struct {
     grub_uint32_t pcrIndex;
     grub_uint32_t eventType;
@@ -69,7 +49,7 @@ typedef struct {
     grub_uint8_t event[0];
 } GRUB_PACKED Event;
 
-/* TCG_HashLogEvent Input Parameter Block */
+/* TCG_HashLogEvent Input Parameter Block (Format 2) */
 typedef struct {
     grub_uint16_t ipbLength;
     grub_uint16_t reserved;
@@ -110,9 +90,10 @@ typedef struct {
     grub_uint32_t paramSize;
     grub_uint32_t ordinal;
     grub_uint32_t pcrIndex;
-    grub_uint8_t pcr_value[SHA1_DIGEST_SIZE];
+    grub_uint8_t inDigest[SHA1_DIGEST_SIZE];
 } GRUB_PACKED PCRExtendIncoming;
 
+/* TPM_Extend Outgoing Operand */
 typedef struct {
     grub_uint16_t tag;
     grub_uint32_t paramSize;
@@ -215,10 +196,10 @@ grub_TPM_extendAndLogPCR( const grub_uint8_t* inDigest, grub_uint8_t pcrIndex, c
 
 /* grub_fatal() on error */
 void
-grub_TPM_extendpcr(const grub_uint8_t index, const grub_uint8_t* indigest, grub_uint8_t* result ) {
+grub_TPM_extendpcr(const grub_uint8_t index, const grub_uint8_t* inDigest, grub_uint8_t* result ) {
 
     CHECK_FOR_NULL_ARGUMENT( result )
-    CHECK_FOR_NULL_ARGUMENT( indigest )
+    CHECK_FOR_NULL_ARGUMENT( inDigest )
     
     PassThroughToTPM_InputParamBlock *passThroughInput = NULL;
     PCRExtendIncoming* pcrExtendIncoming = NULL;
@@ -242,7 +223,7 @@ grub_TPM_extendpcr(const grub_uint8_t index, const grub_uint8_t* indigest, grub_
     pcrExtendIncoming->ordinal = grub_swap_bytes32_compile_time( TPM_ORD_Extend );
     pcrExtendIncoming->pcrIndex = grub_swap_bytes32( (grub_uint32_t) index);
 
-    grub_memcpy(pcrExtendIncoming->pcr_value, indigest, SHA1_DIGEST_SIZE );
+    grub_memcpy(pcrExtendIncoming->inDigest, inDigest, SHA1_DIGEST_SIZE );
     
     passThroughOutput = grub_zalloc( outputlen );
     if( ! passThroughOutput ) {
