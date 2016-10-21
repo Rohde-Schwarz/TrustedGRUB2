@@ -108,7 +108,8 @@ typedef struct {
  *
  * we hash ourself
  *
- *  grub_fatal() on error
+ *  grub_fatal() on error of the TPM_Extend
+ *  print warning on error of TCG_HashLogEvent
  *  Page 122 TCG_PCClientImplementation_1-21_1_00
  */
 static void
@@ -177,7 +178,7 @@ grub_TPM_extendAndLogPCR( const grub_uint8_t* inDigest, grub_uint8_t pcrIndex, c
     grub_bios_interrupt (0x1A, &regs);
 
     if ( regs.eax != TCG_PC_OK ) {
-        grub_fatal( "TCG_HashLogEvent failed: 0x%x", regs.eax );
+        grub_printf( "WARNING: TCG_HashLogEvent failed: 0x%x", regs.eax );
     }
 
 #ifdef TGRUB_DEBUG
@@ -190,6 +191,46 @@ grub_TPM_extendAndLogPCR( const grub_uint8_t* inDigest, grub_uint8_t pcrIndex, c
 #endif
 
     grub_free(event);
+}
+
+static void
+grub_TPM_int1A_compactHashLogExtendEvent( const grub_uint8_t* buffer, const grub_uint32_t bufferLen, grub_uint8_t pcrIndex ) {
+
+    CHECK_FOR_NULL_ARGUMENT( buffer );
+    
+    if( pcrIndex > 23 )
+    {
+        grub_fatal( "grub_TPM_int1A_compactHashLogExtendEvent: pcr > 23 is invalid" );
+    }
+
+    struct grub_bios_int_registers regs;
+    regs.flags = GRUB_CPU_INT_FLAGS_DEFAULT;
+    regs.eax = 0xBB07;
+    regs.es = (((grub_addr_t) &buffer) & 0xffff0000) >> 4;
+    regs.edi = ((grub_addr_t) &buffer) & 0xffff;
+
+    regs.ebx = TCPA;
+    regs.ecx = bufferLen;
+    regs.edx = pcrIndex;
+
+    /* informative value - currently 0 */
+    regs.esi = 0;
+
+    grub_bios_interrupt (0x1A, &regs);
+
+    if ( regs.eax != TCG_PC_OK ) {
+        grub_fatal( "TCG_CompactHashLogExtendEvent failed: 0x%x", regs.eax );
+    }
+
+#ifdef TGRUB_DEBUG
+    DEBUG_PRINT( ( "event number: %u \n", regs.edx ) );
+    DEBUG_PRINT( ( "New PCR[%u]=", pcrIndex ) );
+    grub_uint8_t result[SHA1_DIGEST_SIZE] = { 0 };
+    grub_TPM_readpcr( pcrIndex, &result[0] );
+    print_sha1( result );
+    DEBUG_PRINT( ( "\n\n" ) );
+    grub_sleep( 4 );
+#endif
 }
 
 /************************* non-static functions *************************/
@@ -408,6 +449,8 @@ grub_TPM_measure_string( const char* string ) {
 
     CHECK_FOR_NULL_ARGUMENT( string )
 
+/* Only self-hash when in debug mode */
+#ifdef TGRUB_DEBUG
     grub_uint32_t result[5] = { 0 };
     grub_err_t err = sha1_hash_string( string, result );
     if( err != GRUB_ERR_NONE ) {
@@ -424,14 +467,15 @@ grub_TPM_measure_string( const char* string ) {
         convertedResult[i++] = (result[j]&0xff);
     }
 
-#ifdef TGRUB_DEBUG
+
     DEBUG_PRINT( ( "string to measure: '%s'\n", string ) );
     DEBUG_PRINT( ( "SHA1 of string: " ) );
     print_sha1( convertedResult );
     DEBUG_PRINT( ( "\n" ) );
 #endif
 
-    grub_TPM_extendAndLogPCR( convertedResult, TPM_COMMAND_MEASUREMENT_PCR, string );
+    /* measure with compactHashLogExtendEvent */
+    grub_TPM_int1A_compactHashLogExtendEvent((const grub_uint8_t*) string, grub_strlen( string ), TPM_COMMAND_MEASUREMENT_PCR);
 }
 
 /* grub_fatal() on error */
@@ -481,7 +525,7 @@ grub_TPM_measure_file( const char* filename, const grub_uint8_t index ) {
     DEBUG_PRINT( ( "\n" ) );
 #endif
 
-    /* measure */
+    /* measure with the extend and log method */
     grub_TPM_extendAndLogPCR( convertedResult, index, filename );
 }
 
@@ -490,6 +534,8 @@ grub_TPM_measure_buffer( const void* buffer, const grub_uint32_t bufferLen, cons
 
     CHECK_FOR_NULL_ARGUMENT( buffer )
 
+/* Only self-hash when in debug mode */
+#ifdef TGRUB_DEBUG
     /* hash buffer */
     grub_uint32_t result[5] = { 0 };
     grub_err_t err = sha1_hash_buffer( buffer, bufferLen, result );
@@ -507,16 +553,15 @@ grub_TPM_measure_buffer( const void* buffer, const grub_uint32_t bufferLen, cons
         convertedResult[i++] = ((result[j]>>8)&0xff);
         convertedResult[i++] = (result[j]&0xff);
     }
-
-
-#ifdef TGRUB_DEBUG
+       
     /* print hash */
     DEBUG_PRINT( ( "SHA1 of buffer: " ) );
     print_sha1( convertedResult );
     DEBUG_PRINT( ( "\n" ) );
 #endif
 
-    /* measure */
-    grub_TPM_extendAndLogPCR( convertedResult, index, "measured buffer" );
+    /* measure with compactHashLogExtendEvent */
+    grub_TPM_int1A_compactHashLogExtendEvent(buffer, bufferLen, index);
+
 }
 /* End TCG Extension */
