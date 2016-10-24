@@ -206,8 +206,8 @@ grub_TPM_int1A_compactHashLogExtendEvent( const grub_uint8_t* buffer, const grub
     struct grub_bios_int_registers regs;
     regs.flags = GRUB_CPU_INT_FLAGS_DEFAULT;
     regs.eax = 0xBB07;
-    regs.es = (((grub_addr_t) &buffer) & 0xffff0000) >> 4;
-    regs.edi = ((grub_addr_t) &buffer) & 0xffff;
+    regs.es = (((grub_addr_t) buffer) & 0xffff0000) >> 4;
+    regs.edi = ((grub_addr_t) buffer) & 0xffff;
 
     regs.ebx = TCPA;
     regs.ecx = bufferLen;
@@ -445,7 +445,7 @@ grub_TPM_int1A_passThroughToTPM( const PassThroughToTPM_InputParamBlock* input, 
 
 /* grub_fatal() on error */
 void
-grub_TPM_measure_string( const char* string ) {
+grub_TPM_measure_string( const char* string, const grub_uint8_t index ) {
 
     CHECK_FOR_NULL_ARGUMENT( string )
 
@@ -475,7 +475,7 @@ grub_TPM_measure_string( const char* string ) {
 #endif
 
     /* measure with compactHashLogExtendEvent */
-    grub_TPM_int1A_compactHashLogExtendEvent((const grub_uint8_t*) string, grub_strlen( string ), TPM_COMMAND_MEASUREMENT_PCR);
+    grub_TPM_int1A_compactHashLogExtendEvent((const grub_uint8_t*) string, grub_strlen( string ), index);
 }
 
 /* grub_fatal() on error */

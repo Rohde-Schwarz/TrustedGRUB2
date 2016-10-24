@@ -49,7 +49,7 @@
 void EXPORT_FUNC(print_sha1) ( grub_uint8_t* inDigest );
 
 /*  Measure string */
-void EXPORT_FUNC(grub_TPM_measure_string) ( const char* string );
+void EXPORT_FUNC(grub_TPM_measure_string) ( const char* string, const grub_uint8_t index );
 /*  Measure file */
 void EXPORT_FUNC(grub_TPM_measure_file) ( const char* filename, const grub_uint8_t index );
 /*  Measure buffer */

@@ -1071,7 +1071,7 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
 	  }
 
 	  /*  measure string */
-	  grub_TPM_measure_string( commandAndArgs );
+	  grub_TPM_measure_string( commandAndArgs, TPM_COMMAND_MEASUREMENT_PCR );
 
 	  grub_free( commandAndArgs );
   }
