@@ -267,10 +267,11 @@ grub_TPM_hashExtendAndLogPCR( const void* buffer, const grub_uint32_t bufferLen,
             grub_printf( "Event Logging not mandatory, using TPM_Extend\n" );
         } else {
 #ifdef TGRUB_DEBUG
+            grub_uint8_t pcrResult[SHA1_DIGEST_SIZE] = {0};
             DEBUG_PRINT( ( "event number: %u \n", outgoing.eventNum ) );
             DEBUG_PRINT( ( "Old PCR[%u]=", pcrIndex ) );
-            grub_TPM_readpcr( pcrIndex, &result[0] );
-            print_sha1( result );
+            grub_TPM_readpcr( pcrIndex, &pcrResult[0] );
+            print_sha1( pcrResult );
             DEBUG_PRINT( ( "\n\n" ) );
             grub_sleep( 4 );
 #endif
@@ -360,10 +361,11 @@ grub_TPM_extendAndLogPCR( const grub_uint8_t* inDigest, const grub_uint8_t pcrIn
               
     } else {
 #ifdef TGRUB_DEBUG
+        grub_uint8_t pcrResult[SHA1_DIGEST_SIZE] = {0};
         DEBUG_PRINT( ( "event number: %u \n", outgoing.eventNum ) );
         DEBUG_PRINT( ( "Old PCR[%u]=", pcrIndex ) );
-        grub_TPM_readpcr( pcrIndex, &result[0] );
-        print_sha1( result );
+        grub_TPM_readpcr( pcrIndex, &pcrResult[0] );
+        print_sha1( pcrResult );
         DEBUG_PRINT( ( "\n\n" ) );
         grub_sleep( 4 );
 #endif
