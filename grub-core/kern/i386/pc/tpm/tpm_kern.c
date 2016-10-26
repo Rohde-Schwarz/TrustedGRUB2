@@ -603,7 +603,9 @@ void
 grub_TPM_measure_string( const char* string, const grub_uint8_t index ) {
 
     CHECK_FOR_NULL_ARGUMENT( string )
-        
+#ifdef TGRUB_DEBUG
+    grub_printf("string to measure: '%s'\n", string);
+#endif
     /* measure with TPM_Extend if logging works, else fall back
      * to TCG_compactLogHashEvent.  Event logging is essential.
      */
