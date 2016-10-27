@@ -241,21 +241,15 @@ grub_TPM_hashExtendAndLogPCR( const void* buffer, const grub_uint32_t bufferLen,
     regs.ds = (((grub_addr_t) &outgoing) & 0xffff0000) >> 4;
     regs.esi = ((grub_addr_t) &outgoing) & 0xffff;
 
+/* BIOS bug workaround - do not attempt TCG_hashLogEvent if it would hang */
+#ifndef TGRUB_NOEVENTLOG
     grub_bios_interrupt (0x1A, &regs);
-    
-    if ( regs.eax != TCG_PC_OK ) {
-        grub_printf( "WARNING: TCG_hashLogEvent (format 2) failed: 0x%x.  Attempting format 1.\n", regs.eax );
-
-        regs.eax = 0xBB04;
-        incoming.hashDataPtr = (grub_addr_t) buffer;
-        incoming.hashDataLen = bufferLen;
-        
-        grub_bios_interrupt (0x1A, &regs);
-        
-    }
+#endif
 
     if ( regs.eax != TCG_PC_OK && mandatoryLog) {
+#ifndef TGRUB_NOEVENTLOG
         grub_printf( "WARNING: TCG_HashLogEvent failed: 0x%x\n", regs.eax );
+#endif
         grub_printf( "Event Logging is mandatory, falling back to TCG_compactLogHashEvent\n" );
         
         grub_TPM_int1A_compactHashLogExtendEvent( buffer, bufferLen, pcrIndex );
@@ -263,8 +257,10 @@ grub_TPM_hashExtendAndLogPCR( const void* buffer, const grub_uint32_t bufferLen,
     } else {
 
         if ( regs.eax != TCG_PC_OK) {
+#ifndef TGRUB_NOEVENTLOG
             grub_printf( "WARNING: TCG_HashLogEvent failed: 0x%x\n", regs.eax );
             grub_printf( "Event Logging not mandatory, using TPM_Extend\n" );
+#endif
         } else {
 #ifdef TGRUB_DEBUG
             grub_uint8_t pcrResult[SHA1_DIGEST_SIZE] = {0};
@@ -354,11 +350,15 @@ grub_TPM_extendAndLogPCR( const grub_uint8_t* inDigest, const grub_uint8_t pcrIn
     regs.ds = (((grub_addr_t) &outgoing) & 0xffff0000) >> 4;
     regs.esi = ((grub_addr_t) &outgoing) & 0xffff;
 
+/* BIOS bug workaround - do not attempt TCG_hashLogEvent if it would hang */
+#ifndef TGRUB_NOEVENTLOG
     grub_bios_interrupt (0x1A, &regs);
-    
+#endif
+
     if ( regs.eax != TCG_PC_OK ) {
+#ifndef TGRUB_NOEVENTLOG
         grub_printf( "WARNING: TCG_HashLogEvent failed: 0x%x\n", regs.eax );
-              
+#endif              
     } else {
 #ifdef TGRUB_DEBUG
         grub_uint8_t pcrResult[SHA1_DIGEST_SIZE] = {0};
