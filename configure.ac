@@ -1157,7 +1157,7 @@ grub_CHECK_PIE
 [# Need that, because some distributions ship compilers that include
 # `-fPIE' in the default specs.
 if [ x"$pie_possible" = xyes ]; then
-  TARGET_CFLAGS="$TARGET_CFLAGS -fno-PIE"
+  TARGET_CFLAGS="$TARGET_CFLAGS -fno-PIE -no-pie"
 fi]
 
 CFLAGS="$TARGET_CFLAGS"
