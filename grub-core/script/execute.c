@@ -980,36 +980,19 @@ grub_script_execute_cmdline (struct grub_script_cmd *cmd)
   if ( grub_strncmp( cmdname, "menuentry", grub_strlen( "menuentry" ) ) != 0 &&
        grub_strncmp( cmdname, "submenu", grub_strlen( "submenu" ) ) != 0 &&
        grub_strncmp( cmdname, "[", grub_strlen( "[" ) ) != 0 ) {
+    int i;
 
-	  unsigned int i, commandAndArgsLength;
-	  commandAndArgsLength = grub_strlen(cmdname);
-	  for( i = 1; i < argv.argc; i++  ) {
-          /* calculate command length */
-		  commandAndArgsLength++;	/* one byte for whitespace  */
-		  commandAndArgsLength += grub_strlen(argv.args[i]); /* length of arg */
-	  }
-	  /* plus one byte for string termination */
-	  commandAndArgsLength++;
+    if (invert) {
+      grub_TPM_measure_string( "inverted-command" );
+    } else {
+      grub_TPM_measure_string( "command" );
+    }
+    grub_TPM_measure_string( cmdname );
 
-	  /* allocate memory now */
-	  char* commandAndArgs = grub_zalloc(commandAndArgsLength);
-	  if( !commandAndArgs ) {
-		  grub_errno = GRUB_ERR_OUT_OF_MEMORY;
-		  return grub_error (GRUB_ERR_OUT_OF_MEMORY,
-				     N_("memory allocation failed"));
-	  }
-
-	  grub_strcpy( commandAndArgs, cmdname );	/* copy command */
-
-	  /* append whitespace + args */
-	  for( i = 1; i < argv.argc; i++  ) {
-		  grub_snprintf(commandAndArgs, commandAndArgsLength, "%s%s%s", commandAndArgs, " ", argv.args[i]);
-	  }
-
-	  /*  measure string */
-	  grub_TPM_measure_string( commandAndArgs );
-
-	  grub_free( commandAndArgs );
+    for( i = 0; i < argc; i++  ) {
+      grub_TPM_measure_string( "argument" );
+      grub_TPM_measure_string( args[i] );
+    }
   }
   /* End TCG Extension */
 
