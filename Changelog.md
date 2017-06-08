@@ -1,5 +1,8 @@
 ### Changelog
 
+#### 1.5.0
+* Update to GRUB 2.02
+
 #### 1.4.0
 * Extend log on each TPM_Extend GH #11
 
