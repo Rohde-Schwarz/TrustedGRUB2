@@ -31,7 +31,7 @@ dnl (such as BUILD_CC, BUILD_CFLAGS, etc.) for the build type and variables
 dnl with the prefix "TARGET_" (such as TARGET_CC, TARGET_CFLAGS, etc.) are
 dnl used for the target type. See INSTALL for full list of variables.
 
-AC_INIT([GRUB],[2.02~beta2],[bug-grub@gnu.org])
+AC_INIT([GRUB],[2.02],[bug-grub@gnu.org])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -388,7 +388,15 @@ fi
 
 # Check for functions and headers.
 AC_CHECK_FUNCS(posix_memalign memalign getextmntent)
-AC_CHECK_HEADERS(sys/param.h sys/mount.h sys/mnttab.h sys/mkdev.h limits.h)
+AC_CHECK_HEADERS(sys/param.h sys/mount.h sys/mnttab.h limits.h)
+
+# glibc 2.25 still includes sys/sysmacros.h in sys/types.h but emits deprecation
+# warning which causes compilation failure later with -Werror. So use -Werror here
+# as well to force proper sys/sysmacros.h detection.
+SAVED_CFLAGS="$CFLAGS"
+CFLAGS="$HOST_CFLAGS -Werror"
+AC_HEADER_MAJOR
+CFLAGS="$SAVED_CFLAGS"
 
 AC_CHECK_MEMBERS([struct statfs.f_fstypename],,,[$ac_includes_default
 #include <sys/param.h>
@@ -910,12 +918,24 @@ if test x"$target_os" = xcygwin && test "x$grub_cv_cc_no_reorder_functions" = xy
   TARGET_CFLAGS="$TARGET_CFLAGS -fno-reorder-functions"
 fi
 
+AC_CACHE_CHECK([whether -mno-stack-arg-probe works], [grub_cv_cc_mno_stack_arg_probe], [
+  CFLAGS="$TARGET_CFLAGS -mno-stack-arg-probe"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+      [grub_cv_cc_mno_stack_arg_probe=yes],
+      [grub_cv_cc_mno_stack_arg_probe=no])
+])
+
+if test "x$grub_cv_cc_mno_stack_arg_probe" = xyes; then
+  TARGET_CFLAGS="$TARGET_CFLAGS -mno-stack-arg-probe"
+fi
+
+
 # By default, GCC 4.6 generates .eh_frame sections containing unwind
 # information in some cases where it previously did not. GRUB doesn't need
 # these and they just use up vital space. Restore the old compiler
 # behaviour.
 AC_CACHE_CHECK([whether -fno-asynchronous-unwind-tables works], [grub_cv_cc_fno_asynchronous_unwind_tables], [
-  CFLAGS="$TARGET_CFLAGS -fno-dwarf2-cfi-asm"
+  CFLAGS="$TARGET_CFLAGS -fno-asynchronous-unwind-tables"
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
       [grub_cv_cc_fno_asynchronous_unwind_tables=yes],
       [grub_cv_cc_fno_asynchronous_unwind_tables=no])
@@ -925,66 +945,17 @@ if test "x$grub_cv_cc_fno_asynchronous_unwind_tables" = xyes; then
   TARGET_CFLAGS="$TARGET_CFLAGS -fno-asynchronous-unwind-tables"
 fi
 
-AC_ARG_ENABLE([efiemu],
-	      [AS_HELP_STRING([--enable-efiemu],
-                             [build and install the efiemu runtimes (default=guessed)])])
-if test x"$enable_efiemu" = xno ; then
-  efiemu_excuse="explicitly disabled"
+AC_CACHE_CHECK([whether -fno-unwind-tables works], [grub_cv_cc_fno_unwind_tables], [
+  CFLAGS="$TARGET_CFLAGS -fno-unwind-tables"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+      [grub_cv_cc_fno_unwind_tables=yes],
+      [grub_cv_cc_fno_unwind_tables=no])
+])
+
+if test "x$grub_cv_cc_fno_unwind_tables" = xyes; then
+  TARGET_CFLAGS="$TARGET_CFLAGS -fno-unwind-tables"
 fi
-if test x"$grub_cv_target_cc_link_format" = x-mi386pe || test x"$grub_cv_target_cc_link_format" = x-mi386pep ; then
-  efiemu_excuse="not available on cygwin"
-fi
-if test x"$target_cpu" != xi386 ; then
-  efiemu_excuse="only available on i386"
-fi
-if test x"$platform" = xefi ; then
-  efiemu_excuse="not available on efi"
-fi
-if test x"$efiemu_excuse" = x ; then
-  AC_CACHE_CHECK([whether options required for efiemu work], grub_cv_cc_efiemu, [
-    CFLAGS="-m64 -nostdlib -O2 -mcmodel=large -mno-red-zone"
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
-		      [grub_cv_cc_efiemu=yes],
-		      [grub_cv_cc_efiemu=no])
-  ])
-  if test x$grub_cv_cc_efiemu = xno; then
-     efiemu_excuse="cannot compile with -m64 -mcmodel=large -mno-red-zone -nostdlib"
-  fi
-fi
-if test x"$efiemu_excuse" = x ; then
-  AC_CACHE_CHECK([for efiemu64 linking format], [grub_cv_target_cc_efiemu64_link_format], [
-    grub_cv_target_cc_efiemu64_link_format=unknown
-    for format in -melf_x86_64 -melf_x86_64_fbsd -melf_x86_64_obsd -melf_x86_64_haiku -arch,x86_64; do
-      CFLAGS="-m64 -nostdlib -O2 -mcmodel=large -mno-red-zone"
-      LDFLAGS="-m64 -Wl,$format -nostdlib -static"
-      AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-      asm (".globl start; start:");
-      asm (".globl _start; _start:");
-      asm (".globl __start; __start:");
-      void __main (void);
-      void __main (void) {}
-      ]], [[]])], [flag=1], [flag=0])
-      if test x"$flag" = x1; then
-        grub_cv_target_cc_efiemu64_link_format="$format"
-	break
-      fi
-    done])
-  if test x"$grub_cv_target_cc_efiemu64_link_format" = xunknown; then
-    efiemu_excuse="no suitable link format for efiemu64 found"
-  else
-    EFIEMU64_LINK_FORMAT="-Wl,$grub_cv_target_cc_efiemu64_link_format"
-  fi
-fi
-if test x"$enable_efiemu" = xyes && test x"$efiemu_excuse" != x ; then
-  AC_MSG_ERROR([efiemu runtime was explicitly requested but can't be compiled ($efiemu_excuse)])
-fi
-if test x"$efiemu_excuse" = x ; then
-enable_efiemu=yes
-else
-enable_efiemu=no
-fi
-AC_SUBST([enable_efiemu])
-AC_SUBST([EFIEMU64_LINK_FORMAT])
+
 
 CFLAGS="$TARGET_CFLAGS"
 
@@ -1078,6 +1049,73 @@ else
   TARGET_IMG_CFLAGS=
 fi
 
+CFLAGS="$TARGET_CFLAGS"
+
+AC_ARG_ENABLE([efiemu],
+	      [AS_HELP_STRING([--enable-efiemu],
+                             [build and install the efiemu runtimes (default=guessed)])])
+if test x"$enable_efiemu" = xno ; then
+  efiemu_excuse="explicitly disabled"
+fi
+
+if test x"$grub_cv_target_cc_link_format" = x-mi386pe || test x"$grub_cv_target_cc_link_format" = x-mi386pep ; then
+  efiemu_excuse="not available on cygwin"
+fi
+if test x"$target_cpu" != xi386 ; then
+  efiemu_excuse="only available on i386"
+fi
+if test x"$platform" = xefi ; then
+  efiemu_excuse="not available on efi"
+fi
+
+if test x"$efiemu_excuse" = x ; then
+  AC_CACHE_CHECK([whether options required for efiemu work], grub_cv_cc_efiemu, [
+    CFLAGS="-m64 -nostdlib -O2 -mcmodel=large -mno-red-zone"
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+		      [grub_cv_cc_efiemu=yes],
+		      [grub_cv_cc_efiemu=no])
+  ])
+  if test x$grub_cv_cc_efiemu = xno; then
+     efiemu_excuse="cannot compile with -m64 -mcmodel=large -mno-red-zone -nostdlib"
+  fi
+fi
+if test x"$efiemu_excuse" = x ; then
+  AC_CACHE_CHECK([for efiemu64 linking format], [grub_cv_target_cc_efiemu64_link_format], [
+    grub_cv_target_cc_efiemu64_link_format=unknown
+    for format in -melf_x86_64 -melf_x86_64_fbsd -melf_x86_64_obsd -melf_x86_64_haiku -arch,x86_64; do
+      CFLAGS="-m64 -nostdlib -O2 -mcmodel=large -mno-red-zone"
+      LDFLAGS="-m64 -Wl,$format -nostdlib -static"
+      AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      asm (".globl start; start:");
+      asm (".globl _start; _start:");
+      asm (".globl __start; __start:");
+      void __main (void);
+      void __main (void) {}
+      ]], [[]])], [flag=1], [flag=0])
+      if test x"$flag" = x1; then
+        grub_cv_target_cc_efiemu64_link_format="$format"
+	break
+      fi
+    done])
+  if test x"$grub_cv_target_cc_efiemu64_link_format" = xunknown; then
+    efiemu_excuse="no suitable link format for efiemu64 found"
+  else
+    EFIEMU64_LINK_FORMAT="-Wl,$grub_cv_target_cc_efiemu64_link_format"
+  fi
+fi
+if test x"$enable_efiemu" = xyes && test x"$efiemu_excuse" != x ; then
+  AC_MSG_ERROR([efiemu runtime was explicitly requested but can't be compiled ($efiemu_excuse)])
+fi
+if test x"$efiemu_excuse" = x ; then
+enable_efiemu=yes
+else
+enable_efiemu=no
+fi
+AC_SUBST([enable_efiemu])
+AC_SUBST([EFIEMU64_LINK_FORMAT])
+
+CFLAGS="$TARGET_CFLAGS"
+
 AC_SUBST(TARGET_LDFLAGS_OLDMAGIC)
 
 
@@ -1114,14 +1152,23 @@ if test "$target_cpu"-"$platform" = x86_64-efi; then
 fi
 
 if test "x$target_cpu" = xarm; then
-  AC_CACHE_CHECK([whether option -mlong-calls works], grub_cv_cc_mlong_calls, [
-    CFLAGS="$TARGET_CFLAGS -mlong-calls -Werror"
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
-		      [grub_cv_cc_mlong_calls=yes],
-		      [grub_cv_cc_mlong_calls=no])
+  AC_CACHE_CHECK([for options to disable movt and movw], grub_cv_target_cc_mno_movt, [
+    grub_cv_target_cc_mno_movt=no
+    for cand in "-mno-movt" \
+		"-mllvm -arm-use-movt=0"; do
+      if test x"$grub_cv_target_cc_mno_movt" != xno ; then
+        break
+      fi
+      CFLAGS="$TARGET_CFLAGS $cand -Werror"
+      CPPFLAGS="$TARGET_CPPFLAGS"
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+		        [grub_cv_target_cc_mno_movt="$cand"], [])
+    done
   ])
-  if test "x$grub_cv_cc_mlong_calls" = xyes; then
-    TARGET_CFLAGS="$TARGET_CFLAGS -mlong-calls"
+
+  if test x"$grub_cv_target_cc_mno_movt" != xno ; then
+    # A trick so that clang doesn't see it on link stage
+    TARGET_CPPFLAGS="$TARGET_CPPFLAGS $grub_cv_target_cc_mno_movt"
   fi
   AC_CACHE_CHECK([whether option -mthumb-interwork works], grub_cv_cc_mthumb_interwork, [
     CFLAGS="$TARGET_CFLAGS -mthumb-interwork -Werror"
@@ -1154,13 +1201,26 @@ CFLAGS="$TARGET_CFLAGS"
 
 # Position independent executable.
 grub_CHECK_PIE
+grub_CHECK_NO_PIE
+grub_CHECK_NO_PIE_ONEWORD
+grub_CHECK_LINK_PIE
 [# Need that, because some distributions ship compilers that include
-# `-fPIE' in the default specs.
+# `-fPIE' or '-fpie' and '-pie' in the default specs.
 if [ x"$pie_possible" = xyes ]; then
-  TARGET_CFLAGS="$TARGET_CFLAGS -fno-PIE"
+  TARGET_CFLAGS="$TARGET_CFLAGS -fno-PIE -fno-pie"
+fi
+
+if [ x"$link_nopie_needed" = xyes ] || [ x"$pie_possible" = xyes ]; then
+  if [ x"$nopie_possible" = xyes ]; then
+    TARGET_LDFLAGS="$TARGET_LDFLAGS -no-pie"
+  fi
+  if [ x"$nopie_oneword_possible" = xyes ]; then
+    TARGET_LDFLAGS="$TARGET_LDFLAGS -nopie"
+  fi
 fi]
 
 CFLAGS="$TARGET_CFLAGS"
+LDFLAGS="$TARGET_LDFLAGS"
 
 # Position independent executable.
 grub_CHECK_PIC
@@ -1169,9 +1229,12 @@ grub_CHECK_PIC
 # and reload $gp in every function.
 # GCC implements it using symbol __gnu_local_gp in non-PIC as well.
 # However with clang we need PIC for this reloading to happen.
+# With arm64 we need relocations that are in some way representable in
+# PE as we need to support arm64-efi. Without -fPIC clang generates
+# movk's which aren't representable.
 # Since default varies across dictributions use either -fPIC or -fno-PIC
 # explicitly.
-if ( test x$target_cpu = xmips || test x$target_cpu = xmipsel ) && test "x$grub_cv_cc_target_clang" = xyes ; then
+if ( test x$target_cpu = xmips || test x$target_cpu = xmipsel || test x$target_cpu = xarm64 ) && test "x$grub_cv_cc_target_clang" = xyes ; then
    TARGET_CFLAGS="$TARGET_CFLAGS -fPIC"
 elif [ x"$pic_possible" = xyes ]; then
    TARGET_CFLAGS="$TARGET_CFLAGS -fno-PIC"
@@ -1524,11 +1587,11 @@ if test x"$grub_build_mkfont_excuse" = x ; then
 else
   enable_build_grub_mkfont=no
 fi
-if test x"$enable_build_grub_mkfont" = xno && ( test "x$platform" = xqemu || test "x$platform" = xloongson || test "x$platform" = xqemu_mips || test "x$target_cpu"-"$platform" = xpowerpc-ieee1275 || test "x$platform" = xcoreboot ); then
+if test x"$enable_build_grub_mkfont" = xno && ( test "x$platform" = xqemu || test "x$platform" = xloongson || test "x$platform" = xqemu_mips || test "x$platform" = xcoreboot ); then
   if test x"$grub_build_mkfont_excuse" = x ; then
-    AC_MSG_ERROR([qemu, powerpc-ieee1275, coreboot and loongson ports needs build-time grub-mkfont])
+    AC_MSG_ERROR([qemu, coreboot and loongson ports need build-time grub-mkfont])
   else
-    AC_MSG_ERROR([qemu, powerpc-ieee1275, coreboot and loongson ports needs build-time grub-mkfont ($grub_build_mkfont_excuse)])
+    AC_MSG_ERROR([qemu, coreboot and loongson ports need build-time grub-mkfont ($grub_build_mkfont_excuse)])
   fi
 fi
 
@@ -1598,11 +1661,11 @@ if test x"$enable_build_grub_mkfont" = xno ; then
   FONT_SOURCE=
 fi
 
-if test "x$FONT_SOURCE" = x && ( test "x$platform" = xqemu || test "x$platform" = xloongson || test "x$platform" = xqemu_mips || test "x$target_cpu"-"$platform" = xpowerpc-ieee1275 || test "x$platform" = xcoreboot ); then
+if test "x$FONT_SOURCE" = x && ( test "x$platform" = xqemu || test "x$platform" = xloongson || test "x$platform" = xqemu_mips || test "x$platform" = xcoreboot ); then
   if test x"$grub_build_mkfont_excuse" = x ; then
-    AC_MSG_ERROR([qemu, powerpc-ieee1275, coreboot and loongson ports need unifont])
+    AC_MSG_ERROR([qemu, coreboot and loongson ports need unifont])
   else
-    AC_MSG_ERROR([qemu, powerpc-ieee1275, coreboot and loongson ports need unifont ($grub_build_mkfont_excuse)])
+    AC_MSG_ERROR([qemu, coreboot and loongson ports need unifont ($grub_build_mkfont_excuse)])
   fi
 fi
 

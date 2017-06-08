@@ -35,6 +35,12 @@
 #include <limits.h>
 #endif
 
+#if defined(MAJOR_IN_MKDEV)
+#include <sys/mkdev.h>
+#elif defined(MAJOR_IN_SYSMACROS)
+#include <sys/sysmacros.h>
+#endif
+
 #include <grub/types.h>
 #include <sys/ioctl.h>         /* ioctl */
 #include <sys/mount.h>
@@ -374,24 +380,30 @@ get_btrfs_fs_prefix (const char *mount_path)
 char **
 grub_find_root_devices_from_mountinfo (const char *dir, char **relroot)
 {
-  FILE *fp;
+  FILE *fp = NULL;
   char *buf = NULL;
   size_t len = 0;
-  grub_size_t entry_len = 0, entry_max = 4;
+  grub_size_t entry_len, entry_max = 4;
   struct mountinfo_entry *entries;
   struct mountinfo_entry parent_entry = { 0, 0, 0, "", "", "", "" };
   int i;
+  int retry = 0;
+  int dir_fd = -1;
+  char **ret = NULL;
 
   if (! *dir)
     dir = "/";
   if (relroot)
     *relroot = NULL;
 
+  entries = xmalloc (entry_max * sizeof (*entries));
+
+again:
   fp = grub_util_fopen ("/proc/self/mountinfo", "r");
   if (! fp)
-    return NULL; /* fall through to other methods */
+    goto out; /* fall through to other methods */
 
-  entries = xmalloc (entry_max * sizeof (*entries));
+  entry_len = 0;
 
   /* First, build a list of relevant visible mounts.  */
   while (getline (&buf, &len, fp) > 0)
@@ -478,7 +490,6 @@ grub_find_root_devices_from_mountinfo (const char *dir, char **relroot)
   /* Now scan visible mounts for the ones we're interested in.  */
   for (i = entry_len - 1; i >= 0; i--)
     {
-      char **ret = NULL;
       char *fs_prefix = NULL;
       if (!*entries[i].device)
 	continue;
@@ -509,6 +520,23 @@ grub_find_root_devices_from_mountinfo (const char *dir, char **relroot)
 	  ret = grub_find_root_devices_from_btrfs (dir);
 	  fs_prefix = get_btrfs_fs_prefix (entries[i].enc_path);
 	}
+      else if (!retry && grub_strcmp (entries[i].fstype, "autofs") == 0)
+	{
+	  /* If the best match is automounted, try to trigger mount. We cannot
+	     simply return here because stat() on automounted directory does not
+	     trigger mount and returns bogus (pseudo)device number instead.
+	     We keep mountpoint open until end of scan to prevent timeout. */
+
+	  int flags = O_RDONLY|O_DIRECTORY;
+
+	  fclose (fp);
+#ifdef O_LARGEFILE
+	  flags |= O_LARGEFILE;
+#endif
+	  dir_fd = open (entries[i].enc_path, flags);
+	  retry = 1;
+	  goto again;
+	}
       if (!ret)
 	{
 	  ret = xmalloc (2 * sizeof (ret[0]));
@@ -538,16 +566,17 @@ grub_find_root_devices_from_mountinfo (const char *dir, char **relroot)
 	}
       if (fs_prefix != entries[i].enc_root)
 	free (fs_prefix);
-      free (buf);
-      free (entries);
-      fclose (fp);
-      return ret;
+      break;
     }
 
+out:
   free (buf);
   free (entries);
-  fclose (fp);
-  return NULL;
+  if (fp)
+    fclose (fp);
+  if (dir_fd != -1)
+    close (dir_fd);
+  return ret;
 }
 
 static char *
@@ -1075,7 +1104,7 @@ grub_util_get_grub_dev_os (const char *os_dev)
   switch (grub_util_get_dev_abstraction (os_dev))
     {
       /* Fallback for non-devmapper build. In devmapper-builds LVM is handled
-	 in rub_util_get_devmapper_grub_dev and this point isn't reached.
+	 in grub_util_get_devmapper_grub_dev and this point isn't reached.
        */
     case GRUB_DEV_ABSTRACTION_LVM:
       {

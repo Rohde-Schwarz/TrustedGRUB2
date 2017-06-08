@@ -53,3 +53,82 @@ grub_arm64_set_xxxx26_offset (grub_uint32_t *place, grub_int64_t offset)
   *place &= insmask;
   *place |= grub_cpu_to_le32 (offset >> 2) & ~insmask;
 }
+
+int
+grub_arm64_check_hi21_signed (grub_int64_t offset)
+{
+  if (offset != (grub_int64_t)(grub_int32_t)offset)
+    return 0;
+  return 1;
+}
+
+void
+grub_arm64_set_hi21 (grub_uint32_t *place, grub_int64_t offset)
+{
+  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0x9f00001f);
+  grub_uint32_t val;
+
+  offset >>= 12;
+  
+  val = ((offset & 3) << 29) | (((offset >> 2) & 0x7ffff) << 5);
+  
+  *place &= insmask;
+  *place |= grub_cpu_to_le32 (val) & ~insmask;
+}
+
+void
+grub_arm64_set_abs_lo12 (grub_uint32_t *place, grub_int64_t target)
+{
+  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xffc003ff);
+
+  *place &= insmask;
+  *place |= grub_cpu_to_le32 (target << 10) & ~insmask;
+}
+
+void
+grub_arm64_set_abs_lo12_ldst64 (grub_uint32_t *place, grub_int64_t target)
+{
+  const grub_uint32_t insmask = grub_cpu_to_le32_compile_time (0xfff803ff);
+
+  *place &= insmask;
+  *place |= grub_cpu_to_le32 (target << 7) & ~insmask;
+}
+
+#pragma GCC diagnostic ignored "-Wcast-align"
+
+grub_err_t
+grub_arm64_dl_get_tramp_got_size (const void *ehdr, grub_size_t *tramp,
+				  grub_size_t *got)
+{
+  const Elf64_Ehdr *e = ehdr;
+  const Elf64_Shdr *s;
+  unsigned i;
+
+  *tramp = 0;
+  *got = 0;
+
+  for (i = 0, s = (Elf64_Shdr *) ((char *) e + grub_le_to_cpu64 (e->e_shoff));
+       i < grub_le_to_cpu16 (e->e_shnum);
+       i++, s = (Elf64_Shdr *) ((char *) s + grub_le_to_cpu16 (e->e_shentsize)))
+    if (s->sh_type == grub_cpu_to_le32_compile_time (SHT_REL)
+	|| s->sh_type == grub_cpu_to_le32_compile_time (SHT_RELA))
+      {
+	const Elf64_Rela *rel, *max;
+
+	for (rel = (Elf64_Rela *) ((char *) e + grub_le_to_cpu64 (s->sh_offset)),
+	       max = (const Elf64_Rela *) ((char *) rel + grub_le_to_cpu64 (s->sh_size));
+	     rel < max; rel = (const Elf64_Rela *) ((char *) rel + grub_le_to_cpu64 (s->sh_entsize)))
+	  switch (ELF64_R_TYPE (rel->r_info))
+	    {
+	    case R_AARCH64_CALL26:
+	    case R_AARCH64_JUMP26:
+	      *tramp += sizeof (struct grub_arm64_trampoline);
+	      break;
+	    case R_AARCH64_ADR_GOT_PAGE:
+	      *got += 8;
+	      break;
+	    }
+      }
+
+  return GRUB_ERR_NONE;
+}

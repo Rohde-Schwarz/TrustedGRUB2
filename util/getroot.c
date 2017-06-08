@@ -99,7 +99,7 @@ grub_util_pull_device (const char *os_dev)
     {
     case GRUB_DEV_ABSTRACTION_LVM:
       grub_util_pull_lvm_by_command (os_dev);
-      /* Fallthrough in case that lvm-tools are unavailable.  */
+      /* Fallthrough - in case that lvm-tools are unavailable.  */
     case GRUB_DEV_ABSTRACTION_LUKS:
       grub_util_pull_devmapper (os_dev);
       return;
@@ -382,9 +382,6 @@ grub_util_biosdisk_get_grub_dev (const char *os_dev)
 
     grub_util_info ("%s starts from %" GRUB_HOST_PRIuLONG_LONG,
 		    os_dev, (unsigned long long) ctx.start);
-
-    if (ctx.start == 0 && !is_part)
-      return name;
 
     grub_util_info ("opening the device %s", name);
     disk = grub_disk_open (name);

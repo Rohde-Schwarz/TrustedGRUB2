@@ -189,7 +189,11 @@ struct grub_fshelp_node {
   struct grub_fat_data *data;
 
   grub_uint8_t attr;
-  grub_ssize_t file_size;
+#ifndef MODE_EXFAT
+  grub_uint32_t file_size;
+#else
+  grub_uint64_t file_size;
+#endif
   grub_uint32_t file_cluster;
   grub_uint32_t cur_cluster_num;
   grub_uint32_t cur_cluster;
@@ -681,7 +685,7 @@ grub_fat_iterate_dir_next (grub_fshelp_node_t node,
 		  ctxt->dir.file_size
 		    = grub_cpu_to_le64 (sec.type_specific.stream_extension.file_size);
 		  ctxt->dir.have_stream = 1;
-		  ctxt->dir.is_contiguous = !!(dir.type_specific.stream_extension.flags
+		  ctxt->dir.is_contiguous = !!(sec.type_specific.stream_extension.flags
 					       & grub_cpu_to_le16_compile_time (FLAG_CONTIGUOUS));
 		  break;
 		case 0xc1:
